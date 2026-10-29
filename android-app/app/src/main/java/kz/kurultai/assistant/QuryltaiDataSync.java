@@ -18,16 +18,24 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Daily, offline-tolerant cache of public data from quryltai.kz official APIs. */
+/**
+ * Кэш публичных данных quryltai.kz (законопроекты, планы, комитеты, депутатские запросы).
+ * Обновляется раз в час, пока приложение открыто (и при каждом запуске); без сети работает на последнем снимке.
+ * После неудачной попытки следующая — не раньше чем через 5 минут.
+ */
 final class QuryltaiDataSync {
     private static final String PREFS = "quryltai_official_cache";
     private static final String KEY_DATA = "data";
     private static final String KEY_UPDATED = "updated";
-    private static final long DAY = 24L * 60L * 60L * 1000L;
-    private static final String BILLS = "https://quryltai.kz/api/core/draft-laws/?limit=20&offset=0";
+    private static final String KEY_LAST_ATTEMPT = "last_attempt";
+    private static final long REFRESH_INTERVAL = 60L * 60L * 1000L;
+    private static final long RETRY_AFTER_FAILURE = 5L * 60L * 1000L;
+    private static final int PROMPT_MAX_BILLS = 100;
+    private static final int PROMPT_MAX_REQUESTS = 120;
+    private static final String BILLS = "https://quryltai.kz/api/core/draft-laws/?limit=100&offset=0";
     private static final String PLANS = "https://quryltai.kz/api/main/work-plans/plans/";
     private static final String COMMITTEES = "https://quryltai.kz/api/core/committees/with-deputies/";
-    private static final String DEPUTY_REQUESTS = "https://quryltai.kz/api/core/deputy-requests/?limit=100&offset=0";
+    private static final String DEPUTY_REQUESTS = "https://quryltai.kz/api/core/deputy-requests/?limit=200&offset=0";
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
     private static volatile boolean refreshing;
 
@@ -47,9 +55,13 @@ final class QuryltaiDataSync {
                 listener.onData(existing, false);
             } catch (Exception ignored) { }
         }
-        long age = System.currentTimeMillis() - prefs.getLong(KEY_UPDATED, 0L);
-        if ((age < DAY && cacheHasCurrentSchema) || refreshing) return;
+        long now = System.currentTimeMillis();
+        long age = now - prefs.getLong(KEY_UPDATED, 0L);
+        long sinceAttempt = now - prefs.getLong(KEY_LAST_ATTEMPT, 0L);
+        if ((age < REFRESH_INTERVAL && cacheHasCurrentSchema) || refreshing) return;
+        if (cacheHasCurrentSchema && sinceAttempt >= 0 && sinceAttempt < RETRY_AFTER_FAILURE) return;
         refreshing = true;
+        prefs.edit().putLong(KEY_LAST_ATTEMPT, now).apply();
         EXECUTOR.execute(() -> {
             try {
                 JSONObject bills = getJson(BILLS);
@@ -86,37 +98,56 @@ final class QuryltaiDataSync {
             out.append("Обновлён: ").append(formatTime(data.optLong("updated_at"))).append(". ");
             out.append("Всего законопроектов: ").append(data.optInt("bill_count")).append(".\n");
             JSONArray bills = data.optJSONArray("bills");
-            for (int i = 0; bills != null && i < Math.min(12, bills.length()); i++) {
+            // Готовые итоги: модель ошибается, когда сама пересчитывает длинные списки.
+            if (bills != null && bills.length() > 0) {
+                java.util.Map<String, Integer> byStatus = new java.util.LinkedHashMap<>();
+                for (int i = 0; i < bills.length(); i++) {
+                    JSONObject bill = bills.optJSONObject(i);
+                    if (bill == null) continue;
+                    String name = statusName(bill.optInt("status"));
+                    Integer n = byStatus.get(name);
+                    byStatus.put(name, n == null ? 1 : n + 1);
+                }
+                out.append("Итоги по статусам (посчитано по ").append(bills.length()).append(" законопроектам, используй эти числа, не пересчитывай): ");
+                boolean firstStatus = true;
+                for (java.util.Map.Entry<String, Integer> e : byStatus.entrySet()) {
+                    if (!firstStatus) out.append("; ");
+                    out.append(e.getKey()).append(" — ").append(e.getValue());
+                    firstStatus = false;
+                }
+                out.append(".\n");
+            }
+            for (int i = 0; bills != null && i < Math.min(PROMPT_MAX_BILLS, bills.length()); i++) {
                 JSONObject bill = bills.optJSONObject(i);
                 if (bill == null) continue;
                 out.append("Законопроект ID ").append(bill.optInt("id")).append(": ")
-                    .append(bill.optString("title")).append("; опубликован ")
+                    .append(text(bill, "title").replace('\n', ' ')).append("; опубликован ")
                     .append(formatEpoch(bill.optLong("publish_date"))).append("; статус: ").append(statusName(bill.optInt("status"))).append(".\n");
             }
             JSONArray plans = data.optJSONArray("weekly_plans");
             for (int i = 0; plans != null && i < Math.min(3, plans.length()); i++) {
                 JSONObject plan = plans.optJSONObject(i);
-                if (plan != null) out.append("Недельный план: ").append(plan.optString("title").replace('\n', ' ')).append(".\n");
+                if (plan != null) out.append("Недельный план: ").append(text(plan, "title").replace('\n', ' ')).append(".\n");
             }
             JSONArray mainPlans = data.optJSONArray("main_plans");
             for (int i = 0; mainPlans != null && i < Math.min(3, mainPlans.length()); i++) {
                 JSONObject plan = mainPlans.optJSONObject(i);
-                if (plan != null) out.append("Основной план мероприятий: ").append(plan.optString("title").replace('\n', ' ')).append(".\n");
+                if (plan != null) out.append("Основной план мероприятий: ").append(text(plan, "title").replace('\n', ' ')).append(".\n");
             }
             JSONArray committees = data.optJSONArray("committees");
             if (committees != null && committees.length() > 0) {
-                out.append("\nОфициальный состав комитетов:\n");
+                out.append("\nОфициальный состав комитетов (всего комитетов: ").append(committees.length()).append("):\n");
                 for (int i = 0; i < committees.length(); i++) {
                     JSONObject committee = committees.optJSONObject(i);
                     if (committee == null) continue;
-                    out.append(committee.optString("name")).append(": ");
                     JSONArray deputies = committee.optJSONArray("deputies");
+                    out.append(text(committee, "name")).append(" (членов: ").append(deputies == null ? 0 : deputies.length()).append("): ");
                     for (int j = 0; deputies != null && j < deputies.length(); j++) {
                         JSONObject deputy = deputies.optJSONObject(j);
                         if (deputy == null) continue;
                         if (j > 0) out.append("; ");
-                        out.append(deputy.optString("name"));
-                        String position = deputy.optString("position");
+                        out.append(text(deputy, "name"));
+                        String position = text(deputy, "position");
                         if (!position.isEmpty()) out.append(" — ").append(position);
                     }
                     out.append(".\n");
@@ -126,13 +157,13 @@ final class QuryltaiDataSync {
             if (requests != null && requests.length() > 0) {
                 out.append("\nОфициальные депутатские запросы (всего ")
                     .append(data.optInt("deputy_request_count", requests.length())).append("):\n");
-                for (int i = 0; i < requests.length(); i++) {
+                for (int i = 0; i < Math.min(PROMPT_MAX_REQUESTS, requests.length()); i++) {
                     JSONObject request = requests.optJSONObject(i);
                     if (request == null) continue;
-                    out.append(request.optString("date")).append(" — ")
-                        .append(request.optString("number")).append(": ")
-                        .append(request.optString("title"));
-                    String authors = request.optString("authors");
+                    out.append(text(request, "date")).append(" — ")
+                        .append(text(request, "number")).append(": ")
+                        .append(text(request, "title"));
+                    String authors = text(request, "authors");
                     if (!authors.isEmpty()) out.append("; авторы: ").append(authors);
                     out.append(".\n");
                 }
@@ -198,11 +229,11 @@ final class QuryltaiDataSync {
                 String name = joinName(deputy);
                 if (!name.isEmpty()) members.put(new JSONObject()
                     .put("name", name)
-                    .put("position", deputy.optString("position")));
+                    .put("position", text(deputy, "position")));
             }
             result.put(new JSONObject()
                 .put("id", item.optInt("id"))
-                .put("name", item.optString("name"))
+                .put("name", text(item, "name"))
                 .put("deputies", members));
         }
         return result;
@@ -224,8 +255,8 @@ final class QuryltaiDataSync {
             }
             result.put(new JSONObject()
                 .put("id", item.optInt("id"))
-                .put("number", item.optString("registration_number"))
-                .put("title", item.optString("title").replace('\n', ' '))
+                .put("number", text(item, "registration_number"))
+                .put("title", text(item, "title").replace('\n', ' '))
                 .put("date", formatEpoch(item.optLong("request_date")))
                 .put("authors", authors.toString()));
         }
@@ -234,8 +265,15 @@ final class QuryltaiDataSync {
 
     private static String joinName(JSONObject person) {
         if (person == null) return "";
-        return (person.optString("last_name") + " " + person.optString("first_name") + " " +
-            person.optString("patronymic")).trim().replaceAll("\\s+", " ");
+        return (text(person, "last_name") + " " + text(person, "first_name") + " " +
+            text(person, "patronymic")).trim().replaceAll("\\s+", " ");
+    }
+
+    /** Поле без "null": на Android optString возвращает строку "null" для JSON null (например, нет отчества). */
+    private static String text(JSONObject object, String key) {
+        if (object == null || object.isNull(key)) return "";
+        String value = object.optString(key, "");
+        return "null".equals(value) ? "" : value;
     }
 
     // Bill status numbers as quryltai.kz uses them.

@@ -93,7 +93,7 @@ final class OpenRouterTts {
                     for (int i = 0; i < choices.length(); i++) {
                         JSONObject delta = choices.optJSONObject(i) == null ? null : choices.optJSONObject(i).optJSONObject("delta");
                         JSONObject audio = delta == null ? null : delta.optJSONObject("audio");
-                        String data = audio == null ? "" : audio.optString("data", "");
+                        String data = audio == null || audio.isNull("data") ? "" : audio.optString("data", "");
                         if (data.isEmpty()) continue;
                         byte[] pcm = Base64.decode(data, Base64.DEFAULT);
                         if (!started) { out.play(); started = true; }

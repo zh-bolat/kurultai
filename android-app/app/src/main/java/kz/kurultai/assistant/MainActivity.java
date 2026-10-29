@@ -923,7 +923,7 @@ public class MainActivity extends Activity {
                 JSONArray choices = response.optJSONArray("choices");
                 JSONObject first = choices == null || choices.length() == 0 ? null : choices.optJSONObject(0);
                 JSONObject messageObject = first == null ? null : first.optJSONObject("message");
-                if (messageObject != null) transcript = messageObject.optString("content", "").trim().replaceAll("^[\"«»]+|[\"«»]+$", "").trim();
+                transcript = jsonText(messageObject, "content").trim().replaceAll("^[\"«»]+|[\"«»]+$", "").trim();
                 if (turnId != voiceTurnId) return;
                 if (transcript.length() < 2) ignoreUnclearSpeech();
                 else if (!handleNativeVoiceCommand(transcript)) {
@@ -932,7 +932,7 @@ public class MainActivity extends Activity {
                     } else ignoreUnclearSpeech();
                 }
             } else backendResult(false, friendlyOpenRouterError(code, body));
-        } catch (Exception e) { backendResult(false, "Ошибка распознавания: " + e.getMessage()); }
+        } catch (Exception e) { backendResult(false, "Ошибка распознавания: " + describeError(e)); }
         finally { if (connection != null) connection.disconnect(); }
     }
 
@@ -957,6 +957,33 @@ public class MainActivity extends Activity {
         String[] keys = {"вчера", "позавчера", "на прошлой неделе", "итог", "чем закончил", "кеше", "өткен апта", "нәтиже", "последн", "новых закон", "новые закон", "подписал", "қол қойды", "новост", "недавн", "актуальн", "сегодня", "на этой неделе", "повестк", "обсужда", "соңғы", "жаңалық", "бүгін", "өзекті", "күн тәртіб", "талқыла"};
         for (String k : keys) if (m.contains(k)) return true;
         return false;
+    }
+
+    /**
+     * Нужен ли веб-поиск. Вопросы о данных приложения (законопроекты, комитеты, депутаты, запросы) отвечаются по снимку
+     * quryltai.kz без поиска: быстрее (≈2–4 с против 7–10 с) и в 6–10 раз дешевле. Поиск — для новостей, прошедших событий
+     * и расписания; общие слова «Курултай», «парламент», «сейчас» поиск не включают.
+     */
+    private static boolean needsWebSearch(String message) {
+        if (isLatestNewsQuestion(message)) return true;
+        String t = message == null ? "" : message.toLowerCase(Locale.ROOT);
+        String[] keys = {"завтра", "недел", "мероприят", "запланир", "план", "заседан", "событи", "ивент", "ближайш", "через час",
+            "в течение час", "ертең", "апта", "іс-шара", "іс шара", "жоспар", "отырыс", "оқиға", "жақын"};
+        for (String k : keys) if (t.contains(k)) return true;
+        return false;
+    }
+
+    /** Текст поля JSON без подстановки "null": Android org.json.optString возвращает "null" для JSON null. */
+    private static String jsonText(JSONObject object, String key) {
+        if (object == null || key == null || object.isNull(key)) return "";
+        String value = object.optString(key, "");
+        return "null".equals(value) ? "" : value;
+    }
+
+    private static String describeError(Throwable e) {
+        if (e == null) return "неизвестная ошибка";
+        String m = e.getMessage();
+        return m == null || m.trim().isEmpty() || "null".equals(m) ? e.getClass().getSimpleName() : m;
     }
 
     private boolean shouldAnswerSpeech(String transcript) {
@@ -1347,73 +1374,86 @@ public class MainActivity extends Activity {
             SimpleDateFormat clock = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss EEEE", new Locale("ru", "RU"));
             // Kazakhstan has used UTC+5 since 1 March 2024; old tzdata on the robot may still say +6 for Asia/Almaty.
             clock.setTimeZone(TimeZone.getTimeZone("GMT+05:00"));
-            String instructions = ASSISTANT_INSTRUCTIONS + " Текущие дата и время в Астане: " + clock.format(new Date()) +
-                ". Отвечай на языке: " + outputLanguage + ". Ниже официальный снимок quryltai.kz; результаты веб-поиска прилагаются только к вопросам о новостях и расписании. " +
+            // Системный промпт без изменяемых частей (время — в сообщении пользователя), чтобы провайдер кэшировал
+            // одинаковый префикс: инструкции + снимок quryltai.kz (≈15 тыс. токенов) стоят в 10 раз дешевле при попадании в кэш.
+            String instructions = ASSISTANT_INSTRUCTIONS +
+                " Ниже официальный снимок quryltai.kz; это основной источник по законопроектам, планам, комитетам и депутатским запросам. " +
+                "Результаты веб-поиска прилагаются только к вопросам о новостях и событиях. " +
                 "Если факта нет ни в снимке, ни в результатах поиска и он изменяемый, честно скажи, что актуальных официальных данных у тебя нет." +
                 QuryltaiDataSync.promptContext(this);
             boolean contextualFollowUp = isContextualFollowUp(message, previousUserQuestion);
-            String conversationInput = "[Язык вопроса: " + language + "; язык ответа: " + outputLanguage + "]\n";
+            String conversationInput = "[Текущие дата и время в Астане: " + clock.format(new Date()) + "; язык вопроса: " + language +
+                "; язык ответа: " + outputLanguage + "]\n";
             if (contextualFollowUp && !previousAssistantAnswer.isEmpty()) {
                 conversationInput += "Это уточнение к одному предыдущему обмену. Предыдущий вопрос: " + previousUserQuestion +
                     "\nПредыдущий ответ: " + previousAssistantAnswer + "\nСвяжи новый вопрос только с этим предыдущим вопросом.\n";
             }
             conversationInput += "Новый вопрос: " + message;
 
-            JSONObject request = new JSONObject();
-            request.put("model", llmModel);
-            request.put("messages", new JSONArray()
-                .put(new JSONObject().put("role", "system").put("content", instructions))
-                .put(new JSONObject().put("role", "user").put("content", conversationInput)));
-            boolean needsFreshFacts = isLatestNewsQuestion(message) || isScheduleQuestion(message);
-            if (needsFreshFacts) {
-                request.put("plugins", new JSONArray().put(new JSONObject()
-                    .put("id", "web").put("max_results", 3)
-                    .put("search_prompt", "Результаты веб-поиска на " + clock.format(new Date()) + ". Предпочитай официальные источники Республики Казахстан: quryltai.kz, akorda.kz, gov.kz, election.gov.kz, parlam.kz, adilet.zan.kz, stat.gov.kz, primeminister.kz.")));
-                request.put("reasoning", new JSONObject().put("effort", "low"));
-                request.put("max_tokens", 900);
-            } else {
-                request.put("max_tokens", 600);
-            }
-            request.put("temperature", 0.4);
+            boolean needsWeb = needsWebSearch(message);
+            String answer = "";
+            String usedModel = llmModel;
+            for (int attempt = 0; attempt < 2 && answer.isEmpty(); attempt++) {
+                JSONObject request = new JSONObject();
+                request.put("model", llmModel);
+                request.put("messages", new JSONArray()
+                    .put(new JSONObject().put("role", "system").put("content", instructions))
+                    .put(new JSONObject().put("role", "user").put("content", conversationInput)));
+                // Ответ по снимку — без размышлений: иначе модель иногда тратит весь лимит на reasoning и возвращает
+                // content = null (на Android optString превращает его в строку "null"). Новости — короткое размышление над поиском.
+                // Повторная попытка всегда без размышлений и с большим лимитом.
+                if (needsWeb && attempt == 0) {
+                    request.put("plugins", new JSONArray().put(new JSONObject()
+                        .put("id", "web").put("max_results", 3)
+                        .put("search_prompt", "Результаты веб-поиска на " + clock.format(new Date()) + ". Предпочитай официальные источники Республики Казахстан: quryltai.kz, akorda.kz, gov.kz, election.gov.kz, parlam.kz, adilet.zan.kz, stat.gov.kz, primeminister.kz.")));
+                    request.put("reasoning", new JSONObject().put("effort", "low"));
+                    request.put("max_tokens", 1500);
+                } else {
+                    request.put("reasoning", new JSONObject().put("effort", "none"));
+                    request.put("max_tokens", attempt == 0 ? 1000 : 1500);
+                }
+                request.put("temperature", 0.4);
 
-            connection = (HttpURLConnection) new URL(OPENROUTER_URL).openConnection();
-            connection.setRequestMethod("POST");
-            connection.setConnectTimeout(15000);
-            connection.setReadTimeout(90000);
-            connection.setRequestProperty("Authorization", "Bearer " + apiKey);
-            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            connection.setRequestProperty("Accept", "application/json");
-            connection.setRequestProperty("HTTP-Referer", "https://github.com/zh-bolat/kurultai");
-            connection.setRequestProperty("X-Title", "Kurultai Robot Assistant");
-            connection.setDoOutput(true);
-            try (OutputStream out = connection.getOutputStream()) {
-                out.write(request.toString().getBytes(StandardCharsets.UTF_8));
-            }
+                connection = (HttpURLConnection) new URL(OPENROUTER_URL).openConnection();
+                connection.setRequestMethod("POST");
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(90000);
+                connection.setRequestProperty("Authorization", "Bearer " + apiKey);
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                connection.setRequestProperty("Accept", "application/json");
+                connection.setRequestProperty("HTTP-Referer", "https://github.com/zh-bolat/kurultai");
+                connection.setRequestProperty("X-Title", "Kurultai Robot Assistant");
+                connection.setDoOutput(true);
+                try (OutputStream out = connection.getOutputStream()) {
+                    out.write(request.toString().getBytes(StandardCharsets.UTF_8));
+                }
 
-            int code = connection.getResponseCode();
-            String body = readBody(connection, code);
-            if (code >= 200 && code < 300) {
+                int code = connection.getResponseCode();
+                String body = readBody(connection, code);
+                connection.disconnect();
+                connection = null;
+                if (code < 200 || code >= 300) { backendResult(false, friendlyOpenRouterError(code, body)); return; }
                 JSONObject response = new JSONObject(body);
-                String answer = "";
                 JSONArray choices = response.optJSONArray("choices");
                 JSONObject first = choices == null || choices.length() == 0 ? null : choices.optJSONObject(0);
                 JSONObject messageObject = first == null ? null : first.optJSONObject("message");
-                if (messageObject != null) answer = cleanAnswerText(messageObject.optString("content", ""));
-                if (answer.isEmpty()) backendResult(false, "Модель не вернула текстовый ответ");
-                else if ("[REPEAT]".equalsIgnoreCase(answer) || "REPEAT".equalsIgnoreCase(answer) ||
-                    "[SILENCE]".equalsIgnoreCase(answer) || "SILENCE".equalsIgnoreCase(answer)) {
-                    ignoreUnclearSpeech();
-                } else {
-                    previousUserQuestion = message;
-                    previousAssistantAnswer = answer;
-                    backendResult(true, new JSONObject().put("answer", answer).put("language", outputLanguage)
-                        .put("model", response.optString("model", llmModel)).toString());
-                }
+                answer = cleanAnswerText(jsonText(messageObject, "content"));
+                usedModel = jsonText(response, "model").isEmpty() ? llmModel : jsonText(response, "model");
+                if (answer.isEmpty()) android.util.Log.w("KurultaiLLM", "empty answer, attempt=" + attempt +
+                    " finish=" + jsonText(first, "finish_reason") + " web=" + needsWeb);
+            }
+            if (answer.isEmpty()) backendResult(false, "Модель не вернула текстовый ответ. Повторите вопрос.");
+            else if ("[REPEAT]".equalsIgnoreCase(answer) || "REPEAT".equalsIgnoreCase(answer) ||
+                "[SILENCE]".equalsIgnoreCase(answer) || "SILENCE".equalsIgnoreCase(answer)) {
+                ignoreUnclearSpeech();
             } else {
-                backendResult(false, friendlyOpenRouterError(code, body));
+                previousUserQuestion = message;
+                previousAssistantAnswer = answer;
+                backendResult(true, new JSONObject().put("answer", answer).put("language", outputLanguage)
+                    .put("model", usedModel).toString());
             }
         } catch (Exception e) {
-            backendResult(false, "Не удалось связаться с OpenRouter: " + e.getMessage());
+            backendResult(false, "Не удалось связаться с OpenRouter: " + describeError(e));
         } finally {
             if (connection != null) connection.disconnect();
         }
@@ -1485,7 +1525,7 @@ public class MainActivity extends Activity {
             }
             try { Thread.sleep(700); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
         }
-        String detail = lastError == null ? "сервер не отвечает" : lastError.getMessage();
+        String detail = lastError == null ? "сервер не отвечает" : describeError(lastError);
         backendResult(false, "Не удалось связаться с AI-сервером: " + detail + ". Проверьте Wi-Fi и адрес сервера.");
     }
 
@@ -1507,7 +1547,7 @@ public class MainActivity extends Activity {
             int code = connection.getResponseCode();
             backendTestResult(code >= 200 && code < 300, code >= 200 && code < 300 ? "AI-сервер доступен" : "Сервер вернул код " + code);
         } catch (Exception e) {
-            backendTestResult(false, "Нет связи: " + e.getMessage());
+            backendTestResult(false, "Нет связи: " + describeError(e));
         } finally { if (connection != null) connection.disconnect(); }
     }
 
