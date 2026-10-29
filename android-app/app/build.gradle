@@ -40,6 +40,8 @@ android {
         // Штамп версии: git sha + дата сборки, чтобы версию было видно на роботе (бейдж подключения).
         versionName "5.50-${gitSha()}-${new Date().format('yyyyMMdd')}"
         buildConfigField 'String', 'EMBEDDED_OPENAI_KEY', '"' + (System.getenv('KURULTAI_EMBEDDED_OPENAI_KEY') ?: '') + '"'
+        // Ключ OpenRouter из secrets.properties (вне git): при первом запуске импортируется в Keystore робота.
+        buildConfigField 'String', 'EMBEDDED_OPENROUTER_KEY', '"' + (secrets.getProperty('OPENROUTER_KEY') ?: System.getenv('KURULTAI_EMBEDDED_OPENROUTER_KEY') ?: '') + '"'
     }
 
     signingConfigs {

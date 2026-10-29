@@ -1149,10 +1149,12 @@ public class MainActivity extends Activity {
     }
 
     private void importEmbeddedDemoKeyOnce() {
-        if (hasStoredApiKey() || !isValidApiKey(BuildConfig.EMBEDDED_OPENAI_KEY)) return;
-        try {
-            encryptAndStoreApiKey(BuildConfig.EMBEDDED_OPENAI_KEY);
-        } catch (Exception ignored) { }
+        if (!hasStoredApiKey() && isValidApiKey(BuildConfig.EMBEDDED_OPENAI_KEY)) {
+            try { encryptAndStoreApiKey(BuildConfig.EMBEDDED_OPENAI_KEY); } catch (Exception ignored) { }
+        }
+        if (!hasStoredOpenRouterKey() && isValidOpenRouterKey(BuildConfig.EMBEDDED_OPENROUTER_KEY)) {
+            try { encryptAndStoreKey(OPENROUTER_KEY_ALIAS, PREF_OR_CIPHER, PREF_OR_IV, BuildConfig.EMBEDDED_OPENROUTER_KEY); } catch (Exception ignored) { }
+        }
     }
 
     private void speakAnswer(String text, String language) {
