@@ -268,3 +268,10 @@ body[data-page=listPage] main>.page.active,body[data-page=requests] main>.page.a
 .rq-table{display:flex;flex-direction:column;overflow:hidden}
 .rq-th{position:static;flex:0 0 auto}
 .rq-body{flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+
+/* Tables and text cards: slightly translucent so the pale map shows through */
+:root{--glass:linear-gradient(160deg,rgba(255,255,255,.86) 0%,rgba(255,255,255,.7) 55%,rgba(255,255,255,.52) 100%)}
+.rq-table,.answer-head{background:var(--glass)}
+.rq-th{background:rgba(238,243,249,.82)}
+.askbox,.quick,.today,.result-card,.status-panel,.settings-panel,.robot-panel,.cm-panel,.cm-card,.rq-count,.back{background:var(--glass)}
+.cm-card.on{background:rgba(255,255,255,.9)}
