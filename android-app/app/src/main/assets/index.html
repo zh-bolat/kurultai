@@ -30,7 +30,7 @@
     <section id="home" class="page active">
       <div class="hero">
         <div><span class="status"><i></i> Голосовой помощник активен</span><h2>Комитет по цифровизации,<br>инновациям и науке</h2><p>Задайте вопрос — помощник подготовит и озвучит ответ</p></div>
-        <div class="orb"><div class="orb-core">AI</div></div>
+        <div class="orb" aria-hidden="true"><span class="orb-ring"></span><span class="orb-ring"></span><span class="orb-ring"></span><div class="orb-core"><i></i><i></i><i></i><i></i><i></i></div></div>
       </div>
       <div class="askbox"><button class="mic" id="mic" aria-label="Задать вопрос голосом" title="Задать вопрос голосом">🎙</button><input id="query" placeholder="Нажмите микрофон и задайте вопрос…"><button class="send" id="send">Спросить →</button></div>
       <div class="quick-grid">
@@ -88,7 +88,7 @@
 
   <div id="modal" class="modal hidden"><div class="modal-card"><button class="close">×</button><h2>Прямое подключение ChatGPT</h2><p>Введите API-ключ OpenAI или скопируйте его на роботе и нажмите «Вставить». После импорта буфер обмена очищается.</p><label>API-ключ OpenAI</label><input id="apiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="sk-proj-…"><button id="pasteApiKey" class="clipboard-import">Вставить ключ из буфера</button><div class="mode"><b>Модель</b><span id="modelLabel">gpt-6-astra</span></div><div id="aiKeyStatus" class="connection-test"></div><div class="settings-actions"><button id="deleteKey" class="danger">Удалить ключ</button><button id="saveApiKey" class="save">Сохранить ключ</button></div><details class="advanced"><summary>Дополнительно: собственный шлюз</summary><label>Адрес HTTPS-сервера</label><input id="endpoint" inputmode="url" autocomplete="off" placeholder="https://ai.example.kz/assistant"><div id="connectionTest" class="connection-test"></div><div class="settings-actions"><button id="testSettings" class="test">Проверить</button><button id="saveSettings" class="save">Сохранить шлюз</button></div></details></div></div>
   <section id="voiceDock" class="voice-dock active" aria-live="polite">
-    <button id="dockMic" class="voice-avatar" aria-label="Проверить микрофон и говорить сейчас"><span class="voice-face">••</span><span class="voice-waves"><i></i><i></i><i></i><i></i></span></button>
+    <button id="dockMic" class="voice-avatar" aria-label="Проверить микрофон и говорить сейчас"><span class="voice-face"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#fff"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg></span><span class="voice-waves"><i></i><i></i><i></i><i></i></span></button>
     <div class="voice-copy"><small id="voiceState">УДЕРЖИВАЙТЕ КНОПКУ</small><strong id="voiceTranscript">Нажмите и держите, пока говорите…</strong></div>
     <button id="dockToggle" class="voice-toggle">Говорить</button>
   </section>

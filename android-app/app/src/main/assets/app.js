@@ -133,3 +133,6 @@ appealsNav.onclick=()=>{
 };
 applyUiLanguage();
 if(window.Robot)Robot.getAssistantPreferences();
+
+// Badge reacts to the voice state: faster rings while listening and speaking
+;(function(){const base=setVoiceDock;setVoiceDock=function(state,text){base(state,text);const o=document.querySelector('.orb');if(o){o.classList.toggle('speaking',state==='speaking');o.classList.toggle('listening',state==='listening')}}})();
