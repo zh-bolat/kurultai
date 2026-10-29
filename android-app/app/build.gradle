@@ -27,7 +27,7 @@ android {
     }
 
     defaultConfig {
-        applicationId 'kz.kurultai.assistant'
+        applicationId 'kz.ustem.kurultai' // свой пакет: ставится рядом с приложением команды (kz.kurultai.assistant), обновляется поверх себя
         minSdk 23
         targetSdk 29
         versionCode 74

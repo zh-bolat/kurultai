@@ -26,6 +26,6 @@ if [[ "$OPENAI_ROBOT_KEY" != sk-* || ${#OPENAI_ROBOT_KEY} -lt 20 ]]; then
   exit 3
 fi
 
-"$ADB_BIN" shell am start -n kz.kurultai.assistant/.MainActivity --es openai_api_key "$OPENAI_ROBOT_KEY" >/dev/null
+"$ADB_BIN" shell am start -n kz.ustem.kurultai/kz.kurultai.assistant.MainActivity --es openai_api_key "$OPENAI_ROBOT_KEY" >/dev/null
 unset OPENAI_ROBOT_KEY
 print "На экране робота нажмите «Сохранить». После этого ключ будет зашифрован Android Keystore."

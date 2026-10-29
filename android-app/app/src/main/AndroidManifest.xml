@@ -15,7 +15,7 @@
         android:allowBackup="false"
         android:hardwareAccelerated="true"
         android:icon="@drawable/ic_launcher"
-        android:label="AI-помощник Комитета"
+        android:label="AI-помощник Курултая"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
         <activity
