@@ -1,6 +1,7 @@
-# --- Claude Code ---
-.claude/
-CLAUDE.md
+# --- Claude Code: CLAUDE.md и агенты общие для команды; личное и рабочее — нет ---
+.claude/*
+!.claude/agents/
+!.claude/skills/
 CLAUDE.local.md
 
 # --- Секреты и ключи ---
