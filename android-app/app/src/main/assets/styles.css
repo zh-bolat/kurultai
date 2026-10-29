@@ -214,3 +214,21 @@ body[data-page=robot] main{padding-top:32px}
 .robot-panel p{margin:0;font-size:15px;color:var(--muted2)}
 .head-controls{font-size:15px;color:var(--muted2)}
 .head-controls button{min-height:44px}
+
+
+/* Stage scaling: body is a fixed design-size stage scaled with transform by app.js (fitToScreen) */
+html{background:var(--bg)}
+body{position:fixed;left:0;top:0;transform-origin:0 0}
+/* Tables never spill past the right edge: fixed columns for number and status, titles wrap */
+.rq-table{width:100%}
+.rq-row>*{min-width:0}
+.rq-row .t{overflow-wrap:anywhere}
+.rq-row .n{white-space:normal;line-height:1.3}
+.rq-table.cols3 .rq-row{grid-template-columns:150px minmax(0,1fr) 260px}
+.rq-head{flex-wrap:wrap}
+.rq-head .pg-head{min-width:0;flex:1}
+.plan-last{background:#E4F1FA;border:1.5px solid #BFDcf0;border-radius:16px;padding:16px 22px;font-size:18px;color:var(--ink);line-height:1.4}
+.plan-last b{color:var(--accent-ink)}
+
+/* Label under the voice circle: aligned to the circle's right edge so it never leaves the screen */
+.vb-fab-label{left:auto;right:0;text-align:right}

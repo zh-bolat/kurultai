@@ -222,20 +222,20 @@ const UI={
  ru:{brand:'ИИ-помощник Курултая',nav:['Главная','Законопроекты','План недели','Комитеты и депутаты','Депутатские запросы','Робот и настройки'],src:'Официальные данные',upd:'обновлено',
   hero:'Добро пожаловать в Курултай Республики Казахстан',heroSub:'Удерживайте круг справа внизу и задайте вопрос голосом — или напишите его в строке ниже',query:'Задайте вопрос о Курултае…',ask:'Спросить',
   quick:[['Что такое Курултай','Кратко об органе и его полномочиях'],['Состав комитетов','Какие комитеты и кто их возглавляет'],['Законопроекты этой недели','Что сейчас рассматривает Курултай'],['Как подать обращение','Куда и как обратиться гражданину']],
-  today:'Сегодня',todaySub:'По плану Курултая',planT:'План работы на неделю',back:'На главную',askLabel:'ВЫ СПРОСИЛИ',fuTitle:'Можно спросить дальше',
+  today:'Сегодня',todaySub:'По плану Курултая',planT:'Последний опубликованный план',back:'На главную',askLabel:'ВЫ СПРОСИЛИ',fuTitle:'Можно спросить дальше',
   fu:['Какие комитеты есть в Курултае?','Чем Курултай отличается от прежнего Парламента?','Как подать обращение?'],asOf:'По данным на',src2:'Официальные данные Курултая',
   cmTitle:'Комитеты и депутаты',cmSub:n=>n+' постоянных комитетов · выберите комитет',cmCap:'СОСТАВ КОМИТЕТА',chairL:'Председатель комитета',chairP:'Председатель: ',member:'Член комитета',cmAsk:'Спросить помощника об этом комитете',cmQ:n=>'Расскажи о комитете Курултая: '+n,
   rqTitle:'Депутатские запросы',rqSub:'Самые свежие запросы депутатов Курултая к государственным органам',rqCountL:'запросов всего',rqH:['ДАТА','ТЕМА','АВТОРЫ','НОМЕР'],
-  billsT:'Законопроекты',billsSub:'Официальные данные Курултая с quryltai.kz',billsH:['НОМЕР','НАЗВАНИЕ','СТАТУС'],planTitle:'План недели',planSub:'Планы работы Курултая с quryltai.kz',planH:['ПЛАН','НАЗВАНИЕ','ИСТОЧНИК'],planRow:'План',
+  billsT:'Законопроекты',billsCount:'законопроектов всего',billsSub:'Официальные данные Курултая с quryltai.kz',billsH:['НОМЕР','НАЗВАНИЕ','СТАТУС'],planTitle:'План недели',planSub:'Планы работы Курултая с quryltai.kz',planH:['ПЛАН','НАЗВАНИЕ','ИСТОЧНИК'],planRow:'План',lastPlan:'Последний опубликованный план:',
   noData:'Данные ещё не загружены — нужно подключение к интернету',rbTitle:'Робот и настройки',review:'На рассмотрении',statusX:'Статус '},
  kk:{brand:'Құрылтайдың ЖИ-көмекшісі',nav:['Басты бет','Заң жобалары','Апта жоспары','Комитеттер мен депутаттар','Депутаттық сауалдар','Робот және баптаулар'],src:'Ресми деректер',upd:'жаңартылды',
   hero:'Қазақстан Республикасының Құрылтайына қош келдіңіз',heroSub:'Оң жақ төмендегі шеңберді басып тұрып сұрақ қойыңыз — немесе төмендегі жолға жазыңыз',query:'Құрылтай туралы сұрақ қойыңыз…',ask:'Сұрау',
   quick:[['Құрылтай деген не','Орган және оның өкілеттіктері туралы қысқаша'],['Комитеттер құрамы','Қандай комитеттер бар және оларды кім басқарады'],['Осы аптадағы заң жобалары','Құрылтай қазір не қарап жатыр'],['Өтініш қалай беріледі','Азаматқа қайда және қалай жүгінуге болады']],
-  today:'Бүгін',todaySub:'Құрылтай жоспары бойынша',planT:'Апталық жұмыс жоспары',back:'Басты бетке',askLabel:'СІЗ СҰРАДЫҢЫЗ',fuTitle:'Тағы сұрауға болады',
+  today:'Бүгін',todaySub:'Құрылтай жоспары бойынша',planT:'Соңғы жарияланған жоспар',back:'Басты бетке',askLabel:'СІЗ СҰРАДЫҢЫЗ',fuTitle:'Тағы сұрауға болады',
   fu:['Құрылтайда қандай комитеттер бар?','Құрылтай бұрынғы Парламенттен немен ерекшеленеді?','Өтінішті қалай беруге болады?'],asOf:'Деректер күні:',src2:'Құрылтайдың ресми деректері',
   cmTitle:'Комитеттер мен депутаттар',cmSub:n=>n+' тұрақты комитет · комитетті таңдаңыз',cmCap:'КОМИТЕТ ҚҰРАМЫ',chairL:'Комитет төрағасы',chairP:'Төраға: ',member:'Комитет мүшесі',cmAsk:'Осы комитет туралы көмекшіден сұрау',cmQ:n=>'Құрылтай комитеті туралы айтып бер: '+n,
   rqTitle:'Депутаттық сауалдар',rqSub:'Құрылтай депутаттарының мемлекеттік органдарға соңғы сауалдары',rqCountL:'сауал барлығы',rqH:['КҮНІ','ТАҚЫРЫБЫ','АВТОРЛАРЫ','НӨМІРІ'],
-  billsT:'Заң жобалары',billsSub:'quryltai.kz сайтындағы Құрылтайдың ресми деректері',billsH:['НӨМІРІ','АТАУЫ','МӘРТЕБЕСІ'],planTitle:'Апта жоспары',planSub:'quryltai.kz сайтындағы Құрылтайдың жұмыс жоспарлары',planH:['ЖОСПАР','АТАУЫ','ДЕРЕККӨЗ'],planRow:'Жоспар',
+  billsT:'Заң жобалары',billsCount:'заң жобасы барлығы',billsSub:'quryltai.kz сайтындағы Құрылтайдың ресми деректері',billsH:['НӨМІРІ','АТАУЫ','МӘРТЕБЕСІ'],planTitle:'Апта жоспары',planSub:'quryltai.kz сайтындағы Құрылтайдың жұмыс жоспарлары',planH:['ЖОСПАР','АТАУЫ','ДЕРЕККӨЗ'],planRow:'Жоспар',lastPlan:'Соңғы жарияланған жоспар:',
   noData:'Деректер әлі жүктелмеді — интернет қажет',rbTitle:'Робот және баптаулар',review:'Қаралуда',statusX:'Мәртебе '}};
 const T=()=>language==='kk'?UI.kk:UI.ru;
 const el=id=>document.getElementById(id);
@@ -244,9 +244,12 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const KK_M=['қаңтар','ақпан','наурыз','сәуір','мамыр','маусым','шілде','тамыз','қыркүйек','қазан','қараша','желтоқсан'];
 const fmtDay=d=>{if(language==='kk')return d.getDate()+' '+KK_M[d.getMonth()];try{return d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}catch(e){return d.toDateString()}};
 let page='home',cmPick=0;
+const ST={ru:{5:'На рассмотрении',6:'Одобрено в первом чтении',12:'Одобрено во втором чтении',7:'Принято',8:'Принято на совместном заседании',9:'Подписано Президентом',10:'Отозвано',13:'Отклонено',11:'Возвращено Сенатом'},kk:{5:'Құрылтайдың қарауында',6:'Бірінші оқылымда мақұлданды',12:'Екінші оқылымда мақұлданды',7:'Қабылданды',8:'Бірлескен отырыста қабылданды',9:'Президент қол қойды',10:'Кері қайтарып алынды',13:'Қабылданбады',11:'Сенат қайтарды'}};
+const stName=c=>(ST[language==='kk'?'kk':'ru'][c])||(language==='kk'?'Мәртебесі нақтылануда':'Статус уточняется');
 
 // Scale the 1920px-wide design to the real window (keeps the prototype's proportions on any screen).
-function fitToScreen(){const z=Math.max(.3,innerWidth/1920);document.documentElement.style.zoom=z;document.body.style.height=Math.round(innerHeight/z)+'px'}
+function fitToScreen(){const w=document.documentElement.clientWidth||innerWidth,h=document.documentElement.clientHeight||innerHeight;const s=Math.max(.2,Math.min(w/1920,h/1080));const b=document.body.style;document.documentElement.style.zoom='';b.transform='scale('+s+')';b.width=(w/s)+'px';b.height=(h/s)+'px'}
+window.addEventListener('orientationchange',()=>setTimeout(fitToScreen,200));
 fitToScreen();window.addEventListener('resize',fitToScreen);
 
 function data(){return (typeof quryltaiOfficial!=='undefined'&&quryltaiOfficial)||null}
@@ -278,10 +281,11 @@ function renderFollowups(){const box=el('fuList');if(!box)return;box.innerHTML=T
 function tableHtml(head,rows,cls){return '<div class="rq-table '+(cls||'')+'"><div class="rq-row rq-th">'+head.map(h=>'<span>'+esc(h)+'</span>').join('')+'</div>'+
  (rows.length?rows.map(r=>'<div class="rq-row"><b>'+esc(r[0])+'</b><span class="t">'+esc(r[1])+'</span>'+(r.length>3?'<span class="a">'+esc(r[2])+'</span><span class="n">'+esc(r[3])+'</span>':'<span class="n">'+esc(r[2])+'</span>')+'</div>').join(''):'<div class="rq-empty">'+esc(T().noData)+'</div>')+'</div>'}
 function renderList(kind){const t=T(),d=data();let html='';
- if(kind==='bills'){const rows=d&&d.bills?d.bills.slice(0,20).map(b=>['№ '+b.id,b.title,b.status===5?t.review:t.statusX+b.status]):[];
-  html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.billsT)+'</h1><span>'+esc(t.billsSub)+'</span></div>'+(d?'<div class="rq-count"><b>'+esc(d.bill_count||0)+'</b><span>'+esc(t.billsT.toLowerCase())+'</span></div>':'')+'</div>'+tableHtml(t.billsH,rows,'cols3')}
+ if(kind==='bills'){const rows=d&&d.bills?d.bills.slice(0,20).map(b=>['№ '+b.id,b.title,stName(b.status)]):[];
+  html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.billsT)+'</h1><span>'+esc(t.billsSub)+'</span></div>'+(d?'<div class="rq-count"><b>'+esc(d.bill_count||0)+'</b><span>'+esc(t.billsCount)+'</span></div>':'')+'</div>'+tableHtml(t.billsH,rows,'cols3')}
  else{const rows=d&&d.weekly_plans?d.weekly_plans.map(p=>[t.planRow,String(p.title||'').replace(/\s+/g,' ').trim(),'quryltai.kz']):[];
-  html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.planTitle)+'</h1><span>'+esc(t.planSub)+'</span></div></div>'+tableHtml(t.planH,rows,'cols3')}
+  const last=rows[0]?'<div class="plan-last"><b>'+esc(t.lastPlan)+'</b> '+esc(rows[0][1])+'</div>':'';
+  html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.planTitle)+'</h1><span>'+esc(t.planSub)+'</span></div></div>'+last+tableHtml(t.planH,rows,'cols3')}
  const c=el('listContent');if(c)c.innerHTML=html}
 function renderRequests(){const t=T(),d=data();setT('rqCount',d?String(d.deputy_request_count||0):'—');
  const rows=d&&d.deputy_requests?d.deputy_requests.slice(0,30).map(r=>[r.date,r.title,r.authors,r.number]):[];

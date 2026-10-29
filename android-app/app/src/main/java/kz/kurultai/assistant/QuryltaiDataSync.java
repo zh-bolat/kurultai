@@ -91,8 +91,7 @@ final class QuryltaiDataSync {
                 if (bill == null) continue;
                 out.append("Законопроект ID ").append(bill.optInt("id")).append(": ")
                     .append(bill.optString("title")).append("; опубликован ")
-                    .append(formatEpoch(bill.optLong("publish_date"))).append("; статус-код ")
-                    .append(bill.optInt("status")).append(".\n");
+                    .append(formatEpoch(bill.optLong("publish_date"))).append("; статус: ").append(statusName(bill.optInt("status"))).append(".\n");
             }
             JSONArray plans = data.optJSONArray("weekly_plans");
             for (int i = 0; plans != null && i < Math.min(3, plans.length()); i++) {
@@ -237,6 +236,22 @@ final class QuryltaiDataSync {
         if (person == null) return "";
         return (person.optString("last_name") + " " + person.optString("first_name") + " " +
             person.optString("patronymic")).trim().replaceAll("\\s+", " ");
+    }
+
+    // Bill status numbers as quryltai.kz uses them.
+    private static String statusName(int code) {
+        switch (code) {
+            case 5: return "на рассмотрении";
+            case 6: return "одобрен в первом чтении";
+            case 12: return "одобрен во втором чтении";
+            case 7: return "принят";
+            case 8: return "принят на совместном заседании";
+            case 9: return "подписан Президентом";
+            case 10: return "отозван";
+            case 13: return "отклонён";
+            case 11: return "возвращён Сенатом";
+            default: return "уточняется";
+        }
     }
 
     private static String formatTime(long millis) {
