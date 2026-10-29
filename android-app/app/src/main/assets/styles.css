@@ -66,7 +66,7 @@ main{padding-bottom:108px}
 /* Question bar sits below the welcome banner instead of overlapping its bottom edge */
 .askbox{margin-top:14px}
 @media (max-width:700px) and (max-height:450px) and (orientation:landscape){.askbox{margin-top:8px}}
-/* Typography: PT Serif (Times-style serif with Kazakh Cyrillic), Noto Serif / Times New Roman as offline fallback */
-body{font-family:"PT Serif","Noto Serif","Times New Roman",Times,serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.4}
+/* Typography: Inter (covers Kazakh Cyrillic), Roboto from Android as the offline fallback */
+body{font-family:"Inter",Roboto,"Segoe UI","Helvetica Neue",Arial,sans-serif;font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.4}
 button,input,textarea,select{font-family:inherit}
-h1,h2,h3,.hero h2{font-weight:700;letter-spacing:0}
+h1,h2,h3,.hero h2{letter-spacing:-0.02em;font-weight:700}
