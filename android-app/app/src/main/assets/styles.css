@@ -93,7 +93,7 @@ h1,h2,h3,.hero h2{letter-spacing:-0.02em;font-weight:700}
 /* Robot screen (14", 1600×900): home fits without scrolling, voice bar aligned with the content and clear of the sidebar */
 @media (min-width:1500px) and (min-height:850px){
   header{height:100px}
-  .hero{height:228px;padding:30px 45px}.orb{width:250px;height:250px}
+  .hero{padding:30px 45px}
   .askbox{height:80px;margin-top:14px;margin-bottom:18px}
   .quick{min-height:150px;padding:18px 22px}
   .today{min-height:96px;padding:14px 24px}
@@ -129,3 +129,35 @@ h1,h2,h3,.hero h2{letter-spacing:-0.02em;font-weight:700}
    Kept in the markup (hidden) because the script still toggles its classes. */
 .askbox .mic{display:none}
 .askbox input{padding-left:18px}
+
+
+/* Voice bar: the round icon is a status light, the button on the right is the only control */
+.voice-avatar{pointer-events:none;cursor:default}
+.voice-toggle{background:#2c9be0;border-color:#2c9be0;color:#fff;font-weight:800;box-shadow:0 6px 16px #0b2b5544}
+.voice-toggle.recording{background:#e5484d;border-color:#e5484d}
+.voice-toggle.stop{background:#fff;border-color:#fff;color:#1f3d6b}
+.voice-toggle:disabled{background:#ffffff22;border-color:#a8e7ff44;color:#d6e6f5;box-shadow:none}
+
+
+/* Home: the banner circle is the voice button (caption under it); no status chip; bottom voice bar hidden */
+.hero .status{display:none}
+.hero{height:auto;min-height:200px}
+.voice-cta{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;z-index:1;text-align:center}
+.voice-cta .orb{width:150px;height:150px;border:0;padding:0;margin:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.voice-cta .orb:active .orb-core{transform:scale(.95)}
+.voice-cta b{color:#fff;font-size:17px;font-weight:800}
+.voice-cta small{color:#c8d7eb;font-size:12px}
+.orb.listening .orb-core{background:radial-gradient(circle at 35% 30%,#ffb3b5,#e5484d 60%,#c4353a);box-shadow:0 0 0 6px #e5484d33,0 0 36px #e5484d88}
+.orb.listening .orb-ring{animation:orbRing 2.4s ease-out infinite;border-color:rgba(255,170,172,.7)}
+.orb.listening .orb-ring:nth-child(1){opacity:1}
+.orb.thinking .orb-core{opacity:.75}.orb.thinking{cursor:default}
+body.on-home .voice-dock{display:none}
+body.on-home main{padding-bottom:24px}
+@media (max-width:1100px) and (max-height:700px) and (orientation:landscape){.voice-cta .orb{width:110px;height:110px}.voice-cta b{font-size:14px}.voice-cta small{font-size:10px}.hero{min-height:150px}}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.voice-cta .orb{width:72px;height:72px}.voice-cta small{display:none}.voice-cta b{font-size:11px}.hero{min-height:110px}}
+@media (min-width:1500px) and (min-height:850px){.hero{min-height:260px}.voice-cta .orb{width:180px;height:180px}.voice-cta b{font-size:21px}.voice-cta small{font-size:15px}}
+.voice-cta{gap:2px}.voice-cta .orb{margin-bottom:-12px}
+
+/* Analytics: period/region are static labels (they had no function as buttons) */
+.dash-filters span{display:inline-flex;align-items:center;background:#eef3f9;border-radius:9px;padding:9px 12px;color:#53617a;font-size:12px;font-weight:600}
+@media (min-width:1500px) and (min-height:850px){.dash-filters span{font-size:14px}}

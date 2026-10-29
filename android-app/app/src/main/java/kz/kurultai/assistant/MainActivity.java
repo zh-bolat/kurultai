@@ -415,7 +415,7 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface public void listen(String language) {
-            runOnUiThread(() -> js("window.onVoiceError && window.onVoiceError('Нажмите «Говорить», чтобы начать запись')"));
+            runOnUiThread(() -> js("window.onVoiceError && window.onVoiceError('Нажмите «Спросить голосом», чтобы начать запись')"));
         }
 
         @JavascriptInterface public void setContinuousListening(boolean enabled, String language) {
@@ -824,7 +824,7 @@ public class MainActivity extends Activity {
         final byte[] wav = wavRecorder.stop();
         // Hubl threshold: reject an accidental tap shorter than roughly half a second.
         if (wav.length < 44 + 16_000) {
-            uiJs("window.onVoiceError && window.onVoiceError('Запись слишком короткая — нажмите «Говорить» и задайте вопрос')");
+            uiJs("window.onVoiceError && window.onVoiceError('Запись слишком короткая — нажмите «Спросить голосом» и задайте вопрос')");
             return;
         }
         uiJs("window.onRawRecordingStopped && window.onRawRecordingStopped()");
