@@ -232,3 +232,6 @@ body{position:fixed;left:0;top:0;transform-origin:0 0}
 
 /* Label under the voice circle: aligned to the circle's right edge so it never leaves the screen */
 .vb-fab-label{left:auto;right:0;text-align:right}
+
+/* The language switch must sit above the page content, or taps land on the home section instead of the button */
+main>header:not(.bg-map){z-index:6}
