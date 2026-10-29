@@ -267,3 +267,20 @@ main>header:not(.bg-map){position:absolute;z-index:3}
   .today{padding:16px 27px}
 }
 @media (min-width:1500px) and (min-height:850px){.hero{padding-top:47px}header{top:47px}.askbox,.quick-grid,.today{margin-top:33px}.quick{min-height:200px}}
+
+
+/* Voice control: a round button in the bottom-right corner at rest; it unfolds right-to-left into the full bar
+   while the robot listens, prepares or speaks, and folds back when it is done. */
+.voice-dock{pointer-events:none;display:flex;justify-content:flex-end;align-items:flex-end}
+.voice-dock .voice-banner{pointer-events:auto;--orb:96px;margin-left:auto;overflow:hidden;white-space:nowrap;
+  max-width:1400px;transition:max-width .5s cubic-bezier(.2,.8,.2,1),padding .5s cubic-bezier(.2,.8,.2,1),border-radius .5s ease}
+.voice-dock .voice-banner .orb{width:var(--orb);height:var(--orb)}
+.voice-dock .vb-text,.voice-dock .vb-status{transition:opacity .25s ease .2s}
+.voice-dock.active .voice-banner{max-width:calc(var(--orb) + 24px);padding:11px;border-radius:999px;gap:0}
+.voice-dock.active .vb-text,.voice-dock.active .vb-status{opacity:0;transition-delay:0s}
+.vb-fab-label{position:absolute;right:0;bottom:calc(100% + 10px);pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .25s ease,transform .25s ease;
+  font-size:14px;font-weight:800;color:#1f2f52;background:rgba(255,255,255,.92);border:1.5px solid #B8C4D6;border-radius:999px;padding:6px 12px;white-space:nowrap}
+.voice-dock.active .vb-fab-label{opacity:1;transform:none;transition-delay:.25s}
+@media (max-width:1100px) and (max-height:700px) and (orientation:landscape){.voice-dock .voice-banner{--orb:70px}.vb-fab-label{font-size:12px}}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.voice-dock .voice-banner{--orb:48px}.vb-fab-label{display:none}}
+@media (min-width:1500px) and (min-height:850px){.voice-dock .voice-banner{--orb:92px}.vb-fab-label{font-size:16px;padding:7px 14px}}
