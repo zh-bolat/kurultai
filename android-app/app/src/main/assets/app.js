@@ -213,3 +213,113 @@ render();
 // Page flag for layout: the floating language switch is used only on the home page.
 ;(function(){const sh=show;show=function(id){const r=sh.apply(this,arguments);document.body.classList.toggle('on-home',id==='home');return r};
 document.body.classList.toggle('on-home',!!document.querySelector('#home.active'))})();
+
+// ===== Interface matching the design prototype (drawn at 1920×1080) =====
+// Texts for both languages, the menu, the new sections (committees, deputy requests, bills, week plan)
+// filled from quryltai.kz data, the "Today" row, follow-up questions, and scaling to the real window.
+;(function(){
+const UI={
+ ru:{brand:'ИИ-помощник Курултая',nav:['Главная','Законопроекты','План недели','Комитеты и депутаты','Депутатские запросы','Робот и настройки'],src:'Официальные данные',upd:'обновлено',
+  hero:'Добро пожаловать в Курултай Республики Казахстан',heroSub:'Удерживайте круг справа внизу и задайте вопрос голосом — или напишите его в строке ниже',query:'Задайте вопрос о Курултае…',ask:'Спросить',
+  quick:[['Что такое Курултай','Кратко об органе и его полномочиях'],['Состав комитетов','Какие комитеты и кто их возглавляет'],['Законопроекты этой недели','Что сейчас рассматривает Курултай'],['Как подать обращение','Куда и как обратиться гражданину']],
+  today:'Сегодня',todaySub:'По плану Курултая',planT:'План работы на неделю',back:'На главную',askLabel:'ВЫ СПРОСИЛИ',fuTitle:'Можно спросить дальше',
+  fu:['Какие комитеты есть в Курултае?','Чем Курултай отличается от прежнего Парламента?','Как подать обращение?'],asOf:'По данным на',src2:'Официальные данные Курултая',
+  cmTitle:'Комитеты и депутаты',cmSub:n=>n+' постоянных комитетов · выберите комитет',cmCap:'СОСТАВ КОМИТЕТА',chairL:'Председатель комитета',chairP:'Председатель: ',member:'Член комитета',cmAsk:'Спросить помощника об этом комитете',cmQ:n=>'Расскажи о комитете Курултая: '+n,
+  rqTitle:'Депутатские запросы',rqSub:'Самые свежие запросы депутатов Курултая к государственным органам',rqCountL:'запросов всего',rqH:['ДАТА','ТЕМА','АВТОРЫ','НОМЕР'],
+  billsT:'Законопроекты',billsSub:'Официальные данные Курултая с quryltai.kz',billsH:['НОМЕР','НАЗВАНИЕ','СТАТУС'],planTitle:'План недели',planSub:'Планы работы Курултая с quryltai.kz',planH:['ПЛАН','НАЗВАНИЕ','ИСТОЧНИК'],planRow:'План',
+  noData:'Данные ещё не загружены — нужно подключение к интернету',rbTitle:'Робот и настройки',review:'На рассмотрении',statusX:'Статус '},
+ kk:{brand:'Құрылтайдың ЖИ-көмекшісі',nav:['Басты бет','Заң жобалары','Апта жоспары','Комитеттер мен депутаттар','Депутаттық сауалдар','Робот және баптаулар'],src:'Ресми деректер',upd:'жаңартылды',
+  hero:'Қазақстан Республикасының Құрылтайына қош келдіңіз',heroSub:'Оң жақ төмендегі шеңберді басып тұрып сұрақ қойыңыз — немесе төмендегі жолға жазыңыз',query:'Құрылтай туралы сұрақ қойыңыз…',ask:'Сұрау',
+  quick:[['Құрылтай деген не','Орган және оның өкілеттіктері туралы қысқаша'],['Комитеттер құрамы','Қандай комитеттер бар және оларды кім басқарады'],['Осы аптадағы заң жобалары','Құрылтай қазір не қарап жатыр'],['Өтініш қалай беріледі','Азаматқа қайда және қалай жүгінуге болады']],
+  today:'Бүгін',todaySub:'Құрылтай жоспары бойынша',planT:'Апталық жұмыс жоспары',back:'Басты бетке',askLabel:'СІЗ СҰРАДЫҢЫЗ',fuTitle:'Тағы сұрауға болады',
+  fu:['Құрылтайда қандай комитеттер бар?','Құрылтай бұрынғы Парламенттен немен ерекшеленеді?','Өтінішті қалай беруге болады?'],asOf:'Деректер күні:',src2:'Құрылтайдың ресми деректері',
+  cmTitle:'Комитеттер мен депутаттар',cmSub:n=>n+' тұрақты комитет · комитетті таңдаңыз',cmCap:'КОМИТЕТ ҚҰРАМЫ',chairL:'Комитет төрағасы',chairP:'Төраға: ',member:'Комитет мүшесі',cmAsk:'Осы комитет туралы көмекшіден сұрау',cmQ:n=>'Құрылтай комитеті туралы айтып бер: '+n,
+  rqTitle:'Депутаттық сауалдар',rqSub:'Құрылтай депутаттарының мемлекеттік органдарға соңғы сауалдары',rqCountL:'сауал барлығы',rqH:['КҮНІ','ТАҚЫРЫБЫ','АВТОРЛАРЫ','НӨМІРІ'],
+  billsT:'Заң жобалары',billsSub:'quryltai.kz сайтындағы Құрылтайдың ресми деректері',billsH:['НӨМІРІ','АТАУЫ','МӘРТЕБЕСІ'],planTitle:'Апта жоспары',planSub:'quryltai.kz сайтындағы Құрылтайдың жұмыс жоспарлары',planH:['ЖОСПАР','АТАУЫ','ДЕРЕККӨЗ'],planRow:'Жоспар',
+  noData:'Деректер әлі жүктелмеді — интернет қажет',rbTitle:'Робот және баптаулар',review:'Қаралуда',statusX:'Мәртебе '}};
+const T=()=>language==='kk'?UI.kk:UI.ru;
+const el=id=>document.getElementById(id);
+const setT=(id,v)=>{const e=el(id);if(e)e.textContent=v};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KK_M=['қаңтар','ақпан','наурыз','сәуір','мамыр','маусым','шілде','тамыз','қыркүйек','қазан','қараша','желтоқсан'];
+const fmtDay=d=>{if(language==='kk')return d.getDate()+' '+KK_M[d.getMonth()];try{return d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}catch(e){return d.toDateString()}};
+let page='home',cmPick=0;
+
+// Scale the 1920px-wide design to the real window (keeps the prototype's proportions on any screen).
+function fitToScreen(){const z=Math.max(.3,innerWidth/1920);document.documentElement.style.zoom=z;document.body.style.height=Math.round(innerHeight/z)+'px'}
+fitToScreen();window.addEventListener('resize',fitToScreen);
+
+function data(){return (typeof quryltaiOfficial!=='undefined'&&quryltaiOfficial)||null}
+function setActive(p){document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.page===p))}
+
+function applyTexts(){const t=T();
+ const bs=document.querySelector('.brand b');if(bs)bs.textContent='Құрылтай';const bsp=document.querySelector('.brand span');if(bsp)bsp.textContent=t.brand;
+ const order=['home','bills','session','committees','requests','robot'];
+ order.forEach((p,i)=>{const n=document.querySelector('.nav[data-page="'+p+'"] span');if(n)n.textContent=t.nav[i]});
+ setT('sbSrcT',t.src);
+ const hh=document.querySelector('.hero h2');if(hh)hh.textContent=t.hero;const hp=document.querySelector('.hero p');if(hp)hp.textContent=t.heroSub;
+ const q=el('query');if(q)q.placeholder=t.query;setT('send',t.ask);
+ document.querySelectorAll('.quick').forEach((c,i)=>{if(t.quick[i]){c.querySelector('b').textContent=t.quick[i][0];c.querySelector('small').textContent=t.quick[i][1]}});
+ const th=document.querySelector('.today h3');if(th)th.textContent=t.today;const tp=document.querySelector('.today>div:first-child p');if(tp)tp.textContent=t.todaySub;setT('todayPlanT',t.planT);
+ document.querySelectorAll('.back-t').forEach(b=>b.textContent=t.back);
+ setT('askLabel',t.askLabel);setT('fuTitle',t.fuTitle);
+ setT('cmTitle',t.cmTitle);setT('cmCap',t.cmCap);setT('cmAsk',t.cmAsk);
+ setT('rqTitle',t.rqTitle);setT('rqSub',t.rqSub);setT('rqCountL',t.rqCountL);t.rqH.forEach((v,i)=>setT('rqH'+(i+1),v));
+ setT('rbTitle',t.rbTitle);
+ renderSidebarSource();renderToday();renderFollowups();
+ if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if(page==='bills'||page==='session')renderList(page)}
+
+function renderSidebarSource(){const d=data();const t=T();setT('sbSrc','quryltai.kz · '+t.upd+' '+(d&&d.updated_at?fmtDay(new Date(Number(d.updated_at))):'—'))}
+function renderToday(){setT('todayDate',fmtDay(new Date()));const d=data();const p=d&&d.weekly_plans&&d.weekly_plans[0];setT('todayPlan',p?String(p.title||'').replace(/\s+/g,' ').trim():'—')}
+function askNow(q){const i=el('query');if(i)i.value=q;if(typeof submit==='function')submit()}
+function renderFollowups(){const box=el('fuList');if(!box)return;box.innerHTML=T().fu.map(f=>'<button type="button">'+esc(f)+'</button>').join('');
+ box.querySelectorAll('button').forEach((b,i)=>b.onclick=()=>{if(i===0){go('committees');return}askNow(b.textContent)})}
+
+function tableHtml(head,rows,cls){return '<div class="rq-table '+(cls||'')+'"><div class="rq-row rq-th">'+head.map(h=>'<span>'+esc(h)+'</span>').join('')+'</div>'+
+ (rows.length?rows.map(r=>'<div class="rq-row"><b>'+esc(r[0])+'</b><span class="t">'+esc(r[1])+'</span>'+(r.length>3?'<span class="a">'+esc(r[2])+'</span><span class="n">'+esc(r[3])+'</span>':'<span class="n">'+esc(r[2])+'</span>')+'</div>').join(''):'<div class="rq-empty">'+esc(T().noData)+'</div>')+'</div>'}
+function renderList(kind){const t=T(),d=data();let html='';
+ if(kind==='bills'){const rows=d&&d.bills?d.bills.slice(0,20).map(b=>['№ '+b.id,b.title,b.status===5?t.review:t.statusX+b.status]):[];
+  html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.billsT)+'</h1><span>'+esc(t.billsSub)+'</span></div>'+(d?'<div class="rq-count"><b>'+esc(d.bill_count||0)+'</b><span>'+esc(t.billsT.toLowerCase())+'</span></div>':'')+'</div>'+tableHtml(t.billsH,rows,'cols3')}
+ else{const rows=d&&d.weekly_plans?d.weekly_plans.map(p=>[t.planRow,String(p.title||'').replace(/\s+/g,' ').trim(),'quryltai.kz']):[];
+  html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.planTitle)+'</h1><span>'+esc(t.planSub)+'</span></div></div>'+tableHtml(t.planH,rows,'cols3')}
+ const c=el('listContent');if(c)c.innerHTML=html}
+function renderRequests(){const t=T(),d=data();setT('rqCount',d?String(d.deputy_request_count||0):'—');
+ const rows=d&&d.deputy_requests?d.deputy_requests.slice(0,30).map(r=>[r.date,r.title,r.authors,r.number]):[];
+ const box=el('rqRows');if(box)box.innerHTML=rows.length?rows.map(r=>'<div class="rq-row"><b>'+esc(r[0])+'</b><span class="t">'+esc(r[1])+'</span><span class="a">'+esc(r[2])+'</span><span class="n">'+esc(r[3])+'</span></div>').join(''):'<div class="rq-empty">'+esc(t.noData)+'</div>'}
+function chairOf(c){const ds=c.deputies||[];return ds.find(x=>/председател|төраға/i.test(x.position||'')&&!/заместит|орынбасар/i.test(x.position||''))||null}
+function renderCommittees(){const t=T(),d=data();const list=(d&&d.committees)||[];setT('cmSub',list.length?t.cmSub(list.length):t.noData);
+ const grid=el('cmGrid');if(!grid)return;if(cmPick>=list.length)cmPick=0;
+ grid.innerHTML=list.map((c,i)=>{const ch=chairOf(c);return '<button type="button" class="cm-card'+(i===cmPick?' on':'')+'"><b>'+esc(c.name)+'</b><span>'+(ch?esc(t.chairP+ch.name):'&nbsp;')+'</span></button>'}).join('');
+ grid.querySelectorAll('.cm-card').forEach((b,i)=>b.onclick=()=>{cmPick=i;renderCommittees()});
+ const sel=list[cmPick];setT('cmName',sel?sel.name:'—');
+ const ch=sel?chairOf(sel):null;const others=sel?(sel.deputies||[]).filter(x=>x!==ch):[];
+ const ini=n=>{const m=String(n||'').match(/\p{L}/u);return esc(m?m[0].toUpperCase():'?')};
+ el('cmMembers').innerHTML=(ch?'<div class="cm-m chair"><i>'+ini(ch.name)+'</i><div><b>'+esc(ch.name)+'</b><span>'+esc(t.chairL)+'</span></div></div>':'')+
+  others.map(m=>'<div class="cm-m"><i>'+ini(m.name)+'</i><div><b>'+esc(m.name)+'</b><span>'+esc(m.position||t.member)+'</span></div></div>').join('');
+ el('cmAsk').onclick=()=>{if(sel)askNow(t.cmQ(sel.name))}}
+
+// Page switching: remember the page on <body> for layout (no :has() on older WebViews)
+const sh=show;show=function(id){const r=sh.apply(this,arguments);page=id==='listPage'?page:id;document.body.dataset.page=id;document.body.classList.toggle('on-home',id==='home');return r};
+document.body.dataset.page='home';document.body.classList.add('on-home');
+function go(p){setActive(p);page=p;
+ if(p==='home'){goHome();return}
+ if(p==='bills'||p==='session'){renderList(p);show('listPage');page=p;return}
+ if(p==='committees'){renderCommittees();show('committees');return}
+ if(p==='requests'){renderRequests();show('requests');return}}
+document.querySelectorAll('.nav').forEach(n=>{if(n.dataset.page==='robot')return;n.onclick=()=>go(n.dataset.page)});
+document.querySelectorAll('.quick').forEach(c=>c.onclick=()=>{const a=c.dataset.act;if(a==='committees')return go('committees');if(a==='bills')return go('bills');askNow(language==='kk'?c.dataset.qKk:c.dataset.qRu)});
+
+// Answer screen: question as the heading, date chip under the answer, follow-up questions
+const ans=answer;answer=function(title,prompt,html,speech){const r=ans.apply(this,arguments);setActive('');
+ const art=document.querySelector('#answerBody article,#answerBody .result-card');
+ if(art&&!art.querySelector('.ans-meta')){const m=document.createElement('div');m.className='ans-meta';m.innerHTML='<span>'+'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></svg>'+esc(T().asOf+' '+fmtDay(new Date()))+'</span><span>'+'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d=\"M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z\"/></svg>'+esc(T().src2)+'</span>';art.appendChild(m)}
+ renderFollowups();return r};
+
+// The connection badge lives in the title row of "Robot and settings"
+const badge=el('connectionBadge'),slot=el('rbBadgeSlot');if(badge&&slot)slot.appendChild(badge);
+
+// Re-render when fresh data from quryltai.kz arrives and when the language changes
+const qd=window.onQuryltaiData;window.onQuryltaiData=function(){const r=qd?qd.apply(this,arguments):undefined;renderSidebarSource();renderToday();if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if((page==='bills'||page==='session')&&document.body.dataset.page==='listPage')renderList(page);return r};
+const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);applyTexts();return r};
+applyTexts();
+})();
