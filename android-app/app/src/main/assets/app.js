@@ -12,8 +12,8 @@ window.onLlmSettings=(model,sttModel,hasKey,message)=>{directAiReady=hasKey;wind
 const ru={bill:'Анализ законопроекта',brief:'Подготовка выступления',appeal:'Обращения граждан',risk:'Риски региона',session:'Подготовка к заседанию',speech:'Проект выступления',task:'Проект поручения'};
 const kk={bill:'Заң жобасын талдау',brief:'Сөз сөйлеуге дайындық',appeal:'Азаматтардың өтініштері',risk:'Өңірлік тәуекелдер',session:'Отырысқа дайындық',speech:'Сөз сөйлеу жобасы',task:'Тапсырма жобасы'};
 const uiText={
- ru:{committee:'Курултай Республики Казахстан',brand:'AI-помощник Курултая',nav:['Главная','Аналитика','Законопроекты','Обращения','Заседание','Поручения','Робот и настройки'],title:'Цифровой помощник Курултая',hero:'Курултай Республики Казахстан',heroSub:'Задайте вопрос голосом — кнопка справа внизу — или напишите его в строке ниже',status:'Голосовой помощник активен',query:'Напишите ваш вопрос…',ask:'Спросить →',today:'Сегодня',todaySub:'Ближайшие события и задачи',settings:'Настройки помощника',voice:'Голосовой помощник',voiceMode:'Режим микрофона',manual:'По кнопке',auto:'Автоматически при посетителе',answerLanguage:'Язык ответа',same:'Как в вопросе',alwaysRu:'Всегда русский',alwaysKk:'Всегда казахский',saveVoice:'Сохранить голосовые настройки',speak:'🔊 Озвучить'},
- kk:{committee:'Қазақстан Республикасының Құрылтайы',brand:'Құрылтайдың AI-көмекшісі',nav:['Басты бет','Талдау','Заң жобалары','Өтініштер','Отырыс','Тапсырмалар','Робот және баптаулар'],title:'Құрылтайдың цифрлық көмекшісі',hero:'Қазақстан Республикасының Құрылтайы',heroSub:'Сұрағыңызды дауыспен қойыңыз — батырма оң жақ төменгі бұрышта — немесе төмендегі жолға жазыңыз',status:'Дауыстық көмекші белсенді',query:'Сұрағыңызды жазыңыз…',ask:'Сұрау →',today:'Бүгін',todaySub:'Жақын іс-шаралар мен міндеттер',settings:'Көмекші баптаулары',voice:'Дауыстық көмекші',voiceMode:'Микрофон режимі',manual:'Батырма арқылы',auto:'Келуші келгенде автоматты',answerLanguage:'Жауап тілі',same:'Сұрақ тілінде',alwaysRu:'Әрқашан орысша',alwaysKk:'Әрқашан қазақша',saveVoice:'Дауыс баптауларын сақтау',speak:'🔊 Дауыстап оқу'}
+ ru:{committee:'Курултай Республики Казахстан',brand:'AI-помощник Курултая',nav:['Главная','Аналитика','Законопроекты','Обращения','Заседание','Поручения','Робот и настройки'],title:'Цифровой помощник Курултая',hero:'Курултай Республики Казахстан',heroSub:'Удерживайте круг справа внизу и задайте вопрос голосом — или напишите его в строке ниже',status:'Голосовой помощник активен',query:'Напишите ваш вопрос…',ask:'Спросить →',today:'Сегодня',todaySub:'Ближайшие события и задачи',settings:'Настройки помощника',voice:'Голосовой помощник',voiceMode:'Режим микрофона',manual:'По кнопке',auto:'Автоматически при посетителе',answerLanguage:'Язык ответа',same:'Как в вопросе',alwaysRu:'Всегда русский',alwaysKk:'Всегда казахский',saveVoice:'Сохранить голосовые настройки',speak:'🔊 Озвучить'},
+ kk:{committee:'Қазақстан Республикасының Құрылтайы',brand:'Құрылтайдың AI-көмекшісі',nav:['Басты бет','Талдау','Заң жобалары','Өтініштер','Отырыс','Тапсырмалар','Робот және баптаулар'],title:'Құрылтайдың цифрлық көмекшісі',hero:'Қазақстан Республикасының Құрылтайы',heroSub:'Оң жақ төмендегі шеңберді басып тұрып сұрақ қойыңыз — немесе төмендегі жолға жазыңыз',status:'Дауыстық көмекші белсенді',query:'Сұрағыңызды жазыңыз…',ask:'Сұрау →',today:'Бүгін',todaySub:'Жақын іс-шаралар мен міндеттер',settings:'Көмекші баптаулары',voice:'Дауыстық көмекші',voiceMode:'Микрофон режимі',manual:'Батырма арқылы',auto:'Келуші келгенде автоматты',answerLanguage:'Жауап тілі',same:'Сұрақ тілінде',alwaysRu:'Әрқашан орысша',alwaysKk:'Әрқашан қазақша',saveVoice:'Дауыс баптауларын сақтау',speak:'🔊 Дауыстап оқу'}
 };
 function applyUiLanguage(){let t=uiText[language]||uiText.ru;document.documentElement.lang=language;$('.brand b').textContent='Құрылтай РК';$('.brand span').textContent=t.brand;$('.committee-name').innerHTML=t.committee.replace(', ','<br>');$$('.nav span').forEach((e,i)=>{if(t.nav[i])e.textContent=t.nav[i]});let quick=language==='kk'?[['Бейінді заң жобасы','AI, онлайн-платформалар және цифрлық құқықтар'],['Комитет қорытындысы','Ұстаным, түзетулер және әзірлеушілерге сұрақтар'],['Цифрлық өтініштер','Байланыс, мемлекеттік қызметтер және интернет-алаяқтық'],['AI және кибертәуекелдер','Маңызды сигналдар және реттеу']]:[['Профильный законопроект','AI, онлайн-платформы и цифровые права'],['Заключение комитета','Позиция, поправки и вопросы разработчикам'],['Цифровые обращения','Связь, госуслуги и интернет-мошенничество'],['AI и киберриски','Критические сигналы и регулирование']];$$('.quick').forEach((e,i)=>{if(quick[i]){e.querySelector('b').textContent=quick[i][0];e.querySelector('small').textContent=quick[i][1]}});$('#eyebrow').textContent=language==='kk'?'ҚАЗАҚСТАН РЕСПУБЛИКАСЫНЫҢ ҚҰРЫЛТАЙЫ':'КУРУЛТАЙ РЕСПУБЛИКИ КАЗАХСТАН';$('.full-title').textContent=t.title;$('.compact-title').textContent=t.title;$('.hero .status').innerHTML='<i></i> '+t.status;$('.hero h2').innerHTML=t.hero.replace(', ','<br>');$('.hero p').textContent=t.heroSub;$('#query').placeholder=t.query;$('#send').textContent=t.ask;$('.today h3').textContent=t.today;$('.today>div:first-child p').textContent=t.todaySub;$('.modal-card h2').textContent=t.settings;$('#voiceSettingsTitle').textContent=t.voice;$('#voiceModeLabel').textContent=t.voiceMode;$('#voiceMode option[value="manual"]').textContent=t.manual;$('#voiceMode option[value="auto"]').textContent=t.auto;$('#answerLanguageLabel').textContent=t.answerLanguage;$('#answerLanguage option[value="auto"]').textContent=t.same;$('#answerLanguage option[value="ru"]').textContent=t.alwaysRu;$('#answerLanguage option[value="kk"]').textContent=t.alwaysKk;$('#saveAssistantPreferences').textContent=t.saveVoice;if($('#speak').textContent.indexOf('■')<0)$('#speak').textContent=t.speak;$('#lang').innerHTML='<span data-l="kk"'+(language==='kk'?' class="on"':'')+'>ҚАЗ</span><span data-l="ru"'+(language==='ru'?' class="on"':'')+'>РУС</span>';$('#lang').setAttribute('aria-label',language==='kk'?'Тілді ауыстыру':'Сменить язык')}
 function show(id){$$('.page').forEach(x=>x.classList.remove('active'));$('#'+id).classList.add('active');document.querySelector('main').scrollTop=0}
@@ -162,41 +162,50 @@ render();
 
 // Voice bar: one global state (idle / listening / thinking / speaking), set only by real voice events.
 // The same bar is shown on every page, so switching pages never resets or replays it.
-// One tap starts listening; the question is sent automatically after ~1.3 s of silence.
-// A tap while listening sends at once; a tap while the robot speaks stops the speech.
+// Press and hold the circle to talk; releasing it stops the recording and sends the question.
+// A very short tap sends nothing and shows a hint; a tap while the robot speaks stops the speech.
 let talkTimer=null,toggleTalk=null;
 ;(function(){
-const TXT={ru:{idle:['Спросить голосом','Нажмите и задайте вопрос, робот сам поймёт, когда вы закончите','ГОТОВ СЛУШАТЬ'],listening:['Слушаю…','Говорите — робот сам поймёт, когда вы закончите','РОБОТ СЛУШАЕТ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Нажмите на круг, чтобы остановить','РОБОТ ГОВОРИТ']},
-kk:{idle:['Дауыспен сұрау','Басып, сұрағыңызды қойыңыз, робот сіз аяқтағаныңызды өзі түсінеді','ТЫҢДАУҒА ДАЙЫН'],listening:['Тыңдап тұрмын…','Сұрағыңызды айтыңыз — робот сөзіңіз біткенін өзі түсінеді','ТЫҢДАП ТҰР'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін шеңберді басыңыз','РОБОТ СӨЙЛЕП ТҰР']}};
-let state='idle',live='',guard=null,vad=null;
+const TXT={ru:{idle:['Удерживайте и говорите','Удерживайте круг, пока говорите','ГОТОВ СЛУШАТЬ'],listening:['Слушаю…','Говорите, пока держите круг. Отпустите — вопрос отправится','РОБОТ СЛУШАЕТ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Нажмите на круг, чтобы остановить','РОБОТ ГОВОРИТ']},
+kk:{idle:['Басып тұрып сөйлеңіз','Шеңберді басып тұрып сөйлеңіз','ТЫҢДАУҒА ДАЙЫН'],listening:['Тыңдап тұрмын…','Шеңберді басып тұрып сөйлеңіз. Жіберсеңіз — сұрақ жіберіледі','ТЫҢДАП ТҰР'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін шеңберді басыңыз','РОБОТ СӨЙЛЕП ТҰР']}};
+const SHORT={ru:'Удерживайте круг, пока говорите',kk:'Сөйлеп тұрғанда шеңберді басып тұрыңыз'};
+let state='idle',live='',guard=null,pressAt=0,shortTap=false,flash=null;
 const norm=s=>(s==='listening'||s==='thinking'||s==='speaking')?s:'idle';
-function render(){const t=(language==='kk'?TXT.kk:TXT.ru)[state];const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
- set('orbCaption',t[0]);set('orbHint',(state==='listening'&&live)?live.slice(0,140):t[1]);set('vbStatus',t[2]);set('vbFabLabel',(language==='kk'?TXT.kk:TXT.ru).idle[0]);
- const b=document.getElementById('voiceBanner');if(b){b.disabled=state==='thinking';b.classList.toggle('listening',state==='listening');b.setAttribute('aria-label',t[0])}
+const L=()=>language==='kk'?TXT.kk:TXT.ru;
+function render(){const t=L()[state];const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+ set('orbCaption',t[0]);set('orbHint',(state==='listening'&&live)?live.slice(0,140):t[1]);set('vbStatus',t[2]);
+ set('vbFabLabel',flash?SHORT[language==='kk'?'kk':'ru']:L().idle[0]);
+ const b=document.getElementById('voiceBanner');if(b){b.classList.toggle('listening',state==='listening');b.setAttribute('aria-label',t[0])}
  const o=document.getElementById('orbBtn');if(o){o.classList.toggle('listening',state==='listening');o.classList.toggle('thinking',state==='thinking');o.classList.toggle('speaking',state==='speaking')}
  const d=document.getElementById('voiceDock');if(d)d.className='voice-dock '+(state==='idle'?'active':state)}
-function finishTalk(){clearTimeout(talkTimer);vad=null;if(holdActive)endHold()}
 setVoiceDock=function(s){const n=norm(s);if(n!==state){state=n;live=''}
  clearTimeout(guard);
  // Safety nets so the bar can never stay stuck if a "finished" event is lost.
  if(n==='speaking')guard=setTimeout(()=>{if(state==='speaking')setVoiceDock('idle')},Math.min(120000,10000+String(typeof lastSpeech==='string'?lastSpeech:'').length*90));
  if(n==='thinking')guard=setTimeout(()=>{if(state==='thinking')setVoiceDock('idle')},60000);
- if(n!=='listening'){clearTimeout(talkTimer);vad=null}
+ if(n!=='listening')clearTimeout(talkTimer);
  render()};
-toggleTalk=function(e){if(e&&e.preventDefault)e.preventDefault();if(!window.Robot)return toast('Голосовой ввод доступен на роботе');
+function showShortHint(){clearTimeout(flash);flash=setTimeout(()=>{flash=null;render()},2500);render()}
+function press(e){if(e&&e.preventDefault)e.preventDefault();if(!window.Robot)return toast('Голосовой ввод доступен на роботе');
  if(state==='speaking'){Robot.stopSpeaking();if(window.onSpeechFinished)window.onSpeechFinished();return}
- if(state==='thinking')return;
- if(holdActive){finishTalk();return}
- beginHold();setVoiceDock('listening');vad={start:Date.now(),loudSince:0,spoke:false,lastLoud:0};
- clearTimeout(talkTimer);talkTimer=setTimeout(()=>{if(holdActive)finishTalk()},30000)};
-// Silence detection on the microphone level the robot already reports (0–100).
-const vol=window.onVoiceVolume;window.onVoiceVolume=v=>{if(vol)vol(v);if(!vad||!holdActive)return;const now=Date.now(),lvl=Number(v)||0;
- if(lvl>=4){if(!vad.loudSince)vad.loudSince=now;if(now-vad.loudSince>=250)vad.spoke=true;vad.lastLoud=now}else vad.loudSince=0;
- if(vad.spoke&&now-vad.lastLoud>=1300)finishTalk();else if(!vad.spoke&&now-vad.start>=8000)finishTalk()};
+ if(state==='thinking'||holdActive)return;
+ pressAt=Date.now();shortTap=false;beginHold();setVoiceDock('listening');
+ const vb=document.getElementById('voiceBanner');try{if(e&&e.pointerId!==undefined&&vb.setPointerCapture)vb.setPointerCapture(e.pointerId)}catch(x){}
+ clearTimeout(talkTimer);talkTimer=setTimeout(release,30000)}
+function release(e){if(e&&e.preventDefault)e.preventDefault();if(!holdActive)return;clearTimeout(talkTimer);
+ const held=Date.now()-pressAt;if(held<400){shortTap=true;endHold();setVoiceDock('idle');showShortHint();return}
+ endHold()}
+toggleTalk=press;
+// A short recording is rejected by the robot; show our hint instead of its error.
+const verr=window.onVoiceError;window.onVoiceError=t=>{if(shortTap){shortTap=false;holdActive=false;setVoiceDock('idle');return}if(verr)verr(t)};
 const part=window.onVoicePartial;window.onVoicePartial=t=>{if(part)part(t);if(state==='listening'){live=String(t||'');render()}};
-const err=window.onVoiceServiceError;window.onVoiceServiceError=t=>{holdActive=false;clearTimeout(talkTimer);vad=null;if(err)err(t);setVoiceDock('idle')};
-const vb=document.getElementById('voiceBanner');if(vb)vb.onclick=e=>toggleTalk(e);
-const dt=document.getElementById('dockToggle');if(dt)dt.onclick=e=>toggleTalk(e);
+const err=window.onVoiceServiceError;window.onVoiceServiceError=t=>{holdActive=false;clearTimeout(talkTimer);if(err)err(t);setVoiceDock('idle')};
+const vb=document.getElementById('voiceBanner');
+if(vb){vb.onclick=e=>e.preventDefault();
+ if(window.PointerEvent){vb.addEventListener('pointerdown',press);['pointerup','pointercancel','pointerleave','lostpointercapture'].forEach(n=>vb.addEventListener(n,release))}
+ else{vb.addEventListener('touchstart',press,{passive:false});['touchend','touchcancel'].forEach(n=>vb.addEventListener(n,release));vb.addEventListener('mousedown',press);['mouseup','mouseleave'].forEach(n=>vb.addEventListener(n,release))}
+ vb.addEventListener('contextmenu',e=>e.preventDefault())}
+const dt=document.getElementById('dockToggle');if(dt)dt.onclick=null;
 const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);render();return r};
 render();
 })();
