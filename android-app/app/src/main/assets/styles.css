@@ -278,3 +278,5 @@ body[data-page=listPage] main>.page.active,body[data-page=requests] main>.page.a
 
 /* Background map: centred in the content area (right of the menu), both ways */
 .bg-map{left:50%;top:50%;width:1400px;max-width:calc(100% - 96px);transform:translate(-50%,-50%)}
+/* The map does not move with page or table scrolling: fixed to the stage, centred in the area right of the 300px menu */
+.bg-map{position:fixed;left:calc(150px + 50%);top:50%;width:1440px;max-width:none;transform:translate(-50%,-50%);z-index:0}
