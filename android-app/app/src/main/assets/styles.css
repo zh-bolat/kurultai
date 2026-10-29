@@ -214,3 +214,7 @@ main>*:not(.bg-map){position:relative;z-index:1}
 
 /* Background map: whole map at half opacity so it is barely visible */
 .bg-map svg{opacity:.3}
+
+/* Text cards: slightly see-through (top almost solid, fading towards the bottom) so the map edges show faintly */
+.quick,.today,.result-card,.answer-head,.status-panel{background:linear-gradient(180deg,rgba(255,255,255,.94) 0%,rgba(255,255,255,.72) 100%)}
+.askbox{background:rgba(255,255,255,.95)}
