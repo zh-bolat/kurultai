@@ -9,6 +9,15 @@ def gitSha() {
     } catch (Exception ignored) { return 'nogit' }
 }
 
+// Подпись release: ключ и пароли в secrets.properties (вне git, см. secrets.properties.example).
+// Без них сборка подписывается debug-ключом и предупреждает: такой APK не встанет поверх боевого.
+def secrets = new Properties()
+def secretsFile = rootProject.file('secrets.properties')
+if (secretsFile.exists()) secretsFile.withInputStream { secrets.load(it) }
+def releaseKeystore = secrets.getProperty('KEYSTORE_FILE') ? rootProject.file(secrets.getProperty('KEYSTORE_FILE')) : null
+def hasReleaseKey = releaseKeystore != null && releaseKeystore.exists() && secrets.getProperty('KEYSTORE_PASSWORD')
+if (!hasReleaseKey) logger.warn('WARNING: secrets.properties / release.keystore не найдены — release подписывается debug-ключом')
+
 android {
     namespace 'kz.kurultai.assistant'
     compileSdk 34
@@ -27,10 +36,21 @@ android {
         buildConfigField 'String', 'EMBEDDED_OPENAI_KEY', '"' + (System.getenv('KURULTAI_EMBEDDED_OPENAI_KEY') ?: '') + '"'
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            release {
+                storeFile releaseKeystore
+                storePassword secrets.getProperty('KEYSTORE_PASSWORD')
+                keyAlias secrets.getProperty('KEY_ALIAS', 'kurultai')
+                keyPassword secrets.getProperty('KEY_PASSWORD', secrets.getProperty('KEYSTORE_PASSWORD'))
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+            signingConfig hasReleaseKey ? signingConfigs.release : signingConfigs.debug
         }
     }
 
