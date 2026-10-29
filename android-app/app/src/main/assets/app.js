@@ -280,7 +280,7 @@ function renderFollowups(){const box=el('fuList');if(!box)return;box.innerHTML=T
  box.querySelectorAll('button').forEach((b,i)=>b.onclick=()=>{if(i===0){go('committees');return}askNow(b.textContent)})}
 
 function tableHtml(head,rows,cls){return '<div class="rq-table '+(cls||'')+'"><div class="rq-row rq-th">'+head.map(h=>'<span>'+esc(h)+'</span>').join('')+'</div>'+
- (rows.length?rows.map(r=>'<div class="rq-row"><b>'+esc(r[0])+'</b><span class="t">'+esc(r[1])+'</span>'+(r.length>3?'<span class="a">'+esc(r[2])+'</span><span class="n">'+esc(r[3])+'</span>':'<span class="n">'+esc(r[2])+'</span>')+'</div>').join(''):'<div class="rq-empty">'+esc(T().noData)+'</div>')+'</div>'}
+ '<div class="rq-body">'+(rows.length?rows.map(r=>'<div class="rq-row"><b>'+esc(r[0])+'</b><span class="t">'+esc(r[1])+'</span>'+(r.length>3?'<span class="a">'+esc(r[2])+'</span><span class="n">'+esc(r[3])+'</span>':'<span class="n">'+esc(r[2])+'</span>')+'</div>').join(''):'<div class="rq-empty">'+esc(T().noData)+'</div>')+'</div></div>'}
 function renderList(kind){const t=T(),d=data();let html='';
  if(kind==='bills'){const rows=d&&d.bills?d.bills.slice(0,20).map(b=>['№ '+b.id,b.title,stName(b.status)]):[];
   html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.billsT)+'</h1><span>'+esc(t.billsSub)+'</span></div>'+(d?'<div class="rq-count"><b>'+esc(d.bill_count||0)+'</b><span>'+esc(t.billsCount)+'</span></div>':'')+'</div>'+tableHtml(t.billsH,rows,'cols3')}

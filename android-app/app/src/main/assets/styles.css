@@ -248,3 +248,23 @@ main>header:not(.bg-map){z-index:6}
 #vbFabLabel,#dockToggle,#dockMic{display:none!important}
 #orbBtn .orb-core i{animation:none!important;transform-origin:center;transition:transform .06s linear}
 #orbBtn.robot-voice .orb-core i{background:#4aa8dc}
+
+/* Table pages (bills, week plan, deputy requests, committees): the page heading and the table header stay put;
+   only the rows scroll inside the table. Other pages scroll as a whole. */
+body[data-page=listPage] main,body[data-page=requests] main,body[data-page=committees] main{overflow:hidden;display:flex;flex-direction:column}
+body[data-page=listPage] main>.page.active,body[data-page=requests] main>.page.active,body[data-page=committees] main>.page.active{flex:1 1 auto;min-height:0}
+#listContent{flex:1 1 auto;min-height:0}
+#listPage>.back,.rq-head,.plan-last,#committees .pg-head{flex:0 0 auto}
+.rq-table{flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.rq-th{position:sticky;top:0;z-index:2}
+#committees.active{min-height:0;align-items:stretch}
+.cm-left{min-height:0}
+.cm-grid{flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 4px 4px 2px;align-content:start}
+.cm-panel{min-height:0;max-height:none;align-self:flex-start;max-height:100%}
+
+.rq-table{isolation:isolate;background:#fff}
+.rq-th{background:#EEF3F9;box-shadow:0 1px 0 #D5DEEA}
+/* Header row outside the scrolling area: only the rows block scrolls */
+.rq-table{display:flex;flex-direction:column;overflow:hidden}
+.rq-th{position:static;flex:0 0 auto}
+.rq-body{flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
