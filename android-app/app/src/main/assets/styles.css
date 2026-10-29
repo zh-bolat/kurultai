@@ -191,3 +191,23 @@ h1,h2,h3,.hero h2{letter-spacing:-0.02em;font-weight:700}
 @media (min-width:1500px) and (min-height:850px){.voice-banner .orb{width:92px;height:92px}.vb-status{font-size:14px}}
 .voice-banner .orb-core{width:72%;height:72%}
 .voice-banner .orb-ring{width:72%;height:72%}
+
+
+/* Minimal look: pale map of Kazakhstan behind the content, light welcome text, crisp white cards in front */
+body{background:#F6F8FB}
+main{position:relative}
+.bg-map{position:absolute;left:32px;right:32px;top:90px;z-index:0;pointer-events:none}
+.bg-map svg{display:block;width:100%;height:auto}
+main>*:not(.bg-map){position:relative;z-index:1}
+.hero{background:none;color:#172540;padding-left:0;padding-right:0;box-shadow:none;border-radius:0}
+.hero h2{color:#172540}.hero p{color:#56637A}
+.askbox,.quick,.today,.result-card,.status-panel,.settings-panel .modal-card,.header-actions .lang-switch{background:#fff;border:1.5px solid #B8C4D6;border-radius:16px}
+.quick,.today,.result-card,.status-panel,.settings-panel .modal-card{box-shadow:0 1px 0 rgba(23,37,64,.04),0 10px 28px rgba(23,37,64,.07)}
+.askbox{box-shadow:0 1px 0 rgba(23,37,64,.04),0 12px 32px rgba(23,37,64,.08);margin-top:22px}
+.quick-grid{margin-top:34px}
+.today{margin-top:34px}
+.answer-head{background:#fff;color:#172540;border:1.5px solid #B8C4D6;border-radius:16px;box-shadow:0 1px 0 rgba(23,37,64,.04),0 10px 28px rgba(23,37,64,.07)}
+.answer-head h2{color:#172540}.answer-head p{color:#56637A}
+.answer-head .status{color:#2B7DB3;background:#eaf4fb}
+.answer-head button{background:#fff;color:#172540;border:1.5px solid #B8C4D6}
+@media (min-width:1500px) and (min-height:850px){.hero{min-height:150px;padding-top:22px;padding-bottom:10px}.bg-map{left:48px;right:48px}}
