@@ -2,6 +2,12 @@ plugins {
     id 'com.android.application'
 }
 
+// versionCode растёт с каждым коммитом: иначе Android не поставит обновление поверх.
+def gitCommitCount() {
+    try { return ('git rev-list --count HEAD'.execute([], rootDir).text.trim() ?: '0').toInteger() }
+    catch (Exception ignored) { return 0 }
+}
+
 def gitSha() {
     try {
         def out = 'git rev-parse --short HEAD'.execute([], rootDir).text.trim()
@@ -30,7 +36,7 @@ android {
         applicationId 'kz.ustem.kurultai' // свой пакет: ставится рядом с приложением команды (kz.kurultai.assistant), обновляется поверх себя
         minSdk 23
         targetSdk 29
-        versionCode 74
+        versionCode 74 + gitCommitCount()
         // Штамп версии: git sha + дата сборки, чтобы версию было видно на роботе (бейдж подключения).
         versionName "5.50-${gitSha()}-${new Date().format('yyyyMMdd')}"
         buildConfigField 'String', 'EMBEDDED_OPENAI_KEY', '"' + (System.getenv('KURULTAI_EMBEDDED_OPENAI_KEY') ?: '') + '"'
