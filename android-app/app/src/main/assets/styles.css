@@ -218,3 +218,8 @@ main>*:not(.bg-map){position:relative;z-index:1}
 /* Text cards: slightly see-through (top almost solid, fading towards the bottom) so the map edges show faintly */
 .askbox,.quick,.today,.result-card,.answer-head,.status-panel,.settings-panel .modal-card{background:linear-gradient(160deg,rgba(255,255,255,.94) 0%,rgba(255,255,255,.78) 55%,rgba(255,255,255,.6) 100%)}
 .askbox input{background:transparent}
+
+/* Header: no page title (the sidebar already says Құрылтай), only the language switch on the right */
+header>div:first-child{display:none}
+header{justify-content:flex-end;height:76px}
+@media (min-width:1500px) and (min-height:850px){header{height:84px}}
