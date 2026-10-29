@@ -70,3 +70,9 @@ main{padding-bottom:108px}
 body{font-family:"Inter",Roboto,"Segoe UI","Helvetica Neue",Arial,sans-serif;font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.4}
 button,input,textarea,select{font-family:inherit}
 h1,h2,h3,.hero h2{letter-spacing:-0.02em;font-weight:700}
+/* Sidebar header: Құрылтай РК as a card with a gold accent */
+.brand{background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.14);border-left:3px solid #e8b94a;border-radius:14px;padding:14px 14px 13px;margin-bottom:12px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.brand b{display:block;letter-spacing:.01em;font-weight:800}
+.brand span{color:#cfdaf0}
+@media (max-width:1100px) and (max-height:700px) and (orientation:landscape){.brand{padding:9px 10px;border-radius:11px;margin-bottom:8px}}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.brand{padding:6px 6px;border-radius:9px;margin-bottom:5px}}
