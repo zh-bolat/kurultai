@@ -23,8 +23,15 @@ final class Speaker {
     private static final int ROBOT_MAX_CHUNK = 2000;
     interface Callback { void onSpeechDone(boolean usedRobotTts, String error); }
     interface SkillProvider { SkillApi getConnectedSkillApi(); }
+    /** Облачная озвучка через OpenRouter (см. OpenRouterTts); если выключена или упала — голос робота / Android TTS. */
+    interface CloudConfig { boolean enabled(); String apiKey(); String model(); String voice(); }
+    private static final int CLOUD_MAX_CHUNK = 700;
     private final Context context;
     private final SkillProvider provider;
+    private final CloudConfig cloudConfig;
+    private final OpenRouterTts cloud = new OpenRouterTts();
+    private final java.util.concurrent.ExecutorService cloudExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private volatile String lastCloudError;
     private final Handler main = new Handler(Looper.getMainLooper());
     private TextToSpeech tts;
     private volatile boolean initFinished;
@@ -38,9 +45,10 @@ final class Speaker {
         Pending(List<String> p, String l, int g, Callback c) { parts=p; language=l; generation=g; callback=c; }
     }
 
-    Speaker(Context activity, SkillProvider skillProvider) {
+    Speaker(Context activity, SkillProvider skillProvider, CloudConfig cloud) {
         context = activity.getApplicationContext();
         provider = skillProvider;
+        cloudConfig = cloud;
         Log.i(TAG, "Creating Android TextToSpeech early");
         tts = new TextToSpeech(context, status -> {
             initFinished = true;
@@ -68,6 +76,45 @@ final class Speaker {
     void speak(String raw, String language, Callback callback) {
         String clean = sanitize(raw);
         if (clean.isEmpty()) { callback.onSpeechDone(false, "Пустой текст"); return; }
+        if (cloudConfig != null && cloudConfig.enabled()) {
+            final String key = cloudConfig.apiKey();
+            if (key != null && !key.isEmpty()) {
+                speakCloud(clean, language, ++generation, callback, key, cloudConfig.model(), cloudConfig.voice());
+                return;
+            }
+            Log.w(TAG, "cloud tts enabled but no key -> device tts");
+        }
+        speakDevice(clean, language, callback);
+    }
+
+    private void speakCloud(final String clean, final String language, final int gen, final Callback callback,
+                            final String key, final String model, final String voice) {
+        final List<String> parts = chunk(clean, CLOUD_MAX_CHUNK);
+        Log.i(TAG, "CLOUD tts model=" + model + " voice=" + voice + " chunks=" + parts.size());
+        cloudExecutor.execute(() -> {
+            for (int i = 0; i < parts.size(); i++) {
+                if (gen != generation) return;
+                String error = cloud.speakBlocking(key, model, voice, parts.get(i), language);
+                if (gen != generation) return;
+                if (error != null) {
+                    lastCloudError = error;
+                    Log.w(TAG, "cloud tts failed on part " + i + ": " + error);
+                    if (i == 0) {
+                        // Ничего не прозвучало — целиком уходим на голос устройства.
+                        final String rest = clean;
+                        main.post(() -> { if (gen == generation) speakDevice(rest, language, callback); });
+                    } else {
+                        main.post(() -> callback.onSpeechDone(false, error));
+                    }
+                    return;
+                }
+            }
+            lastCloudError = null;
+            main.post(() -> { if (gen == generation) callback.onSpeechDone(false, null); });
+        });
+    }
+
+    private void speakDevice(String clean, String language, Callback callback) {
         SkillApi api = robotApi();
         Pending request = new Pending(chunk(clean, api != null ? ROBOT_MAX_CHUNK : MAX_CHUNK), language, ++generation, callback);
         if (api != null) {
@@ -172,13 +219,13 @@ final class Speaker {
     String diagnose() {
         String state;
         try { state = KurultaiApplication.get().stateText(); } catch (Throwable ignored) { state = "Application unavailable"; }
-        StringBuilder out=new StringBuilder("robotState=").append(state).append("; robotTts=").append(robotApi()!=null).append("; androidReady=").append(ready).append("; initFinished=").append(initFinished).append("; error=").append(initError).append("; engine=").append(safeEngine());
+        StringBuilder out=new StringBuilder("cloudTts=").append(cloudConfig!=null&&cloudConfig.enabled()?cloudConfig.model()+"/"+cloudConfig.voice():"off").append("; cloudError=").append(lastCloudError).append("; robotState=").append(state).append("; robotTts=").append(robotApi()!=null).append("; androidReady=").append(ready).append("; initFinished=").append(initFinished).append("; error=").append(initError).append("; engine=").append(safeEngine());
         try{out.append("; engines=").append(tts==null?0:tts.getEngines().size());}catch(Throwable ignored){}
         try{AudioManager a=(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);out.append("; musicVolume=").append(a.getStreamVolume(AudioManager.STREAM_MUSIC)).append('/').append(a.getStreamMaxVolume(AudioManager.STREAM_MUSIC));}catch(Throwable ignored){}
         Log.i(TAG,"DIAG "+out); return out.toString();
     }
 
-    void stop(){generation++;pending=null;try{SkillApi api=robotApi();if(api!=null)api.stopTTS();}catch(Throwable ignored){}try{if(tts!=null)tts.stop();}catch(Throwable ignored){}}
+    void stop(){generation++;pending=null;try{cloud.cancel();}catch(Throwable ignored){}try{SkillApi api=robotApi();if(api!=null)api.stopTTS();}catch(Throwable ignored){}try{if(tts!=null)tts.stop();}catch(Throwable ignored){}}
     void shutdown(){stop();try{if(tts!=null)tts.shutdown();}catch(Throwable ignored){}tts=null;ready=false;}
     private String safeEngine(){try{return tts==null?"none":tts.getDefaultEngine();}catch(Throwable ignored){return "unknown";}}
 

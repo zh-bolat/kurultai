@@ -74,6 +74,13 @@ public class MainActivity extends Activity {
     private static final String PREF_OR_IV = "openrouter_key_iv";
     private static final String PREF_LLM_MODEL = "llm_model";
     private static final String PREF_STT_MODEL = "stt_model";
+    // Озвучка: "openrouter" (gpt-audio-mini, голос cedar, см. OpenRouterTts) или "robot" (TTS RobotOS / Android).
+    private static final String DEFAULT_TTS_PROVIDER = "openrouter";
+    private static final String DEFAULT_TTS_MODEL = "openai/gpt-audio-mini";
+    private static final String DEFAULT_TTS_VOICE = "cedar";
+    private static final String PREF_TTS_PROVIDER = "tts_provider";
+    private static final String PREF_TTS_MODEL = "tts_model";
+    private static final String PREF_TTS_VOICE = "tts_voice";
     private static final String ASSISTANT_INSTRUCTIONS =
         "Ты — ИИ-помощник Курултая Республики Казахстан, робот в здании Курултая. Если тебя спрашивают, кто ты, отвечай: «Я ИИ-помощник Курултая Республики Казахстан». Никогда не называй себя ChatGPT, GPT, OpenAI, Gemini, языковой моделью или чат-ботом. " +
         "Характер: деловой и точный, с лёгкой доброжелательной игривостью. По существу с первого предложения, точные названия органов и должностей, цифры с датой, без канцелярита. Допускается одна короткая тёплая или ироничная фраза в приветствии или в конце ответа — о себе как роботе, о погоде в Астане, о том, что ты не устаёшь. Никогда не шути о политике, депутатах, партиях, государственных символах, религии и национальностях. Если тема серьёзная (обращение гражданина, закон, конфликт), игривость отключена полностью. " +
@@ -119,6 +126,9 @@ public class MainActivity extends Activity {
     private volatile String answerLanguageMode = "auto";
     private volatile String llmModel = DEFAULT_OPENROUTER_MODEL;
     private volatile String sttModel = DEFAULT_STT_MODEL;
+    private volatile String ttsProvider = DEFAULT_TTS_PROVIDER;
+    private volatile String ttsModel = DEFAULT_TTS_MODEL;
+    private volatile String ttsVoice = DEFAULT_TTS_VOICE;
     private volatile boolean speakingNow;
     private volatile boolean announcedSpeechReady;
     private volatile boolean holdRecording;
@@ -283,6 +293,9 @@ public class MainActivity extends Activity {
         answerLanguageMode = assistantPrefs.getString(PREF_ANSWER_LANGUAGE, "auto");
         llmModel = assistantPrefs.getString(PREF_LLM_MODEL, DEFAULT_OPENROUTER_MODEL);
         sttModel = assistantPrefs.getString(PREF_STT_MODEL, DEFAULT_STT_MODEL);
+        ttsProvider = "robot".equals(assistantPrefs.getString(PREF_TTS_PROVIDER, DEFAULT_TTS_PROVIDER)) ? "robot" : "openrouter";
+        ttsModel = assistantPrefs.getString(PREF_TTS_MODEL, DEFAULT_TTS_MODEL);
+        ttsVoice = assistantPrefs.getString(PREF_TTS_VOICE, DEFAULT_TTS_VOICE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         hideSystemUi();
 
@@ -474,15 +487,24 @@ public class MainActivity extends Activity {
             uiJs("window.onAssistantPreferences && window.onAssistantPreferences(" + automaticVoiceMode + "," + JSONObject.quote(answerLanguageMode) + ")");
         }
 
-        @JavascriptInterface public void saveLlmSettings(String model, String speechModel) {
+        @JavascriptInterface public void saveLlmSettings(String model, String speechModel, String voiceProvider, String voiceModel, String voiceName) {
             runOnUiThread(() -> {
                 String cleanModel = model == null ? "" : model.trim();
                 llmModel = cleanModel.isEmpty() ? DEFAULT_OPENROUTER_MODEL : cleanModel;
                 String cleanStt = speechModel == null ? "" : speechModel.trim();
                 sttModel = cleanStt.isEmpty() ? DEFAULT_STT_MODEL : cleanStt;
+                ttsProvider = "robot".equals(voiceProvider) ? "robot" : "openrouter";
+                String cleanTts = voiceModel == null ? "" : voiceModel.trim();
+                ttsModel = cleanTts.isEmpty() ? DEFAULT_TTS_MODEL : cleanTts;
+                String cleanVoice = voiceName == null ? "" : voiceName.trim();
+                ttsVoice = cleanVoice.isEmpty() ? DEFAULT_TTS_VOICE : cleanVoice;
+                if (speaker != null) speaker.stop();
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putString(PREF_LLM_MODEL, llmModel)
-                    .putString(PREF_STT_MODEL, sttModel).apply();
+                    .putString(PREF_STT_MODEL, sttModel)
+                    .putString(PREF_TTS_PROVIDER, ttsProvider)
+                    .putString(PREF_TTS_MODEL, ttsModel)
+                    .putString(PREF_TTS_VOICE, ttsVoice).apply();
                 pushLlmSettings("Настройки модели сохранены");
                 pushAiStatus("Готово");
             });
@@ -1142,13 +1164,22 @@ public class MainActivity extends Activity {
     }
 
     private Speaker createSpeaker() {
-        return new Speaker(this, () -> {
+        Speaker.SkillProvider skills = () -> {
             try {
                 SkillApi current = skillApi;
                 if (current != null && current.isApiConnectedService()) return current;
             } catch (Throwable ignored) { }
             return KurultaiApplication.get().connectedSkillApi();
-        });
+        };
+        Speaker.CloudConfig cloud = new Speaker.CloudConfig() {
+            @Override public boolean enabled() { return !"robot".equals(ttsProvider); }
+            @Override public String apiKey() {
+                try { return readStoredKey(OPENROUTER_KEY_ALIAS, PREF_OR_CIPHER, PREF_OR_IV); } catch (Exception e) { return ""; }
+            }
+            @Override public String model() { return ttsModel; }
+            @Override public String voice() { return ttsVoice; }
+        };
+        return new Speaker(this, skills, cloud);
     }
 
     private void finishSpeakingCycle() {
@@ -1286,10 +1317,13 @@ public class MainActivity extends Activity {
         return value != null && value.startsWith("sk-or-") && value.length() >= 20;
     }
 
-    private String activeModelLabel() { return "OpenRouter · " + llmModel + " · речь: " + sttModel; }
+    private String activeModelLabel() { return "OpenRouter · " + llmModel + " · речь: " + sttModel + " · голос: " + ttsLabel(); }
+
+    private String ttsLabel() { return "robot".equals(ttsProvider) ? "RobotOS TTS" : ttsModel + " / " + ttsVoice; }
 
     private void pushLlmSettings(String message) {
         uiJs("window.onLlmSettings && window.onLlmSettings(" + JSONObject.quote(llmModel) + "," + JSONObject.quote(sttModel) + "," +
+            JSONObject.quote(ttsProvider) + "," + JSONObject.quote(ttsModel) + "," + JSONObject.quote(ttsVoice) + "," +
             hasStoredOpenRouterKey() + "," + JSONObject.quote(message == null ? "" : message) + ")");
     }
 
