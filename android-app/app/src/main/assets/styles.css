@@ -213,4 +213,4 @@ main>*:not(.bg-map){position:relative;z-index:1}
 @media (min-width:1500px) and (min-height:850px){.hero{min-height:150px;padding-top:22px;padding-bottom:10px}.bg-map{left:48px;right:48px}}
 
 /* Background map: whole map at half opacity so it is barely visible */
-.bg-map svg{opacity:.5}
+.bg-map svg{opacity:.3}
