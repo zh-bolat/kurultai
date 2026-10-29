@@ -415,7 +415,7 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface public void listen(String language) {
-            runOnUiThread(() -> js("window.onVoiceError && window.onVoiceError('Удерживайте кнопку «Говорить» для записи')"));
+            runOnUiThread(() -> js("window.onVoiceError && window.onVoiceError('Нажмите «Говорить», чтобы начать запись')"));
         }
 
         @JavascriptInterface public void setContinuousListening(boolean enabled, String language) {
@@ -794,7 +794,7 @@ public class MainActivity extends Activity {
         if (holdRecording) return;
         if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 7);
-            js("window.onVoiceServiceError && window.onVoiceServiceError('Разрешите доступ к микрофону и удерживайте кнопку снова')");
+            js("window.onVoiceServiceError && window.onVoiceServiceError('Разрешите доступ к микрофону и нажмите кнопку снова')");
             return;
         }
         // Hubl-style barge-in: a new hold immediately cancels the previous spoken answer.
@@ -824,7 +824,7 @@ public class MainActivity extends Activity {
         final byte[] wav = wavRecorder.stop();
         // Hubl threshold: reject an accidental tap shorter than roughly half a second.
         if (wav.length < 44 + 16_000) {
-            uiJs("window.onVoiceError && window.onVoiceError('Удерживайте кнопку дольше и говорите')");
+            uiJs("window.onVoiceError && window.onVoiceError('Запись слишком короткая — нажмите «Говорить» и задайте вопрос')");
             return;
         }
         uiJs("window.onRawRecordingStopped && window.onRawRecordingStopped()");
