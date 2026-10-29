@@ -102,3 +102,19 @@ h1,h2,h3,.hero h2{letter-spacing:-0.02em;font-weight:700}
   .voice-copy small{font-size:13px;letter-spacing:1.5px}.voice-copy strong{font-size:20px}
   .voice-toggle{min-height:56px;padding:10px 26px;font-size:18px;border-radius:14px}
 }
+
+
+/* Settings live at the top of the "Робот и настройки" page instead of a pop-up */
+.settings-panel{margin:0 0 20px}
+.settings-panel .modal-card{width:auto;max-width:none;border:1px solid var(--line);box-shadow:0 8px 24px #21385f12}
+
+
+/* "Состояние" block on the Robot & settings page */
+.status-panel{background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px 28px;margin:0 0 20px;box-shadow:0 8px 24px #21385f12}
+.status-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.status-head h2{margin:0;font-size:22px}
+.status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.status-grid div{background:#f4f7fb;border-radius:12px;padding:12px 14px;min-width:0}
+.status-grid span{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.status-grid b{display:block;font-size:15px;overflow-wrap:anywhere}
+@media (max-width:1100px){.status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:1500px) and (min-height:850px){.status-grid span{font-size:14px}.status-grid b{font-size:18px}.status-head h2{font-size:26px}}
