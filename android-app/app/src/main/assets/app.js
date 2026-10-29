@@ -140,8 +140,8 @@ if(window.Robot)Robot.getLlmSettings();
 
 // "Состояние" block on the Robot & settings page. Shows only whether a key is saved, never the key itself.
 ;(function(){
-const T={ru:{stTitle:'Состояние',stVoiceL:'Голос (RobotOS)',stNetL:'Wi-Fi / интернет',stKeyL:'Ключ OpenRouter',stModelL:'Модель ответа',stAsrL:'Распознавание речи',stTtsL:'Озвучивание',stSyncL:'Данные quryltai.kz',stVerL:'Версия приложения',yes:'установлен ••••',no:'не установлен',online:'в сети',offline:'нет сети',ready:'готов',tts:'RobotOS TTS'},
-kk:{stTitle:'Күй',stVoiceL:'Дауыс (RobotOS)',stNetL:'Wi-Fi / интернет',stKeyL:'OpenRouter кілті',stModelL:'Жауап моделі',stAsrL:'Сөйлеуді тану',stTtsL:'Дыбыстау',stSyncL:'quryltai.kz деректері',stVerL:'Қолданба нұсқасы',yes:'орнатылған ••••',no:'орнатылмаған',online:'желіде',offline:'желі жоқ',ready:'дайын',tts:'RobotOS TTS'}};
+const T={ru:{stTitle:'Состояние',stVoiceL:'Голос (RobotOS)',stNetL:'Wi-Fi / интернет',stKeyL:'Ключ OpenRouter',stModelL:'Модель ответа',stAsrL:'Распознавание речи',stTtsL:'Озвучивание',stSyncL:'Данные quryltai.kz',stVerL:'Версия приложения',stScreenL:'Экран (WebView)',yes:'установлен ••••',no:'не установлен',online:'в сети',offline:'нет сети',ready:'готов',tts:'RobotOS TTS'},
+kk:{stTitle:'Күй',stVoiceL:'Дауыс (RobotOS)',stNetL:'Wi-Fi / интернет',stKeyL:'OpenRouter кілті',stModelL:'Жауап моделі',stAsrL:'Сөйлеуді тану',stTtsL:'Дыбыстау',stSyncL:'quryltai.kz деректері',stVerL:'Қолданба нұсқасы',stScreenL:'Экран (WebView)',yes:'орнатылған ••••',no:'орнатылмаған',online:'желіде',offline:'желі жоқ',ready:'дайын',tts:'RobotOS TTS'}};
 const st={online:null,speech:null,state:'',version:'',key:null,model:'',synced:0};
 const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=(v===undefined||v===null||v==='')?'—':v};
 function render(){const kk=typeof language!=='undefined'&&language==='kk';const t=kk?T.kk:T.ru;
@@ -151,7 +151,8 @@ function render(){const kk=typeof language!=='undefined'&&language==='kk';const 
  set('stKey',st.key===null?'':(st.key?t.yes:t.no));
  set('stModel',st.model);set('stAsr',window.__sttModel||'');set('stTts',t.tts);
  set('stSync',st.synced?new Date(st.synced).toLocaleString(kk?'kk-KZ':'ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'');
- set('stVer',st.version)}
+ set('stVer',st.version);set('stScreen',innerWidth+'×'+innerHeight+' · DPR '+(window.devicePixelRatio||1))}
+window.addEventListener('resize',()=>render());
 const rs=window.onRobotStatus;window.onRobotStatus=(online,speech,state)=>{const s=String(state||'');const i=s.lastIndexOf(' · v');st.online=!!online;st.speech=!!speech;st.state=i>=0?s.slice(0,i):s;if(i>=0)st.version=s.slice(i+4);if(rs)rs(online,speech,state);render()};
 const ai=window.onAiStatus;window.onAiStatus=(hasKey,model,message)=>{st.key=!!hasKey;st.model=model||'';if(ai)ai(hasKey,model,message);render()};
 const qd=window.onQuryltaiData;window.onQuryltaiData=(data,fresh)=>{if(data&&data.updated_at)st.synced=Number(data.updated_at)||0;if(qd)qd(data,fresh);render()};
@@ -199,3 +200,7 @@ const dt=document.getElementById('dockToggle');if(dt)dt.onclick=e=>toggleTalk(e)
 const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);render();return r};
 render();
 })();
+
+// Page flag for layout: the floating language switch is used only on the home page.
+;(function(){const sh=show;show=function(id){const r=sh.apply(this,arguments);document.body.classList.toggle('on-home',id==='home');return r};
+document.body.classList.toggle('on-home',!!document.querySelector('#home.active'))})();
