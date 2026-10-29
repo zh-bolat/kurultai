@@ -90,3 +90,15 @@ h1,h2,h3,.hero h2{letter-spacing:-0.02em;font-weight:700}
 @keyframes orbRing{0%{transform:scale(.95);opacity:.85}100%{transform:scale(2);opacity:0}}
 @keyframes orbBar{to{transform:scaleY(.45)}}
 .voice-face{display:grid;place-items:center;margin:0;letter-spacing:0}
+/* Robot screen (14", 1600×900): home fits without scrolling, voice bar aligned with the content and clear of the sidebar */
+@media (min-width:1500px) and (min-height:850px){
+  header{height:100px}
+  .hero{height:228px;padding:30px 45px}.orb{width:250px;height:250px}
+  .askbox{height:80px;margin-top:14px;margin-bottom:18px}
+  .quick{min-height:150px;padding:18px 22px}
+  .today{min-height:96px;padding:14px 24px}
+  .voice-dock{left:318px;right:48px;min-height:84px;padding:10px 16px;gap:16px}
+  .voice-avatar{flex-basis:62px;width:62px;height:62px;min-height:62px}
+  .voice-copy small{font-size:13px;letter-spacing:1.5px}.voice-copy strong{font-size:20px}
+  .voice-toggle{min-height:56px;padding:10px 26px;font-size:18px;border-radius:14px}
+}
