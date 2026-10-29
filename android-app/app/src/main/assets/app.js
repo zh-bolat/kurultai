@@ -29,7 +29,7 @@ $('#mic').onclick=()=>toast('Нажмите «Спросить голосом» 
 function toggleDockVoice(){if(!window.Robot)return toast('Голосовой ввод доступен на роботе');continuousVoice=!continuousVoice;localStorage.continuousVoice=continuousVoice;Robot.setContinuousListening(continuousVoice,language);window.onContinuousVoiceState(continuousVoice)}
 function beginHold(e){if(e)e.preventDefault();if(holdActive||!window.Robot)return;holdActive=true;setVoiceDock('listening');Robot.startHoldRecording()}
 function endHold(e){if(e)e.preventDefault();if(!holdActive||!window.Robot)return;holdActive=false;setVoiceDock('thinking');Robot.stopHoldRecording()}
-$('#dockToggle').onclick=toggleTalk;
+
 window.onVoiceListening=()=>{$('#mic').classList.add('listening');$('#query').placeholder='Говорите…';setVoiceDock('listening',$('#query').value||'Говорите, я слушаю…')};
 window.onVoicePaused=()=>{$('#mic').classList.remove('listening')};
 window.onContinuousVoiceState=enabled=>{continuousVoice=enabled;let b=$('#mic');b.textContent=enabled?'🎙':'▶';b.title=enabled?'Нажмите, чтобы остановить голосовой режим':'Нажмите, чтобы включить голосовой режим';if(!enabled)b.classList.remove('listening');setVoiceDock(enabled?'active':'paused',enabled?'Готов слушать следующий вопрос':'Нажмите «Слушать», чтобы продолжить')};
@@ -134,13 +134,6 @@ appealsNav.onclick=()=>{
 applyUiLanguage();
 if(window.Robot)Robot.getAssistantPreferences();
 
-// Badge animates only while the robot is speaking
-;(function(){const base=setVoiceDock;setVoiceDock=function(state,text){base(state,text);const o=document.querySelector('.orb');if(o){o.classList.toggle('speaking',state==='speaking')}}})();
-// Tap once to start talking, tap again to stop and send. Auto-stops after 30 s as a safety net.
-let talkTimer=null;
-function toggleTalk(e){if(e)e.preventDefault();if(!window.Robot)return toast('Голосовой ввод доступен на роботе');clearTimeout(talkTimer);if(holdActive){endHold();return}if($('#voiceDock').classList.contains('thinking'))return;beginHold();setVoiceDock('listening');talkTimer=setTimeout(()=>{if(holdActive)endHold()},30000)}
-;(function(){const err=window.onVoiceServiceError;window.onVoiceServiceError=t=>{holdActive=false;clearTimeout(talkTimer);if(err)err(t)}})();
-
 // "Состояние" block on the Robot & settings page. Shows only whether a key is saved, never the key itself.
 ;(function(){
 const T={ru:{stTitle:'Состояние',stVoiceL:'Голос (RobotOS)',stNetL:'Wi-Fi / интернет',stKeyL:'Ключ OpenAI',stModelL:'Модель ответа',stAsrL:'Распознавание речи',stTtsL:'Озвучивание',stSyncL:'Данные quryltai.kz',stVerL:'Версия приложения',yes:'установлен ••••',no:'не установлен',online:'в сети',offline:'нет сети',ready:'готов',tts:'RobotOS TTS'},
@@ -162,37 +155,43 @@ const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,argume
 render();
 })();
 
-// One voice button with a clear job in every state; the round icon on the left is only a status light.
+// Voice bar: one global state (idle / listening / thinking / speaking), set only by real voice events.
+// The same bar is shown on every page, so switching pages never resets or replays it.
+// One tap starts listening; the question is sent automatically after ~1.3 s of silence.
+// A tap while listening sends at once; a tap while the robot speaks stops the speech.
+let talkTimer=null,toggleTalk=null;
 ;(function(){
-const V={ru:{active:['ГОЛОСОВОЙ ВОПРОС','Нажмите «Спросить голосом» и задайте вопрос','🎤 Спросить голосом'],paused:['ГОЛОСОВОЙ ВОПРОС','Нажмите «Спросить голосом» и задайте вопрос','🎤 Спросить голосом'],listening:['ИДЁТ ЗАПИСЬ','Говорите… затем нажмите «Отправить»','■ Отправить'],thinking:['ГОТОВЛЮ ОТВЕТ','Подождите, готовлю ответ…','Подождите…'],speaking:['РОБОТ ОТВЕЧАЕТ','','■ Остановить']},
-kk:{active:['ДАУЫСТЫҚ СҰРАҚ','«Дауыспен сұрау» батырмасын басып, сұрағыңызды қойыңыз','🎤 Дауыспен сұрау'],paused:['ДАУЫСТЫҚ СҰРАҚ','«Дауыспен сұрау» батырмасын басып, сұрағыңызды қойыңыз','🎤 Дауыспен сұрау'],listening:['ЖАЗЫЛЫП ЖАТЫР','Сөйлеңіз… содан кейін «Жіберу» батырмасын басыңыз','■ Жіберу'],thinking:['ЖАУАП ДАЙЫНДАЛУДА','Күте тұрыңыз, жауап дайындалуда…','Күте тұрыңыз…'],speaking:['РОБОТ ЖАУАП БЕРУДЕ','','■ Тоқтату']}};
-let dockState='active';
-const base=setVoiceDock;
-setVoiceDock=function(state,text){base(state,text);dockState=state;const t=(language==='kk'?V.kk:V.ru)[state]||(language==='kk'?V.kk:V.ru).active;
- const s=document.getElementById('voiceState'),tr=document.getElementById('voiceTranscript'),b=document.getElementById('dockToggle');
- if(s)s.textContent=t[0];if(tr&&!text&&t[1])tr.textContent=t[1];
- if(b){b.textContent=t[2];b.disabled=state==='thinking';b.classList.toggle('recording',state==='listening');b.classList.toggle('stop',state==='speaking')}};
-const talk=toggleTalk;
-toggleTalk=function(e){if(e)e.preventDefault();if(dockState==='speaking'&&window.Robot){Robot.stopSpeaking();if(window.onSpeechFinished)window.onSpeechFinished();return}return talk(e)};
-const d=document.getElementById('dockToggle');if(d)d.onclick=toggleTalk;
-const m=document.getElementById('dockMic');if(m){m.onclick=null;m.onmousedown=m.onmouseup=m.ontouchstart=m.ontouchend=null;m.tabIndex=-1;m.setAttribute('aria-hidden','true')}
-const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);setVoiceDock(dockState);return r};
-setVoiceDock('active');
-})();
-
-// Home screen: the big circle in the banner is the voice button; the bottom voice bar is used on other pages only.
-;(function(){
-const C={ru:{active:['Спросить голосом','Нажмите один раз и задайте вопрос. Нажмите ещё раз, чтобы отправить','ГОТОВ СЛУШАТЬ'],paused:['Спросить голосом','Нажмите один раз и задайте вопрос. Нажмите ещё раз, чтобы отправить','ГОТОВ СЛУШАТЬ'],listening:['Слушаю…','Нажмите ещё раз, чтобы отправить','СЛУШАЮ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Нажмите на круг, чтобы остановить','РОБОТ ГОВОРИТ']},
-kk:{active:['Дауыспен сұрау','Бір рет басып, сұрағыңызды қойыңыз. Жіберу үшін тағы басыңыз','ТЫҢДАУҒА ДАЙЫН'],paused:['Дауыспен сұрау','Бір рет басып, сұрағыңызды қойыңыз. Жіберу үшін тағы басыңыз','ТЫҢДАУҒА ДАЙЫН'],listening:['Тыңдап тұрмын…','Жіберу үшін тағы басыңыз','ТЫҢДАП ТҰРМЫН'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін шеңберді басыңыз','РОБОТ СӨЙЛЕП ТҰР']}};
-let orbState='active';
-const base=setVoiceDock;
-setVoiceDock=function(state,text){base(state,text);orbState=state;const o=document.getElementById('orbBtn');if(!o)return;
- o.classList.toggle('listening',state==='listening');o.classList.toggle('thinking',state==='thinking');const vbn=document.getElementById('voiceBanner');if(vbn){vbn.disabled=state==='thinking';vbn.classList.toggle('listening',state==='listening');vbn.setAttribute('aria-label',(language==='kk'?C.kk:C.ru)[state]?(language==='kk'?C.kk:C.ru)[state][0]:'')}
- const t=(language==='kk'?C.kk:C.ru)[state]||(language==='kk'?C.kk:C.ru).active;
- const c=document.getElementById('orbCaption'),h=document.getElementById('orbHint');if(c)c.textContent=t[0];const vs=document.getElementById('vbStatus');if(vs)vs.textContent=t[2];if(h)h.textContent=(text&&(state==='listening'||state==='thinking'))?String(text).slice(0,140):t[1];o.setAttribute('aria-label',t[0])};
+const TXT={ru:{idle:['Спросить голосом','Нажмите и задайте вопрос, робот сам поймёт, когда вы закончите','ГОТОВ СЛУШАТЬ'],listening:['Слушаю…','Говорите — отправлю, когда вы замолчите','СЛУШАЮ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Нажмите на круг, чтобы остановить','РОБОТ ГОВОРИТ']},
+kk:{idle:['Дауыспен сұрау','Басып, сұрағыңызды қойыңыз, робот сіз аяқтағаныңызды өзі түсінеді','ТЫҢДАУҒА ДАЙЫН'],listening:['Тыңдап тұрмын…','Сөйлеңіз — үндемей қалғанда өзім жіберемін','ТЫҢДАП ТҰРМЫН'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін шеңберді басыңыз','РОБОТ СӨЙЛЕП ТҰР']}};
+let state='idle',live='',guard=null,vad=null;
+const norm=s=>(s==='listening'||s==='thinking'||s==='speaking')?s:'idle';
+function render(){const t=(language==='kk'?TXT.kk:TXT.ru)[state];const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+ set('orbCaption',t[0]);set('orbHint',(state==='listening'&&live)?live.slice(0,140):t[1]);set('vbStatus',t[2]);
+ const b=document.getElementById('voiceBanner');if(b){b.disabled=state==='thinking';b.classList.toggle('listening',state==='listening');b.setAttribute('aria-label',t[0])}
+ const o=document.getElementById('orbBtn');if(o){o.classList.toggle('listening',state==='listening');o.classList.toggle('thinking',state==='thinking');o.classList.toggle('speaking',state==='speaking')}
+ const d=document.getElementById('voiceDock');if(d)d.className='voice-dock '+(state==='idle'?'active':state)}
+function finishTalk(){clearTimeout(talkTimer);vad=null;if(holdActive)endHold()}
+setVoiceDock=function(s){const n=norm(s);if(n!==state){state=n;live=''}
+ clearTimeout(guard);
+ // Safety nets so the bar can never stay stuck if a "finished" event is lost.
+ if(n==='speaking')guard=setTimeout(()=>{if(state==='speaking')setVoiceDock('idle')},Math.min(120000,10000+String(typeof lastSpeech==='string'?lastSpeech:'').length*90));
+ if(n==='thinking')guard=setTimeout(()=>{if(state==='thinking')setVoiceDock('idle')},60000);
+ if(n!=='listening'){clearTimeout(talkTimer);vad=null}
+ render()};
+toggleTalk=function(e){if(e&&e.preventDefault)e.preventDefault();if(!window.Robot)return toast('Голосовой ввод доступен на роботе');
+ if(state==='speaking'){Robot.stopSpeaking();if(window.onSpeechFinished)window.onSpeechFinished();return}
+ if(state==='thinking')return;
+ if(holdActive){finishTalk();return}
+ beginHold();setVoiceDock('listening');vad={start:Date.now(),loudSince:0,spoke:false,lastLoud:0};
+ clearTimeout(talkTimer);talkTimer=setTimeout(()=>{if(holdActive)finishTalk()},30000)};
+// Silence detection on the microphone level the robot already reports (0–100).
+const vol=window.onVoiceVolume;window.onVoiceVolume=v=>{if(vol)vol(v);if(!vad||!holdActive)return;const now=Date.now(),lvl=Number(v)||0;
+ if(lvl>=4){if(!vad.loudSince)vad.loudSince=now;if(now-vad.loudSince>=250)vad.spoke=true;vad.lastLoud=now}else vad.loudSince=0;
+ if(vad.spoke&&now-vad.lastLoud>=1300)finishTalk();else if(!vad.spoke&&now-vad.start>=8000)finishTalk()};
+const part=window.onVoicePartial;window.onVoicePartial=t=>{if(part)part(t);if(state==='listening'){live=String(t||'');render()}};
+const err=window.onVoiceServiceError;window.onVoiceServiceError=t=>{holdActive=false;clearTimeout(talkTimer);vad=null;if(err)err(t);setVoiceDock('idle')};
 const vb=document.getElementById('voiceBanner');if(vb)vb.onclick=e=>toggleTalk(e);
-const sh=show;show=function(id){const r=sh.apply(this,arguments);document.body.classList.toggle('on-home',id==='home');return r};
-document.body.classList.toggle('on-home',!!document.querySelector('#home.active'));
-const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);setVoiceDock(orbState);return r};
-setVoiceDock(orbState);
+const dt=document.getElementById('dockToggle');if(dt)dt.onclick=e=>toggleTalk(e);
+const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);render();return r};
+render();
 })();
