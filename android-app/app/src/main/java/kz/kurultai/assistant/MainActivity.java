@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
     private static final String PREF_ANSWER_LANGUAGE = "assistant_answer_language";
     // Второй провайдер: OpenRouter (chat/completions), модель переключается в настройках ⚙.
     private static final String OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-    private static final String DEFAULT_OPENROUTER_MODEL = "google/gemini-3.5-flash";
+    private static final String DEFAULT_OPENROUTER_MODEL = "openai/gpt-6-luna";
     private static final String OPENROUTER_KEY_ALIAS = "kurultai-openrouter-api-key";
     private static final String PREF_OR_CIPHER = "openrouter_key_cipher";
     private static final String PREF_OR_IV = "openrouter_key_iv";
