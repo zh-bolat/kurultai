@@ -70,6 +70,14 @@ public class MainActivity extends Activity {
     private static final String PREF_MEETING_REMINDED = "local_meeting_reminded";
     private static final String PREF_AUDIO_MODE = "assistant_audio_mode";
     private static final String PREF_ANSWER_LANGUAGE = "assistant_answer_language";
+    // Второй провайдер: OpenRouter (chat/completions), модель переключается в настройках ⚙.
+    private static final String OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+    private static final String DEFAULT_OPENROUTER_MODEL = "google/gemini-3.5-flash";
+    private static final String OPENROUTER_KEY_ALIAS = "kurultai-openrouter-api-key";
+    private static final String PREF_OR_CIPHER = "openrouter_key_cipher";
+    private static final String PREF_OR_IV = "openrouter_key_iv";
+    private static final String PREF_LLM_PROVIDER = "llm_provider";
+    private static final String PREF_LLM_MODEL = "llm_model";
     private static final String ASSISTANT_INSTRUCTIONS =
         "Ты — ИИ-помощник депутата Курултая Ахмедиева Дархана Мейрамулы, председателя Комитета по цифровизации, инновациям и науке. Если тебя спрашивают, кто ты, всегда отвечай: «Я ИИ-помощник депутата Ахмедиева Дархана Мейрамулы». Никогда не называй себя ChatGPT, GPT, OpenAI, языковой моделью или чат-ботом. " +
         "Язык ответа передаётся в запросе. Если выбран русский, мысленно переведи казахский вопрос на русский и отвечай только по-русски. Если выбран казахский, отвечай только по-казахски. Если выбран автоматический режим, отвечай на языке вопроса. " +
@@ -93,6 +101,8 @@ public class MainActivity extends Activity {
     private volatile boolean continuousListening;
     private volatile boolean automaticVoiceMode;
     private volatile String answerLanguageMode = "auto";
+    private volatile String llmProvider = "openai";
+    private volatile String llmModel = DEFAULT_OPENROUTER_MODEL;
     private volatile boolean speakingNow;
     private volatile boolean announcedSpeechReady;
     private volatile boolean holdRecording;
@@ -255,6 +265,8 @@ public class MainActivity extends Activity {
         SharedPreferences assistantPrefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         automaticVoiceMode = "auto".equals(assistantPrefs.getString(PREF_AUDIO_MODE, "manual"));
         answerLanguageMode = assistantPrefs.getString(PREF_ANSWER_LANGUAGE, "auto");
+        llmProvider = "openrouter".equals(assistantPrefs.getString(PREF_LLM_PROVIDER, "openai")) ? "openrouter" : "openai";
+        llmModel = assistantPrefs.getString(PREF_LLM_MODEL, DEFAULT_OPENROUTER_MODEL);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         hideSystemUi();
 
@@ -445,6 +457,51 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public void getAssistantPreferences() {
             uiJs("window.onAssistantPreferences && window.onAssistantPreferences(" + automaticVoiceMode + "," + JSONObject.quote(answerLanguageMode) + ")");
+        }
+
+        @JavascriptInterface public void saveLlmSettings(String provider, String model) {
+            runOnUiThread(() -> {
+                llmProvider = "openrouter".equals(provider) ? "openrouter" : "openai";
+                String cleanModel = model == null ? "" : model.trim();
+                llmModel = cleanModel.isEmpty() ? DEFAULT_OPENROUTER_MODEL : cleanModel;
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putString(PREF_LLM_PROVIDER, llmProvider)
+                    .putString(PREF_LLM_MODEL, llmModel).apply();
+                pushLlmSettings("Настройки модели сохранены");
+                pushAiStatus("Готово");
+            });
+        }
+
+        @JavascriptInterface public void getLlmSettings() { pushLlmSettings(""); }
+
+        @JavascriptInterface public void saveOpenRouterKey(String apiKey) {
+            new Thread(() -> {
+                try {
+                    String value = apiKey == null ? "" : apiKey.trim();
+                    if (!isValidOpenRouterKey(value)) { pushLlmSettings("Ключ OpenRouter имеет неверный формат"); return; }
+                    encryptAndStoreKey(OPENROUTER_KEY_ALIAS, PREF_OR_CIPHER, PREF_OR_IV, value);
+                    pushLlmSettings("Ключ OpenRouter сохранён в защищённом хранилище");
+                } catch (Exception e) { pushLlmSettings("Не удалось сохранить ключ OpenRouter"); }
+            }).start();
+        }
+
+        @JavascriptInterface public void clearOpenRouterKey() {
+            new Thread(() -> { clearStoredKey(OPENROUTER_KEY_ALIAS, PREF_OR_CIPHER, PREF_OR_IV); pushLlmSettings("Ключ OpenRouter удалён"); }).start();
+        }
+
+        @JavascriptInterface public void importOpenRouterKeyFromClipboard() {
+            runOnUiThread(() -> {
+                try {
+                    ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipData clip = clipboard == null ? null : clipboard.getPrimaryClip();
+                    CharSequence value = clip == null || clip.getItemCount() == 0 ? null : clip.getItemAt(0).coerceToText(MainActivity.this);
+                    String key = value == null ? "" : value.toString().trim();
+                    if (!isValidOpenRouterKey(key)) { pushLlmSettings("В буфере нет корректного ключа OpenRouter"); return; }
+                    encryptAndStoreKey(OPENROUTER_KEY_ALIAS, PREF_OR_CIPHER, PREF_OR_IV, key);
+                    clipboard.setPrimaryClip(ClipData.newPlainText("", ""));
+                    pushLlmSettings("Ключ OpenRouter импортирован, буфер очищен");
+                } catch (Exception e) { pushLlmSettings("Не удалось импортировать ключ OpenRouter"); }
+            });
         }
 
         @JavascriptInterface public void pauseListening() {
@@ -1144,6 +1201,7 @@ public class MainActivity extends Activity {
             backendResult(false, "Нет подключения к Wi-Fi. Проверьте сеть робота и повторите запрос.");
             return;
         }
+        if ("openrouter".equals(llmProvider)) { requestOpenRouter(payload); return; }
         String apiKey;
         try {
             apiKey = readStoredApiKey();
@@ -1349,57 +1407,177 @@ public class MainActivity extends Activity {
     }
 
     private void encryptAndStoreApiKey(String apiKey) throws Exception {
+        encryptAndStoreKey(KEY_ALIAS, PREF_CIPHER, PREF_IV, apiKey);
+    }
+
+    private void encryptAndStoreKey(String alias, String cipherPref, String ivPref, String apiKey) throws Exception {
         KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
         keyStore.load(null);
-        if (!keyStore.containsAlias(KEY_ALIAS)) {
+        if (!keyStore.containsAlias(alias)) {
             KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
-            generator.init(new KeyGenParameterSpec.Builder(KEY_ALIAS,
+            generator.init(new KeyGenParameterSpec.Builder(alias,
                 KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .build());
             generator.generateKey();
         }
-        SecretKey key = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
+        SecretKey key = (SecretKey) keyStore.getKey(alias, null);
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key);
         byte[] encrypted = cipher.doFinal(apiKey.getBytes(StandardCharsets.UTF_8));
         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-            .putString(PREF_CIPHER, Base64.encodeToString(encrypted, Base64.NO_WRAP))
-            .putString(PREF_IV, Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
+            .putString(cipherPref, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+            .putString(ivPref, Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
             .apply();
     }
 
-    private String readStoredApiKey() throws Exception {
+    private String readStoredApiKey() throws Exception { return readStoredKey(KEY_ALIAS, PREF_CIPHER, PREF_IV); }
+
+    private String readStoredKey(String alias, String cipherPref, String ivPref) throws Exception {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        String encoded = prefs.getString(PREF_CIPHER, "");
-        String encodedIv = prefs.getString(PREF_IV, "");
+        String encoded = prefs.getString(cipherPref, "");
+        String encodedIv = prefs.getString(ivPref, "");
         if (encoded.isEmpty() || encodedIv.isEmpty()) return "";
         KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
         keyStore.load(null);
-        SecretKey key = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
+        SecretKey key = (SecretKey) keyStore.getKey(alias, null);
         if (key == null) return "";
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, Base64.decode(encodedIv, Base64.NO_WRAP)));
         return new String(cipher.doFinal(Base64.decode(encoded, Base64.NO_WRAP)), StandardCharsets.UTF_8);
     }
 
-    private boolean hasStoredApiKey() {
+    private boolean hasStoredApiKey() { return hasStoredKey(PREF_CIPHER, PREF_IV); }
+    private boolean hasStoredOpenRouterKey() { return hasStoredKey(PREF_OR_CIPHER, PREF_OR_IV); }
+
+    private boolean hasStoredKey(String cipherPref, String ivPref) {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        return !prefs.getString(PREF_CIPHER, "").isEmpty() && !prefs.getString(PREF_IV, "").isEmpty();
+        return !prefs.getString(cipherPref, "").isEmpty() && !prefs.getString(ivPref, "").isEmpty();
     }
 
-    private void clearStoredApiKey() {
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(PREF_CIPHER).remove(PREF_IV).apply();
+    private void clearStoredApiKey() { clearStoredKey(KEY_ALIAS, PREF_CIPHER, PREF_IV); }
+
+    private void clearStoredKey(String alias, String cipherPref, String ivPref) {
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(cipherPref).remove(ivPref).apply();
         try {
             KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
             keyStore.load(null);
-            if (keyStore.containsAlias(KEY_ALIAS)) keyStore.deleteEntry(KEY_ALIAS);
+            if (keyStore.containsAlias(alias)) keyStore.deleteEntry(alias);
         } catch (Exception ignored) { }
     }
 
+    private boolean isValidOpenRouterKey(String value) {
+        return value != null && value.startsWith("sk-or-") && value.length() >= 20;
+    }
+
+    private String activeModelLabel() {
+        return "openrouter".equals(llmProvider) ? "OpenRouter · " + llmModel : "OpenAI · " + OPENAI_MODEL;
+    }
+
+    private void pushLlmSettings(String message) {
+        uiJs("window.onLlmSettings && window.onLlmSettings(" + JSONObject.quote(llmProvider) + "," + JSONObject.quote(llmModel) + "," +
+            hasStoredOpenRouterKey() + "," + JSONObject.quote(message == null ? "" : message) + ")");
+    }
+
+    /** Тот же промпт и контекст, что в requestOpenAI, но через OpenRouter chat/completions (без web_search). */
+    private void requestOpenRouter(String payload) {
+        String apiKey;
+        try { apiKey = readStoredKey(OPENROUTER_KEY_ALIAS, PREF_OR_CIPHER, PREF_OR_IV); }
+        catch (Exception e) { backendResult(false, "Не удалось прочитать ключ OpenRouter. Сохраните его заново в настройках."); return; }
+        if (apiKey == null || apiKey.isEmpty()) { backendResult(false, "Ключ OpenRouter не настроен. Откройте настройки и сохраните ключ."); return; }
+
+        HttpURLConnection connection = null;
+        try {
+            JSONObject input = new JSONObject(payload);
+            String message = input.optString("message", "").trim();
+            String language = input.optString("language", "ru");
+            String requestedAnswerLanguage = input.optString("answer_language", answerLanguageMode);
+            String outputLanguage = "ru".equals(requestedAnswerLanguage) || "kk".equals(requestedAnswerLanguage)
+                ? requestedAnswerLanguage : effectiveAnswerLanguage(language);
+            if (message.isEmpty()) { backendResult(false, "Пустой вопрос"); return; }
+
+            SimpleDateFormat clock = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss EEEE", new Locale("ru", "RU"));
+            clock.setTimeZone(TimeZone.getTimeZone("Asia/Almaty"));
+            String instructions = ASSISTANT_INSTRUCTIONS + " Текущие дата и время в Астане: " + clock.format(new Date()) +
+                ". Отвечай на языке: " + outputLanguage + ". Веб-поиск недоступен: опирайся на официальный снимок quryltai.kz ниже; " +
+                "если факта там нет и он изменяемый, честно скажи, что актуальных официальных данных у тебя нет." +
+                QuryltaiDataSync.promptContext(this);
+            boolean contextualFollowUp = isContextualFollowUp(message, previousUserQuestion);
+            String conversationInput = "[Язык вопроса: " + language + "; язык ответа: " + outputLanguage + "]\n";
+            if (contextualFollowUp && !previousAssistantAnswer.isEmpty()) {
+                conversationInput += "Это уточнение к одному предыдущему обмену. Предыдущий вопрос: " + previousUserQuestion +
+                    "\nПредыдущий ответ: " + previousAssistantAnswer + "\nСвяжи новый вопрос только с этим предыдущим вопросом.\n";
+            }
+            conversationInput += "Новый вопрос: " + message;
+
+            JSONObject request = new JSONObject();
+            request.put("model", llmModel);
+            request.put("messages", new JSONArray()
+                .put(new JSONObject().put("role", "system").put("content", instructions))
+                .put(new JSONObject().put("role", "user").put("content", conversationInput)));
+            request.put("max_tokens", 600);
+            request.put("temperature", 0.4);
+
+            connection = (HttpURLConnection) new URL(OPENROUTER_URL).openConnection();
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(90000);
+            connection.setRequestProperty("Authorization", "Bearer " + apiKey);
+            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            connection.setRequestProperty("Accept", "application/json");
+            connection.setRequestProperty("HTTP-Referer", "https://github.com/zh-bolat/kurultai");
+            connection.setRequestProperty("X-Title", "Kurultai Robot Assistant");
+            connection.setDoOutput(true);
+            try (OutputStream out = connection.getOutputStream()) {
+                out.write(request.toString().getBytes(StandardCharsets.UTF_8));
+            }
+
+            int code = connection.getResponseCode();
+            String body = readBody(connection, code);
+            if (code >= 200 && code < 300) {
+                JSONObject response = new JSONObject(body);
+                String answer = "";
+                JSONArray choices = response.optJSONArray("choices");
+                JSONObject first = choices == null || choices.length() == 0 ? null : choices.optJSONObject(0);
+                JSONObject messageObject = first == null ? null : first.optJSONObject("message");
+                if (messageObject != null) answer = cleanAnswerText(messageObject.optString("content", ""));
+                if (answer.isEmpty()) backendResult(false, "Модель не вернула текстовый ответ");
+                else if ("[REPEAT]".equalsIgnoreCase(answer) || "REPEAT".equalsIgnoreCase(answer) ||
+                    "[SILENCE]".equalsIgnoreCase(answer) || "SILENCE".equalsIgnoreCase(answer)) {
+                    ignoreUnclearSpeech();
+                } else {
+                    previousUserQuestion = message;
+                    previousAssistantAnswer = answer;
+                    backendResult(true, new JSONObject().put("answer", answer).put("language", outputLanguage)
+                        .put("model", response.optString("model", llmModel)).toString());
+                }
+            } else {
+                backendResult(false, friendlyOpenRouterError(code, body));
+            }
+        } catch (Exception e) {
+            backendResult(false, "Не удалось связаться с OpenRouter: " + e.getMessage());
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    private String friendlyOpenRouterError(int code, String body) {
+        String message = "";
+        try {
+            JSONObject error = new JSONObject(body).optJSONObject("error");
+            if (error != null) message = error.optString("message", "");
+        } catch (Exception ignored) { }
+        if (code == 401) return "Ключ OpenRouter недействителен. Проверьте ключ в настройках.";
+        if (code == 402) return "На OpenRouter закончился баланс. Пополните счёт.";
+        if (code == 404) return "Модель «" + llmModel + "» не найдена на OpenRouter. Проверьте название в настройках.";
+        if (code == 429) return "Лимит OpenRouter исчерпан. Повторите запрос позже.";
+        if (code >= 500) return "Сервис OpenRouter временно недоступен. Повторите запрос позже.";
+        return message.isEmpty() ? "OpenRouter вернул ошибку " + code : "OpenRouter: " + message;
+    }
+
     private void pushAiStatus(String message) {
-        uiJs("window.onAiStatus && window.onAiStatus(" + hasStoredApiKey() + "," + JSONObject.quote(OPENAI_MODEL) + "," + JSONObject.quote(message) + ")");
+        uiJs("window.onAiStatus && window.onAiStatus(" + hasStoredApiKey() + "," + JSONObject.quote(activeModelLabel()) + "," + JSONObject.quote(message) + ")");
     }
 
     private void pushLocalMeeting(String status) {
