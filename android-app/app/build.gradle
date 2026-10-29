@@ -2,6 +2,13 @@ plugins {
     id 'com.android.application'
 }
 
+def gitSha() {
+    try {
+        def out = 'git rev-parse --short HEAD'.execute([], rootDir).text.trim()
+        return out ? out : 'nogit'
+    } catch (Exception ignored) { return 'nogit' }
+}
+
 android {
     namespace 'kz.kurultai.assistant'
     compileSdk 34
@@ -14,8 +21,9 @@ android {
         applicationId 'kz.kurultai.assistant'
         minSdk 23
         targetSdk 29
-        versionCode 73
-        versionName '5.49.0-ai-assistant-identity'
+        versionCode 74
+        // Штамп версии: git sha + дата сборки, чтобы версию было видно на роботе (бейдж подключения).
+        versionName "5.50-${gitSha()}-${new Date().format('yyyyMMdd')}"
         buildConfigField 'String', 'EMBEDDED_OPENAI_KEY', '"' + (System.getenv('KURULTAI_EMBEDDED_OPENAI_KEY') ?: '') + '"'
     }
 
