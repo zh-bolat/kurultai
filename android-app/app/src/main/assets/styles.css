@@ -142,22 +142,52 @@ h1,h2,h3,.hero h2{letter-spacing:-0.02em;font-weight:700}
 /* Home: the banner circle is the voice button (caption under it); no status chip; bottom voice bar hidden */
 .hero .status{display:none}
 .hero{height:auto;min-height:200px}
-.voice-cta{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;z-index:1;text-align:center}
-.voice-cta .orb{width:150px;height:150px;border:0;padding:0;margin:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.voice-cta .orb:active .orb-core{transform:scale(.95)}
-.voice-cta b{color:#fff;font-size:17px;font-weight:800}
-.voice-cta small{color:#c8d7eb;font-size:12px}
 .orb.listening .orb-core{background:radial-gradient(circle at 35% 30%,#ffb3b5,#e5484d 60%,#c4353a);box-shadow:0 0 0 6px #e5484d33,0 0 36px #e5484d88}
 .orb.listening .orb-ring{animation:orbRing 2.4s ease-out infinite;border-color:rgba(255,170,172,.7)}
 .orb.listening .orb-ring:nth-child(1){opacity:1}
 .orb.thinking .orb-core{opacity:.75}.orb.thinking{cursor:default}
-body.on-home .voice-dock{display:none}
-body.on-home main{padding-bottom:24px}
-@media (max-width:1100px) and (max-height:700px) and (orientation:landscape){.voice-cta .orb{width:110px;height:110px}.voice-cta b{font-size:14px}.voice-cta small{font-size:10px}.hero{min-height:150px}}
-@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.voice-cta .orb{width:72px;height:72px}.voice-cta small{display:none}.voice-cta b{font-size:11px}.hero{min-height:110px}}
-@media (min-width:1500px) and (min-height:850px){.hero{min-height:260px}.voice-cta .orb{width:180px;height:180px}.voice-cta b{font-size:21px}.voice-cta small{font-size:15px}}
-.voice-cta{gap:2px}.voice-cta .orb{margin-bottom:-12px}
 
 /* Analytics: period/region are static labels (they had no function as buttons) */
 .dash-filters span{display:inline-flex;align-items:center;background:#eef3f9;border-radius:9px;padding:9px 12px;color:#53617a;font-size:12px;font-weight:600}
 @media (min-width:1500px) and (min-height:850px){.dash-filters span{font-size:14px}}
+
+
+/* Voice banner: its own card under the welcome banner; the whole card is the voice button */
+.hero{min-height:170px}
+.voice-banner{display:flex;align-items:center;gap:22px;width:100%;margin:14px 0 0;padding:12px 28px;border:1px solid #cfe3f3;border-radius:20px;background:linear-gradient(120deg,#ffffff,#eaf5fd);color:var(--ink);text-align:left;cursor:pointer;box-shadow:0 8px 22px #21385f14;-webkit-tap-highlight-color:transparent;font:inherit}
+.voice-banner:active{transform:scale(.995)}
+.voice-banner .orb{width:96px;height:96px;flex:0 0 auto}
+.voice-banner .orb-ring{border-color:rgba(44,155,224,.45)}
+.vb-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.vb-text b{font-size:22px;font-weight:800;color:#1f3d6b}
+.vb-text small{font-size:14px;color:var(--muted)}
+.voice-banner.listening{border-color:#f3b4b6;background:linear-gradient(120deg,#fff,#fdeeee)}
+.voice-banner.listening .vb-text b{color:#c4353a}
+.voice-banner.listening .orb-ring{border-color:rgba(229,72,77,.5)}
+.voice-banner:disabled{cursor:default;opacity:.85}
+@media (max-width:1100px) and (max-height:700px) and (orientation:landscape){.hero{min-height:130px}.voice-banner{padding:8px 18px;margin-top:10px;gap:14px}.voice-banner .orb{width:70px;height:70px}.vb-text b{font-size:17px}.vb-text small{font-size:11px}}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.hero{min-height:100px}.voice-banner{padding:4px 10px;margin-top:6px;gap:8px;border-radius:12px}.voice-banner .orb{width:48px;height:48px}.vb-text b{font-size:12px}.vb-text small{display:none}}
+@media (min-width:1500px) and (min-height:850px){.hero{min-height:190px}.voice-banner .orb{width:104px;height:104px}.vb-text b{font-size:26px}.vb-text small{font-size:16px}}
+
+
+/* One voice control on every page: the voice banner sits in the bottom bar's place; the old bar's content is hidden */
+.voice-dock{background:none;border:0;padding:0;box-shadow:none;backdrop-filter:none;min-height:0}
+.voice-dock>.voice-avatar,.voice-dock>.voice-copy,.voice-dock>.voice-toggle{display:none}
+.voice-dock .voice-banner{margin:0;box-shadow:0 10px 30px #21385f26}
+@media (min-width:1500px) and (min-height:850px){.voice-dock{padding:0;min-height:0}.voice-banner .orb{width:88px;height:88px}main{padding-bottom:140px}}
+
+
+/* Voice bar look: dark navy, sky-blue circle, no red while listening */
+.voice-banner{background:#1f2f52;border:1px solid #2f4673;color:#fff;box-shadow:0 12px 32px #10233f55}
+.vb-text{flex:1}
+.vb-text b{color:#fff}.vb-text small{color:#c8d7eb}
+.vb-status{flex:0 0 auto;font-size:12px;font-weight:800;letter-spacing:1.4px;color:#83e5ff;padding-left:12px}
+.voice-banner .orb-ring{border-color:rgba(131,229,255,.55)}
+.voice-banner.listening{background:#1f2f52;border-color:#4fb3ec}
+.voice-banner.listening .vb-text b{color:#fff}
+.voice-banner.listening .orb-ring{border-color:rgba(131,229,255,.8)}
+.orb.listening .orb-core{background:radial-gradient(circle at 35% 30%,#c4efff,#4cc3f5 55%,#2c9be0);box-shadow:0 0 0 6px #4cc3f533,0 0 36px #4cc3f599}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.vb-status{display:none}}
+@media (min-width:1500px) and (min-height:850px){.voice-banner .orb{width:92px;height:92px}.vb-status{font-size:14px}}
+.voice-banner .orb-core{width:72%;height:72%}
+.voice-banner .orb-ring{width:72%;height:72%}
