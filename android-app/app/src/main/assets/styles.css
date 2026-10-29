@@ -284,3 +284,23 @@ main>header:not(.bg-map){position:absolute;z-index:3}
 @media (max-width:1100px) and (max-height:700px) and (orientation:landscape){.voice-dock .voice-banner{--orb:70px}.vb-fab-label{font-size:12px}}
 @media (max-width:700px) and (max-height:450px) and (orientation:landscape){.voice-dock .voice-banner{--orb:48px}.vb-fab-label{display:none}}
 @media (min-width:1500px) and (min-height:850px){.voice-dock .voice-banner{--orb:92px}.vb-fab-label{font-size:16px;padding:7px 14px}}
+
+
+/* Voice button, prototype layout: dark round plate in the bottom-right corner, label under it.
+   When active the plate widens to the left; the circle stays in place on the right, text appears to its left. */
+.voice-dock .voice-banner{flex-direction:row-reverse;justify-content:flex-start;background:#1F2F52;border:0;box-shadow:0 14px 34px rgba(23,37,64,.28);
+  transition:max-width .55s cubic-bezier(.22,.8,.24,1),padding .55s cubic-bezier(.22,.8,.24,1),border-radius .55s ease;max-width:983px;padding:12px 12px 12px 30px;gap:18px}
+.voice-dock .voice-banner .orb{order:1;flex:0 0 auto}
+.voice-dock .vb-status{order:2;display:flex;align-items:center;gap:8px;padding-left:0;font-size:13px;letter-spacing:1.4px;color:#cfe6ff}
+.voice-dock .vb-status::before{content:"";width:8px;height:8px;border-radius:50%;background:#3ccf8e;box-shadow:0 0 0 4px #3ccf8e33}
+.voice-dock .vb-text{order:3;flex:1;min-width:0}
+.voice-dock .vb-text b{font-size:22px}.voice-dock .vb-text small{font-size:15px;color:#B9C7DE}
+.voice-dock .vb-text,.voice-dock .vb-status{transform:none;transition:opacity .3s ease .25s,transform .3s ease .25s}
+.voice-dock.active .vb-text,.voice-dock.active .vb-status{transform:translateX(24px)}
+.voice-dock.active .voice-banner{padding:12px;border-radius:999px}
+.vb-fab-label{bottom:auto;top:calc(100% + 8px);right:calc((var(--orb,83px) + 24px)/2);transform:translateX(50%);background:none;border:0;padding:0;color:#1F2F52;font-size:14px}
+.voice-dock.active .vb-fab-label{transform:translateX(50%)}
+.voice-dock:not(.active) .vb-fab-label{opacity:0;transform:translateX(50%) translateY(4px)}
+@media (min-width:1500px) and (min-height:850px){.voice-dock{left:auto;right:37px;bottom:35px}.voice-dock .voice-banner{--orb:83px}.vb-fab-label{font-size:14px;right:53px}}
+.voice-dock .voice-banner{width:min(983px,calc(100vw - 340px));max-width:none;transition:width .55s cubic-bezier(.22,.8,.24,1),padding .55s cubic-bezier(.22,.8,.24,1),border-radius .55s ease}
+.voice-dock.active .voice-banner{width:calc(var(--orb) + 24px);max-width:none}
