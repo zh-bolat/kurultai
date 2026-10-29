@@ -62,4 +62,246 @@ main{padding-bottom:108px}
 @media (max-width:700px) and (max-height:450px) and (orientation:landscape){.sidebar{width:108px;padding-left:4px;padding-right:4px}.brand b{font-size:10px}.nav{padding-left:3px;padding-right:3px}.nav span{margin-left:2px}main{margin-left:108px}.voice-dock{left:116px}}
 .assistant-preferences,.meeting-settings{padding:4px 0 18px;border-bottom:1px solid var(--line)}.assistant-preferences h3,.meeting-settings h3{margin:4px 0 8px}.assistant-preferences select,.meeting-settings select{width:100%;min-height:46px;padding:11px 13px;margin-bottom:9px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink)}.assistant-preferences .save{margin-top:3px}.advanced{margin-top:18px}.advanced summary{color:var(--green);font-weight:700}.modal-card{max-height:88vh;overflow:auto}
 .orb.greeting{animation:friendlyGreeting .7s ease-in-out 3}.orb.greeting .orb-core{animation:friendlyCore .7s ease-in-out 3}@keyframes friendlyGreeting{50%{transform:scale(1.045);filter:brightness(1.18)}}@keyframes friendlyCore{50%{transform:translateY(5px) scale(1.08)}}
+
+/* Question bar sits below the welcome banner instead of overlapping its bottom edge */
+.askbox{margin-top:14px}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.askbox{margin-top:8px}}
+/* Typography: Inter (covers Kazakh Cyrillic), Roboto from Android as the offline fallback */
+body{font-family:"Inter",Roboto,"Segoe UI","Helvetica Neue",Arial,sans-serif;font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.4}
+button,input,textarea,select{font-family:inherit}
+h1,h2,h3,.hero h2{letter-spacing:-0.02em;font-weight:700}
+/* Sidebar header: Құрылтай РК as a card with a gold accent */
+.brand{background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.14);border-left:3px solid #e8b94a;border-radius:14px;padding:14px 14px 13px;margin-bottom:12px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.brand b{display:block;letter-spacing:.01em;font-weight:800}
+.brand span{color:#cfdaf0}
+@media (max-width:1100px) and (max-height:700px) and (orientation:landscape){.brand{padding:9px 10px;border-radius:11px;margin-bottom:8px}}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.brand{padding:6px 6px;border-radius:9px;margin-bottom:5px}}
+/* Assistant badge: sound bars with spreading rings instead of a face */
+.orb{position:relative;background:none}
+.orb-ring{position:absolute;inset:0;margin:auto;width:50%;height:50%;border-radius:50%;border:2px solid rgba(140,210,245,.6);animation:orbRing 3s ease-out infinite;pointer-events:none}
+.orb-ring:nth-child(2){animation-delay:1s}.orb-ring:nth-child(3){animation-delay:2s}
+.orb-core{position:relative;width:50%;height:50%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#a6e2fa,#4ca9dc 55%,#2c80c0);display:flex;align-items:center;justify-content:center;gap:6%;box-shadow:0 0 30px rgba(120,200,245,.45);text-shadow:none;font-size:0}
+.orb-core i{display:block;width:7%;height:22%;border-radius:99px;background:#fff;animation:orbBar 1.1s ease-in-out infinite alternate}
+.orb-core i:nth-child(2){height:40%;animation-delay:.15s}.orb-core i:nth-child(3){height:56%;animation-delay:.3s}.orb-core i:nth-child(4){height:40%;animation-delay:.45s}.orb-core i:nth-child(5){animation-delay:.6s}
+/* Still while idle or listening; rings and bars move only while the robot speaks */
+.orb:not(.speaking) .orb-ring,.orb:not(.speaking) .orb-core i{animation:none}
+.orb:not(.speaking) .orb-ring{transform:scale(1.3);opacity:.35}.orb:not(.speaking) .orb-ring:nth-child(2),.orb:not(.speaking) .orb-ring:nth-child(3){opacity:0}
+.orb.speaking .orb-ring{animation-duration:1.3s;border-color:rgba(170,228,255,.85)}.orb.speaking .orb-core i{animation-duration:.32s}
+@keyframes orbRing{0%{transform:scale(.95);opacity:.85}100%{transform:scale(2);opacity:0}}
+@keyframes orbBar{to{transform:scaleY(.45)}}
+.voice-face{display:grid;place-items:center;margin:0;letter-spacing:0}
+/* Robot screen (14", 1600×900): home fits without scrolling, voice bar aligned with the content and clear of the sidebar */
+@media (min-width:1500px) and (min-height:850px){
+  header{height:100px}
+  .hero{padding:30px 45px}
+  .askbox{height:80px;margin-top:14px;margin-bottom:18px}
+  .quick{min-height:150px;padding:18px 22px}
+  .today{min-height:96px;padding:14px 24px}
+  .voice-dock{left:318px;right:48px;min-height:84px;padding:10px 16px;gap:16px}
+  .voice-avatar{flex-basis:62px;width:62px;height:62px;min-height:62px}
+  .voice-copy small{font-size:13px;letter-spacing:1.5px}.voice-copy strong{font-size:20px}
+  .voice-toggle{min-height:56px;padding:10px 26px;font-size:18px;border-radius:14px}
+}
+
+
+/* Settings live at the top of the "Робот и настройки" page instead of a pop-up */
+.settings-panel{margin:0 0 20px}
+.settings-panel .modal-card{width:auto;max-width:none;border:1px solid var(--line);box-shadow:0 8px 24px #21385f12}
+
+
+/* "Состояние" block on the Robot & settings page */
+.status-panel{background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px 28px;margin:0 0 20px;box-shadow:0 8px 24px #21385f12}
+.status-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.status-head h2{margin:0;font-size:22px}
+.status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.status-grid div{background:#f4f7fb;border-radius:12px;padding:12px 14px;min-width:0}
+.status-grid span{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.status-grid b{display:block;font-size:15px;overflow-wrap:anywhere}
+@media (max-width:1100px){.status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:1500px) and (min-height:850px){.status-grid span{font-size:14px}.status-grid b{font-size:18px}.status-head h2{font-size:26px}}
+
+
+/* Language switch: ҚАЗ | РУС, the current language highlighted */
+.header-actions .lang-switch{display:inline-flex;align-items:stretch;gap:0;padding:4px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+.lang-switch span{display:flex;align-items:center;padding:0 12px;border-radius:9px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+.lang-switch span.on{background:#2c86c6;color:#fff}
+
+/* Mic button in the question bar removed: voice is the "Говорить" button on the bottom bar.
+   Kept in the markup (hidden) because the script still toggles its classes. */
+.askbox .mic{display:none}
+.askbox input{padding-left:18px}
+
+
+/* Voice bar: the round icon is a status light, the button on the right is the only control */
+.voice-avatar{pointer-events:none;cursor:default}
+.voice-toggle{background:#2c9be0;border-color:#2c9be0;color:#fff;font-weight:800;box-shadow:0 6px 16px #0b2b5544}
+.voice-toggle.recording{background:#e5484d;border-color:#e5484d}
+.voice-toggle.stop{background:#fff;border-color:#fff;color:#1f3d6b}
+.voice-toggle:disabled{background:#ffffff22;border-color:#a8e7ff44;color:#d6e6f5;box-shadow:none}
+
+
+/* Home: the banner circle is the voice button (caption under it); no status chip; bottom voice bar hidden */
+.hero .status{display:none}
+.hero{height:auto;min-height:200px}
+.orb.listening .orb-core{background:radial-gradient(circle at 35% 30%,#ffb3b5,#e5484d 60%,#c4353a);box-shadow:0 0 0 6px #e5484d33,0 0 36px #e5484d88}
+.orb.listening .orb-ring{animation:orbRing 2.4s ease-out infinite;border-color:rgba(255,170,172,.7)}
+.orb.listening .orb-ring:nth-child(1){opacity:1}
+.orb.thinking .orb-core{opacity:.75}.orb.thinking{cursor:default}
+
+/* Analytics: period/region are static labels (they had no function as buttons) */
+.dash-filters span{display:inline-flex;align-items:center;background:#eef3f9;border-radius:9px;padding:9px 12px;color:#53617a;font-size:12px;font-weight:600}
+@media (min-width:1500px) and (min-height:850px){.dash-filters span{font-size:14px}}
+
+
+/* Voice banner: its own card under the welcome banner; the whole card is the voice button */
+.hero{min-height:170px}
+.voice-banner{display:flex;align-items:center;gap:22px;width:100%;margin:14px 0 0;padding:12px 28px;border:1px solid #cfe3f3;border-radius:20px;background:linear-gradient(120deg,#ffffff,#eaf5fd);color:var(--ink);text-align:left;cursor:pointer;box-shadow:0 8px 22px #21385f14;-webkit-tap-highlight-color:transparent;font:inherit}
+.voice-banner:active{transform:scale(.995)}
+.voice-banner .orb{width:96px;height:96px;flex:0 0 auto}
+.voice-banner .orb-ring{border-color:rgba(44,155,224,.45)}
+.vb-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.vb-text b{font-size:22px;font-weight:800;color:#1f3d6b}
+.vb-text small{font-size:14px;color:var(--muted)}
+.voice-banner.listening{border-color:#f3b4b6;background:linear-gradient(120deg,#fff,#fdeeee)}
+.voice-banner.listening .vb-text b{color:#c4353a}
+.voice-banner.listening .orb-ring{border-color:rgba(229,72,77,.5)}
+.voice-banner:disabled{cursor:default;opacity:.85}
+@media (max-width:1100px) and (max-height:700px) and (orientation:landscape){.hero{min-height:130px}.voice-banner{padding:8px 18px;margin-top:10px;gap:14px}.voice-banner .orb{width:70px;height:70px}.vb-text b{font-size:17px}.vb-text small{font-size:11px}}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.hero{min-height:100px}.voice-banner{padding:4px 10px;margin-top:6px;gap:8px;border-radius:12px}.voice-banner .orb{width:48px;height:48px}.vb-text b{font-size:12px}.vb-text small{display:none}}
+@media (min-width:1500px) and (min-height:850px){.hero{min-height:190px}.voice-banner .orb{width:104px;height:104px}.vb-text b{font-size:26px}.vb-text small{font-size:16px}}
+
+
+/* One voice control on every page: the voice banner sits in the bottom bar's place; the old bar's content is hidden */
+.voice-dock{background:none;border:0;padding:0;box-shadow:none;backdrop-filter:none;min-height:0}
+.voice-dock>.voice-avatar,.voice-dock>.voice-copy,.voice-dock>.voice-toggle{display:none}
+.voice-dock .voice-banner{margin:0;box-shadow:0 10px 30px #21385f26}
+@media (min-width:1500px) and (min-height:850px){.voice-dock{padding:0;min-height:0}.voice-banner .orb{width:88px;height:88px}main{padding-bottom:140px}}
+
+
+/* Voice bar look: dark navy, sky-blue circle, no red while listening */
+.voice-banner{background:#1f2f52;border:1px solid #2f4673;color:#fff;box-shadow:0 12px 32px #10233f55}
+.vb-text{flex:1}
+.vb-text b{color:#fff}.vb-text small{color:#c8d7eb}
+.vb-status{flex:0 0 auto;font-size:12px;font-weight:800;letter-spacing:1.4px;color:#83e5ff;padding-left:12px}
+.voice-banner .orb-ring{border-color:rgba(131,229,255,.55)}
+.voice-banner.listening{background:#1f2f52;border-color:#4fb3ec}
+.voice-banner.listening .vb-text b{color:#fff}
+.voice-banner.listening .orb-ring{border-color:rgba(131,229,255,.8)}
+.orb.listening .orb-core{background:radial-gradient(circle at 35% 30%,#c4efff,#4cc3f5 55%,#2c9be0);box-shadow:0 0 0 6px #4cc3f533,0 0 36px #4cc3f599}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.vb-status{display:none}}
+@media (min-width:1500px) and (min-height:850px){.voice-banner .orb{width:92px;height:92px}.vb-status{font-size:14px}}
+.voice-banner .orb-core{width:72%;height:72%}
+.voice-banner .orb-ring{width:72%;height:72%}
+
+
+/* Minimal look: pale map of Kazakhstan behind the content, light welcome text, crisp white cards in front */
+body{background:#F6F8FB}
+main{position:relative}
+.bg-map{position:absolute;left:32px;right:32px;top:90px;z-index:0;pointer-events:none}
+.bg-map svg{display:block;width:100%;height:auto}
+main>*:not(.bg-map){position:relative;z-index:1}
+.hero{background:none;color:#172540;padding-left:0;padding-right:0;box-shadow:none;border-radius:0}
+.hero h2{color:#172540}.hero p{color:#56637A}
+.askbox,.quick,.today,.result-card,.status-panel,.settings-panel .modal-card,.header-actions .lang-switch{background:#fff;border:1.5px solid #B8C4D6;border-radius:16px}
+.quick,.today,.result-card,.status-panel,.settings-panel .modal-card{box-shadow:0 1px 0 rgba(23,37,64,.04),0 10px 28px rgba(23,37,64,.07)}
+.askbox{box-shadow:0 1px 0 rgba(23,37,64,.04),0 12px 32px rgba(23,37,64,.08);margin-top:22px}
+.quick-grid{margin-top:34px}
+.today{margin-top:34px}
+.answer-head{background:#fff;color:#172540;border:1.5px solid #B8C4D6;border-radius:16px;box-shadow:0 1px 0 rgba(23,37,64,.04),0 10px 28px rgba(23,37,64,.07)}
+.answer-head h2{color:#172540}.answer-head p{color:#56637A}
+.answer-head .status{color:#2B7DB3;background:#eaf4fb}
+.answer-head button{background:#fff;color:#172540;border:1.5px solid #B8C4D6}
+@media (min-width:1500px) and (min-height:850px){.hero{min-height:150px;padding-top:22px;padding-bottom:10px}.bg-map{left:48px;right:48px}}
+
+/* Background map: whole map at half opacity so it is barely visible */
+.bg-map svg{opacity:.3}
+
+/* Text cards: slightly see-through (top almost solid, fading towards the bottom) so the map edges show faintly */
+.askbox,.quick,.today,.result-card,.answer-head,.status-panel,.settings-panel .modal-card{background:linear-gradient(160deg,rgba(255,255,255,.94) 0%,rgba(255,255,255,.78) 55%,rgba(255,255,255,.6) 100%)}
+.askbox input{background:transparent}
+
+/* Header: no page title (the sidebar already says Құрылтай), only the language switch on the right */
+header>div:first-child{display:none}
+header{justify-content:flex-end;height:76px}
+@media (min-width:1500px) and (min-height:850px){header{height:84px}}
+
+/* Composition: the language switch floats top-right, the welcome text starts at the top of the page.
+   Clear hierarchy: big title, calm subtitle, medium card headings. */
+header{position:absolute;top:16px;right:32px;height:auto;z-index:3}
+.hero{min-height:0;padding:30px 0 6px;align-items:flex-start}
+.hero>div:first-child{max-width:78%}
+.hero h2{font-size:36px;line-height:1.1;letter-spacing:-.02em;font-weight:800;margin:0 0 12px}
+.hero p{font-size:16px;line-height:1.45;max-width:640px}
+.quick b{font-size:16px;letter-spacing:-.005em}
+.quick small{font-size:13px}
+@media (max-width:1100px) and (max-height:700px) and (orientation:landscape){header{top:10px;right:18px}.hero{padding-top:18px}.hero h2{font-size:28px;margin-bottom:8px}.hero p{font-size:13px}}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){header{top:6px;right:8px}.hero{padding-top:8px}.hero h2{font-size:18px;margin-bottom:4px}.hero p{font-size:10px}}
+@media (orientation:portrait){header{right:18px}}
+@media (min-width:1500px) and (min-height:850px){header{top:22px;right:48px}.hero{padding-top:36px}.hero h2{font-size:48px;margin-bottom:14px}.hero p{font-size:20px;max-width:760px}.quick b{font-size:20px}.quick small{font-size:15px}}
+@media (min-width:1500px) and (min-height:850px){.hero p{max-width:980px}}
+.hero p{max-width:820px}
+
+/* Home composition for the robot screen (prototype 1920×1080 scaled to 1600×900) */
+header{left:auto;width:auto}
+@media (min-width:1500px) and (min-height:850px){
+  header{top:47px;right:48px}
+  .hero{padding:47px 0 0}
+  .hero>div:first-child{max-width:calc(100% - 220px)}
+  .hero h2{font-size:52px;font-weight:800;line-height:1.08;letter-spacing:-.7px;margin:0 0 15px;max-width:985px}
+  .hero p{font-size:19px;line-height:1.4;color:#56637A;max-width:985px}
+  .askbox{margin-top:33px;height:auto;padding:6px 6px 6px 8px;border-radius:12px}
+  .askbox input{font-size:20px;height:53px}
+  .askbox .send{min-height:57px;border-radius:12px;font-size:18px;padding:0 26px}
+  .quick-grid{margin-top:33px}
+  .quick{min-height:200px;display:flex;flex-direction:column;gap:10px;justify-content:flex-start}
+  .quick b{font-size:20px;line-height:1.2;margin:0}
+  .quick small{font-size:15px}
+  .today{margin-top:33px;padding:23px 27px}
+  .today h3{font-size:20px}
+}
+main>header:not(.bg-map){position:absolute;z-index:3}
+@media (min-width:1500px) and (min-height:850px){
+  .hero{padding-top:36px}
+  header{top:36px}
+  .askbox,.quick-grid,.today{margin-top:26px}
+  .quick{min-height:176px}
+  .today{padding:16px 27px}
+}
+@media (min-width:1500px) and (min-height:850px){.hero{padding-top:47px}header{top:47px}.askbox,.quick-grid,.today{margin-top:33px}.quick{min-height:200px}}
+
+
+/* Voice control: a round button in the bottom-right corner at rest; it unfolds right-to-left into the full bar
+   while the robot listens, prepares or speaks, and folds back when it is done. */
+.voice-dock{pointer-events:none;display:flex;justify-content:flex-end;align-items:flex-end}
+.voice-dock .voice-banner{pointer-events:auto;--orb:96px;margin-left:auto;overflow:hidden;white-space:nowrap;
+  max-width:1400px;transition:max-width .5s cubic-bezier(.2,.8,.2,1),padding .5s cubic-bezier(.2,.8,.2,1),border-radius .5s ease}
+.voice-dock .voice-banner .orb{width:var(--orb);height:var(--orb)}
+.voice-dock .vb-text,.voice-dock .vb-status{transition:opacity .25s ease .2s}
+.voice-dock.active .voice-banner{max-width:calc(var(--orb) + 24px);padding:11px;border-radius:999px;gap:0}
+.voice-dock.active .vb-text,.voice-dock.active .vb-status{opacity:0;transition-delay:0s}
+.vb-fab-label{position:absolute;right:0;bottom:calc(100% + 10px);pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .25s ease,transform .25s ease;
+  font-size:14px;font-weight:800;color:#1f2f52;background:rgba(255,255,255,.92);border:1.5px solid #B8C4D6;border-radius:999px;padding:6px 12px;white-space:nowrap}
+.voice-dock.active .vb-fab-label{opacity:1;transform:none;transition-delay:.25s}
+@media (max-width:1100px) and (max-height:700px) and (orientation:landscape){.voice-dock .voice-banner{--orb:70px}.vb-fab-label{font-size:12px}}
+@media (max-width:700px) and (max-height:450px) and (orientation:landscape){.voice-dock .voice-banner{--orb:48px}.vb-fab-label{display:none}}
+@media (min-width:1500px) and (min-height:850px){.voice-dock .voice-banner{--orb:92px}.vb-fab-label{font-size:16px;padding:7px 14px}}
+
+
+/* Voice button, prototype layout: dark round plate in the bottom-right corner, label under it.
+   When active the plate widens to the left; the circle stays in place on the right, text appears to its left. */
+.voice-dock .voice-banner{flex-direction:row-reverse;justify-content:flex-start;background:#1F2F52;border:0;box-shadow:0 14px 34px rgba(23,37,64,.28);
+  transition:max-width .55s cubic-bezier(.22,.8,.24,1),padding .55s cubic-bezier(.22,.8,.24,1),border-radius .55s ease;max-width:983px;padding:12px 12px 12px 30px;gap:18px}
+.voice-dock .voice-banner .orb{order:1;flex:0 0 auto}
+.voice-dock .vb-status{order:2;display:flex;align-items:center;gap:8px;padding-left:0;font-size:13px;letter-spacing:1.4px;color:#cfe6ff}
+.voice-dock .vb-status::before{content:"";width:8px;height:8px;border-radius:50%;background:#3ccf8e;box-shadow:0 0 0 4px #3ccf8e33}
+.voice-dock .vb-text{order:3;flex:1;min-width:0}
+.voice-dock .vb-text b{font-size:22px}.voice-dock .vb-text small{font-size:15px;color:#B9C7DE}
+.voice-dock .vb-text,.voice-dock .vb-status{transform:none;transition:opacity .3s ease .25s,transform .3s ease .25s}
+.voice-dock.active .vb-text,.voice-dock.active .vb-status{transform:translateX(24px)}
+.voice-dock.active .voice-banner{padding:12px;border-radius:999px}
+.vb-fab-label{bottom:auto;top:calc(100% + 8px);right:calc((var(--orb,83px) + 24px)/2);transform:translateX(50%);background:none;border:0;padding:0;color:#1F2F52;font-size:14px}
+.voice-dock.active .vb-fab-label{transform:translateX(50%)}
+.voice-dock:not(.active) .vb-fab-label{opacity:0;transform:translateX(50%) translateY(4px)}
+@media (min-width:1500px) and (min-height:850px){.voice-dock{left:auto;right:37px;bottom:35px}.voice-dock .voice-banner{--orb:83px}.vb-fab-label{font-size:14px;right:53px}}
+.voice-dock .voice-banner{width:min(983px,calc(100vw - 340px));max-width:none;transition:width .55s cubic-bezier(.22,.8,.24,1),padding .55s cubic-bezier(.22,.8,.24,1),border-radius .55s ease}
+.voice-dock.active .voice-banner{width:calc(var(--orb) + 24px);max-width:none}
 .llm-settings{padding:4px 0 18px;border-bottom:1px solid var(--line)}.llm-settings h3{margin:4px 0 8px}.llm-settings select,.llm-settings input{width:100%;min-height:46px;padding:11px 13px;margin-bottom:9px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);box-sizing:border-box}.llm-settings .save{margin-top:3px}.llm-settings .clipboard-import{margin-bottom:8px}

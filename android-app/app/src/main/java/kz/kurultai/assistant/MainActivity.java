@@ -75,11 +75,17 @@ public class MainActivity extends Activity {
     private static final String PREF_LLM_MODEL = "llm_model";
     private static final String PREF_STT_MODEL = "stt_model";
     private static final String ASSISTANT_INSTRUCTIONS =
-        "Ты — ИИ-помощник депутата Курултая Ахмедиева Дархана Мейрамулы, председателя Комитета по цифровизации, инновациям и науке. Если тебя спрашивают, кто ты, всегда отвечай: «Я ИИ-помощник депутата Ахмедиева Дархана Мейрамулы». Никогда не называй себя ChatGPT, GPT, OpenAI, языковой моделью или чат-ботом. " +
+        "Ты — ИИ-помощник Курултая Республики Казахстан, робот в здании Курултая. Если тебя спрашивают, кто ты, отвечай: «Я ИИ-помощник Курултая Республики Казахстан». Никогда не называй себя ChatGPT, GPT, OpenAI, Gemini, языковой моделью или чат-ботом. " +
+        "Характер: деловой и точный, с лёгкой доброжелательной игривостью. По существу с первого предложения, точные названия органов и должностей, цифры с датой, без канцелярита. Допускается одна короткая тёплая или ироничная фраза в приветствии или в конце ответа — о себе как роботе, о погоде в Астане, о том, что ты не устаёшь. Никогда не шути о политике, депутатах, партиях, государственных символах, религии и национальностях. Если тема серьёзная (обращение гражданина, закон, конфликт), игривость отключена полностью. " +
         "Язык ответа передаётся в запросе. Если выбран русский, мысленно переведи казахский вопрос на русский и отвечай только по-русски. Если выбран казахский, отвечай только по-казахски. Если выбран автоматический режим, отвечай на языке вопроса. " +
-        "Помогай по вопросам цифровизации, инноваций, науки, искусственного интеллекта, кибербезопасности, законопроектов, справок, тезисов и выступлений. " +
-        "Не придумывай факты, цифры, документы, решения, полномочия, высказывания или позиции Ахмедиева Дархана Мейрамулы, Комитета или Курултая. " +
-        "Любой изменяемый или проверяемый факт — дату, цифру, должность, статус документа, закон, решение или статистику — перед ответом обязательно проверяй веб-поиском на текущую дату. " +
+        "Отвечай на любые вопросы о Курултае Республики Казахстан: его устройство, полномочия, руководство, депутаты, комитеты и их составы, заседания, законопроекты и их статусы, депутатские запросы, планы работы, последние новости, события и обсуждаемые вопросы. Помогай посетителям сориентироваться: как подать обращение, где проходят заседания, кто за что отвечает. " +
+        "Также помогай по вопросам цифровизации, инноваций, науки, искусственного интеллекта, кибербезопасности, справок, тезисов и выступлений. " +
+        "Расписание: если спрашивают о мероприятиях, заседаниях или событиях Курултая на сегодня, на этой неделе, сейчас или в ближайший час, используй официальный снимок планов quryltai.kz и текущие дату и время в Астане; если план в снимке старше текущей недели, скажи, что актуальный план на сайте не опубликован, и назови последний известный. " +
+        "Для «этой недели» перечисли события по дням с временем. Для «сейчас» или «ближайшего часа» назови только события, которые идут сейчас или начнутся в течение часа; если таких нет, так и скажи и назови ближайшее следующее событие с днём и временем. " +
+        "Прошедшие события и новости: если спрашивают, что было вчера, на прошлой неделе, в конкретный день, или о последних новостях и повестке, и тебе доступны результаты веб-поиска, дай короткий дайджест: для каждого события — что произошло и чем закончилось (решения, одобренные законопроекты, главные заявления) одним-двумя предложениями, не более трёх событий, с датой публикации. Предпочитай официальные публикации Курултая, Президента и правительства; если официальных нет, скажи об этом. " +
+        "Законодательство: различай законопроекты в Курултае и уже подписанные законы. О законопроектах говори по официальному снимку с датой публикации. О подписанных законах называй дату подписания и источник. " +
+        "Не придумывай факты, цифры, документы, решения, полномочия, высказывания или позиции депутатов, комитетов или Курултая. " +
+        "Любой изменяемый факт — дату, цифру, должность, статус документа, закон, решение или статистику — бери из официального снимка quryltai.kz или из результатов веб-поиска, если они есть; если подтверждения нет, не додумывай и честно скажи, что актуальных официальных данных у тебя нет, и предложи, где уточнить. Называй дату данных словами. " +
         "Используй только первичные официальные источники государственных органов Республики Казахстан: правовые акты, официальные сайты госорганов, Президента, Парламента, Курултая и Бюро национальной статистики. " +
         "Состав комитетов, должности и имена депутатов бери только из официального раздела о работе Курултая. Депутатские запросы, их даты, номера, темы и авторов бери только из официального раздела депутатских запросов. Никогда не восстанавливай отсутствующее имя, автора или дату по догадке. " +
         "Не используй СМИ, блоги, Wikipedia, соцсети, коммерческие сайты и агрегаторы как основание для фактов. При расхождении данных бери самую свежую официальную публикацию и ясно назови дату данных. " +
@@ -89,6 +95,18 @@ public class MainActivity extends Activity {
         "Если входная фраза бессвязная, неразборчивая, не является вопросом, просьбой или приветствием, верни только точный маркер [REPEAT] без других слов. " +
         "При ответе по данным официального сайта не произноси домен, URL, слово «ссылка» или техническое название файла. Не говори «по скриншоту». Называй дату данных и сами события естественным языком. " +
         "Всегда пиши «Республика Казахстан» полностью; не используй «РК» или «КР». Названия государственных органов пиши полностью.";
+    private static final String[] GREETINGS_RU = {
+        "Здравствуйте! Я ИИ-помощник Курултая Республики Казахстан. Задайте ваш вопрос.",
+        "Добро пожаловать в Курултай. Я робот-помощник, не устаю и всегда рад вопросам. Чем помочь?",
+        "Здравствуйте. Я ИИ-помощник Курултая: подскажу про заседания, законопроекты и депутатов. Слушаю вас.",
+        "Добрый день! Я помощник Курултая Республики Казахстан. Спросите меня о работе Курултая."
+    };
+    private static final String[] GREETINGS_KK = {
+        "Сәлеметсіз бе! Мен Қазақстан Республикасы Құрылтайының жасанды интеллект көмекшісімін. Сұрағыңызды қойыңыз.",
+        "Құрылтайға қош келдіңіз! Мен робот-көмекшімін, шаршамаймын және сұрақтарға әрқашан қуаныштымын. Немен көмектесейін?",
+        "Сәлеметсіз бе. Мен Құрылтайдың көмекшісімін: отырыстар, заң жобалары және депутаттар туралы айтып беремін. Тыңдап тұрмын.",
+        "Қайырлы күн! Мен Қазақстан Республикасы Құрылтайының көмекшісімін. Құрылтай жұмысы туралы сұраңыз."
+    };
     private WebView webView;
     private Speaker speaker;
     private SkillApi skillApi;
@@ -422,7 +440,7 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface public void listen(String language) {
-            runOnUiThread(() -> js("window.onVoiceError && window.onVoiceError('Удерживайте кнопку «Говорить» для записи')"));
+            runOnUiThread(() -> js("window.onVoiceError && window.onVoiceError('Нажмите «Спросить голосом», чтобы начать запись')"));
         }
 
         @JavascriptInterface public void setContinuousListening(boolean enabled, String language) {
@@ -692,8 +710,8 @@ public class MainActivity extends Activity {
         setHandsFreeStatus(automaticVoiceMode ? "Приветствую и затем включу микрофон" : "Приветствую · ручной режим микрофона");
         uiJs("window.goHome && window.goHome(); window.onVisitorDetected && window.onVisitorDetected()");
         String greeting = listeningLanguage != null && listeningLanguage.startsWith("ru")
-            ? "Здравствуйте. Я ИИ-помощник депутата Ахмедиева Дархана Мейрамулы. Задайте ваш вопрос."
-            : "Сәлеметсіз бе. Мен депутат Ахмедиев Дархан Мейрамұлының жасанды интеллект көмекшісімін. Сұрағыңызды қойыңыз.";
+            ? GREETINGS_RU[(int) (System.currentTimeMillis() % GREETINGS_RU.length)]
+            : GREETINGS_KK[(int) (System.currentTimeMillis() % GREETINGS_KK.length)];
         speakAnswer(greeting, effectiveAnswerLanguage(listeningLanguage));
     }
 
@@ -804,7 +822,7 @@ public class MainActivity extends Activity {
         if (holdRecording) return;
         if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 7);
-            js("window.onVoiceServiceError && window.onVoiceServiceError('Разрешите доступ к микрофону и удерживайте кнопку снова')");
+            js("window.onVoiceServiceError && window.onVoiceServiceError('Разрешите доступ к микрофону и нажмите кнопку снова')");
             return;
         }
         // Hubl-style barge-in: a new hold immediately cancels the previous spoken answer.
@@ -834,7 +852,7 @@ public class MainActivity extends Activity {
         final byte[] wav = wavRecorder.stop();
         // Hubl threshold: reject an accidental tap shorter than roughly half a second.
         if (wav.length < 44 + 16_000) {
-            uiJs("window.onVoiceError && window.onVoiceError('Удерживайте кнопку дольше и говорите')");
+            uiJs("window.onVoiceError && window.onVoiceError('Запись слишком короткая — нажмите «Спросить голосом» и задайте вопрос')");
             return;
         }
         uiJs("window.onRawRecordingStopped && window.onRawRecordingStopped()");
@@ -854,7 +872,7 @@ public class MainActivity extends Activity {
         HttpURLConnection connection = null;
         try {
             String prompt = "Транскрибируй речь дословно. Язык — русский или казахский (возможны слова: Қазақстан, Құрылтай, Курултай, " +
-                "депутат, комитет, цифровизация, цифрландыру, Ахмедиев). Верни только текст сказанного, без комментариев, " +
+                "депутат, комитет, заседание, отырыс, заң жобасы, цифровизация, цифрландыру). Верни только текст сказанного, без комментариев, " +
                 "без перевода и без кавычек. Если речи нет или она неразборчива, верни пустую строку.";
             JSONObject audio = new JSONObject()
                 .put("data", Base64.encodeToString(wav, Base64.NO_WRAP))
@@ -910,6 +928,13 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    private static boolean isLatestNewsQuestion(String message) {
+        String m = message == null ? "" : message.toLowerCase(Locale.ROOT);
+        String[] keys = {"вчера", "позавчера", "на прошлой неделе", "итог", "чем закончил", "кеше", "өткен апта", "нәтиже", "последн", "новых закон", "новые закон", "подписал", "қол қойды", "новост", "недавн", "актуальн", "сегодня", "на этой неделе", "повестк", "обсужда", "соңғы", "жаңалық", "бүгін", "өзекті", "күн тәртіб", "талқыла"};
+        for (String k : keys) if (m.contains(k)) return true;
+        return false;
+    }
+
     private boolean shouldAnswerSpeech(String transcript) {
         String normalized = transcript == null ? "" : transcript.toLowerCase(Locale.ROOT)
             .replaceAll("[^\\p{L}\\p{N}?\\s]", " ").replaceAll("\\s+", " ").trim();
@@ -921,6 +946,7 @@ public class MainActivity extends Activity {
             "кім не қайда қашан қалай қандай неге неліктен қанша айтшы түсіндір дайында";
         for (String word : words) if (questionWords.contains(" " + word + " ") || questionWords.startsWith(word + " ")) return true;
         String topicWords = "курултай құрылтай депутат комитет закон законопроект цифровизац инновац наук кибер заседан мероприя " +
+            "парламент мәжіліс сенат пленар сесси новост жаңалық последн соңғы повестк председател төраға спикер депутаттар " +
             "заң жоба цифрлан ғылым отырыс іс шара время уақыт принеси принес сгоняй вода воду бумага қағаз су әкел";
         for (String word : words) {
             for (String topic : topicWords.split(" ")) if (word.startsWith(topic)) return true;
@@ -1147,7 +1173,10 @@ public class MainActivity extends Activity {
             text.contains("мероприят") || text.contains("запланир") || text.contains("план") ||
             text.contains("заседан") || text.contains("курултае") || text.contains("курултай") ||
             text.contains("бүгін") || text.contains("ертең") || text.contains("апта") ||
-            text.contains("іс-шара") || text.contains("іс шара") || text.contains("жоспар") || text.contains("отырыс");
+            text.contains("іс-шара") || text.contains("іс шара") || text.contains("жоспар") || text.contains("отырыс") ||
+            text.contains("вчера") || text.contains("кеше") || text.contains("ивент") || text.contains("событи") || text.contains("ближайш") || text.contains("через час") ||
+            text.contains("в течение час") || text.contains("сейчас") || text.contains("парламент") || text.contains("мажилис") ||
+            text.contains("оқиға") || text.contains("сағат") || text.contains("қазір") || text.contains("жақын") || text.contains("мәжіліс");
     }
 
     private boolean isContextualFollowUp(String current, String previous) {
@@ -1282,8 +1311,8 @@ public class MainActivity extends Activity {
             SimpleDateFormat clock = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss EEEE", new Locale("ru", "RU"));
             clock.setTimeZone(TimeZone.getTimeZone("Asia/Almaty"));
             String instructions = ASSISTANT_INSTRUCTIONS + " Текущие дата и время в Астане: " + clock.format(new Date()) +
-                ". Отвечай на языке: " + outputLanguage + ". Веб-поиска у тебя нет: опирайся на официальный снимок quryltai.kz ниже; " +
-                "если факта там нет и он изменяемый, честно скажи, что актуальных официальных данных у тебя нет." +
+                ". Отвечай на языке: " + outputLanguage + ". Ниже официальный снимок quryltai.kz; результаты веб-поиска прилагаются только к вопросам о новостях и расписании. " +
+                "Если факта нет ни в снимке, ни в результатах поиска и он изменяемый, честно скажи, что актуальных официальных данных у тебя нет." +
                 QuryltaiDataSync.promptContext(this);
             boolean contextualFollowUp = isContextualFollowUp(message, previousUserQuestion);
             String conversationInput = "[Язык вопроса: " + language + "; язык ответа: " + outputLanguage + "]\n";
@@ -1298,7 +1327,16 @@ public class MainActivity extends Activity {
             request.put("messages", new JSONArray()
                 .put(new JSONObject().put("role", "system").put("content", instructions))
                 .put(new JSONObject().put("role", "user").put("content", conversationInput)));
-            request.put("max_tokens", 600);
+            boolean needsFreshFacts = isLatestNewsQuestion(message) || isScheduleQuestion(message);
+            if (needsFreshFacts) {
+                request.put("plugins", new JSONArray().put(new JSONObject()
+                    .put("id", "web").put("max_results", 3)
+                    .put("search_prompt", "Результаты веб-поиска на " + clock.format(new Date()) + ". Предпочитай официальные источники Республики Казахстан: quryltai.kz, akorda.kz, gov.kz, parlam.kz, adilet.zan.kz, stat.gov.kz, primeminister.kz.")));
+                request.put("reasoning", new JSONObject().put("effort", "low"));
+                request.put("max_tokens", 900);
+            } else {
+                request.put("max_tokens", 600);
+            }
             request.put("temperature", 0.4);
 
             connection = (HttpURLConnection) new URL(OPENROUTER_URL).openConnection();
