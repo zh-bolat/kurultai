@@ -241,11 +241,15 @@ final class QuryltaiDataSync {
 
     private static String formatTime(long millis) {
         if (millis <= 0) return "неизвестно";
-        return new SimpleDateFormat("dd.MM.yyyy HH:mm", new Locale("ru", "RU")).format(new Date(millis));
+        SimpleDateFormat f = new SimpleDateFormat("dd.MM.yyyy HH:mm", new Locale("ru", "RU"));
+        f.setTimeZone(java.util.TimeZone.getTimeZone("GMT+05:00"));
+        return f.format(new Date(millis));
     }
 
     private static String formatEpoch(long seconds) {
         if (seconds <= 0) return "дата не указана";
-        return new SimpleDateFormat("dd.MM.yyyy", new Locale("ru", "RU")).format(new Date(seconds * 1000L));
+        SimpleDateFormat f = new SimpleDateFormat("dd.MM.yyyy", new Locale("ru", "RU"));
+        f.setTimeZone(java.util.TimeZone.getTimeZone("GMT+05:00"));
+        return f.format(new Date(seconds * 1000L));
     }
 }

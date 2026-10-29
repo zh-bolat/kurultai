@@ -1311,7 +1311,8 @@ public class MainActivity extends Activity {
             if (message.isEmpty()) { backendResult(false, "Пустой вопрос"); return; }
 
             SimpleDateFormat clock = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss EEEE", new Locale("ru", "RU"));
-            clock.setTimeZone(TimeZone.getTimeZone("Asia/Almaty"));
+            // Kazakhstan has used UTC+5 since 1 March 2024; old tzdata on the robot may still say +6 for Asia/Almaty.
+            clock.setTimeZone(TimeZone.getTimeZone("GMT+05:00"));
             String instructions = ASSISTANT_INSTRUCTIONS + " Текущие дата и время в Астане: " + clock.format(new Date()) +
                 ". Отвечай на языке: " + outputLanguage + ". Ниже официальный снимок quryltai.kz; результаты веб-поиска прилагаются только к вопросам о новостях и расписании. " +
                 "Если факта нет ни в снимке, ни в результатах поиска и он изменяемый, честно скажи, что актуальных официальных данных у тебя нет." +
@@ -1333,7 +1334,7 @@ public class MainActivity extends Activity {
             if (needsFreshFacts) {
                 request.put("plugins", new JSONArray().put(new JSONObject()
                     .put("id", "web").put("max_results", 3)
-                    .put("search_prompt", "Результаты веб-поиска на " + clock.format(new Date()) + ". Предпочитай официальные источники Республики Казахстан: quryltai.kz, akorda.kz, gov.kz, parlam.kz, adilet.zan.kz, stat.gov.kz, primeminister.kz.")));
+                    .put("search_prompt", "Результаты веб-поиска на " + clock.format(new Date()) + ". Предпочитай официальные источники Республики Казахстан: quryltai.kz, akorda.kz, gov.kz, election.gov.kz, parlam.kz, adilet.zan.kz, stat.gov.kz, primeminister.kz.")));
                 request.put("reasoning", new JSONObject().put("effort", "low"));
                 request.put("max_tokens", 900);
             } else {
