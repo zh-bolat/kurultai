@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'kz.kurultai.assistant'
+    compileSdk 34
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    defaultConfig {
+        applicationId 'kz.kurultai.assistant'
+        minSdk 23
+        targetSdk 29
+        versionCode 73
+        versionName '5.49.0-ai-assistant-identity'
+        buildConfigField 'String', 'EMBEDDED_OPENAI_KEY', '"' + (System.getenv('KURULTAI_EMBEDDED_OPENAI_KEY') ?: '') + '"'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation files('libs/robotservice.jar')
+    // RobotApi.<clinit> constructs Gson; RobotOS does not expose Gson to third-party APKs.
+    implementation 'com.google.code.gson:gson:2.10.1'
+}

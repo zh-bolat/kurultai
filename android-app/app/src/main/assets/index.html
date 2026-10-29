@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>AI-помощник депутата</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><div class="emblem">Қ</div><div><b>Құрылтай РК</b><span>AI-помощник комитета</span></div></div>
+    <div class="committee-name">Комитет по цифровизации,<br>инновациям и науке</div>
+    <nav>
+      <button class="nav active" data-page="home">⌂ <span>Главная</span></button>
+      <button class="nav" data-page="analytics">▦ <span>Аналитика</span></button>
+      <button class="nav" data-page="bills">▤ <span>Законопроекты</span></button>
+      <button class="nav" data-page="appeals">◎ <span>Обращения</span></button>
+      <button class="nav" data-page="session">◫ <span>Заседание</span></button>
+      <button class="nav" data-page="tasks">✓ <span>Поручения</span></button>
+      <button class="nav" data-page="robot">✣ <span>Робот</span></button>
+    </nav>
+    <div class="privacy">● Защищённый режим<br><small>Демонстрационные данные</small></div>
+  </aside>
+
+  <main>
+    <header><div><p id="eyebrow">КУРУЛТАЙ РЕСПУБЛИКИ КАЗАХСТАН</p><h1 id="title"><span class="full-title">Цифровой помощник комитета</span><span class="compact-title">AI-помощник Комитета</span></h1></div><div class="header-actions"><span id="connectionBadge" class="online-badge">● Подключение…</span><button id="lang">ҚАЗ</button><button id="settings">⚙</button></div></header>
+
+    <section id="home" class="page active">
+      <div class="hero">
+        <div><span class="status"><i></i> Голосовой помощник активен</span><h2>Комитет по цифровизации,<br>инновациям и науке</h2><p>Задайте вопрос — помощник подготовит и озвучит ответ</p></div>
+        <div class="orb"><div class="orb-core">AI</div></div>
+      </div>
+      <div class="askbox"><button class="mic" id="mic" aria-label="Задать вопрос голосом" title="Задать вопрос голосом">🎙</button><input id="query" placeholder="Нажмите микрофон и задайте вопрос…"><button class="send" id="send">Спросить →</button></div>
+      <div class="quick-grid">
+        <button class="quick" data-demo="bill"><span class="qicon blue">▤</span><b>Профильный законопроект</b><small>AI, онлайн-платформы и цифровые права</small></button>
+        <button class="quick" data-demo="brief"><span class="qicon green">◫</span><b>Заключение комитета</b><small>Позиция, поправки и вопросы разработчикам</small></button>
+        <button class="quick" data-demo="appeal"><span class="qicon amber">◎</span><b>Цифровые обращения</b><small>Связь, госуслуги и интернет-мошенничество</small></button>
+        <button class="quick" data-demo="risk"><span class="qicon red">!</span><b>AI и киберриски</b><small>Критические сигналы и регулирование</small></button>
+      </div>
+      <div class="today"><div><h3>Сегодня</h3><p>Ближайшие события и задачи</p></div><div class="event"><b>10:00</b><span><strong>Заседание Комитета</strong><small>Цифровой кодекс · зал 302</small></span><button data-demo="session">Подготовиться</button></div><div class="event"><b>14:30</b><span><strong>Рабочая группа по искусственному интеллекту</strong><small>Регулирование и безопасное применение AI</small></span></div></div>
+    </section>
+
+    <section id="analytics" class="page analytics-page">
+      <div class="dash-heading"><div><p>АНАЛИТИЧЕСКИЙ ЦЕНТР КОМИТЕТА</p><h2>Цифровое развитие Казахстана</h2></div><div class="dash-filters"><button>Сегодня</button><button>2026 год</button><button>Все регионы⌄</button></div></div>
+      <div class="dash-tabs">
+        <button class="dash-tab active" data-dashboard="digital">Цифровизация</button>
+        <button class="dash-tab" data-dashboard="innovation">Инновации</button>
+        <button class="dash-tab" data-dashboard="science">Наука</button>
+        <button class="dash-tab" data-dashboard="cyber">Кибербезопасность</button>
+        <button class="dash-tab" data-dashboard="laws">Законотворчество</button>
+      </div>
+      <div id="dashMetrics" class="dash-metrics"></div>
+      <div class="dashboard-grid">
+        <article class="map-card">
+          <div class="card-title"><div><h3 id="mapTitle">Индекс цифровой зрелости регионов</h3><p>Выберите регион на карте для просмотра показателей</p></div><span class="demo-label">ДЕМО-ДАННЫЕ</span></div>
+          <div class="map-wrap">
+            <div class="real-map" role="img" aria-label="Географическая карта Казахстана с административными границами">
+              <svg id="kzGisMap" viewBox="0 0 620 340" aria-label="GIS-карта 17 областей и 3 городов Казахстана">
+                <g id="kzRegionPolygons"></g>
+                <g id="kzCityMarkers"></g>
+              </svg>
+              <div id="mapTooltip" class="map-tooltip hidden"></div>
+              <div class="map-attribution">GIS: geokz 2024 · galymorg</div>
+            </div>
+            <div class="map-legend"><span><i class="l-high"></i> Высокий</span><span><i class="l-mid"></i> Средний</span><span><i class="l-low"></i> Требует внимания</span></div>
+          </div>
+        </article>
+        <article class="region-card"><div class="region-top"><span>ВЫБРАННЫЙ РЕГИОН</span><h3 id="regionName">Республика Казахстан</h3></div><div id="regionScore" class="big-score">78,4<small>/100</small></div><div class="score-label">Сводный индекс</div><div class="progress"><i style="width:78%"></i></div><div class="region-stats"><div><span>Онлайн-услуги</span><b>91%</b></div><div><span>Покрытие интернетом</span><b>89%</b></div><div><span>Цифровая грамотность</span><b>84%</b></div><div><span>Инфраструктурные риски</span><b class="warn">6</b></div></div><button data-demo="regionBrief">Подготовить справку →</button></article>
+      </div>
+      <div class="lower-grid">
+        <article class="trend-card"><div class="card-title"><div><h3 id="trendTitle">Динамика индекса</h3><p>Среднее значение по стране</p></div><b class="trend-up">↗ +8,2%</b></div><svg viewBox="0 0 620 150" class="trend-chart"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#4aa8dc" stop-opacity=".35"/><stop offset="1" stop-color="#4aa8dc" stop-opacity="0"/></linearGradient></defs><path class="area" d="M5 127 L100 116 195 102 290 107 385 76 480 62 615 25 L615 145 5 145Z"/><polyline points="5,127 100,116 195,102 290,107 385,76 480,62 615,25"/><g><text x="5" y="148">2021</text><text x="120" y="148">2022</text><text x="235" y="148">2023</text><text x="350" y="148">2024</text><text x="465" y="148">2025</text><text x="580" y="148">2026</text></g></svg></article>
+        <article class="alerts-card"><div class="card-title"><div><h3>Сигналы для комитета</h3><p>Требуют парламентского внимания</p></div><b>5</b></div><div class="alert-row red"><i>!</i><span><b>Цифровой разрыв</b><small>3 сельских района ниже целевого уровня</small></span></div><div class="alert-row amber"><i>⌁</i><span><b>Интернет-инфраструктура</b><small>12 объектов требуют контроля сроков</small></span></div><div class="alert-row blue"><i>i</i><span><b>Научные гранты</b><small>Освоение ниже плана в 2 регионах</small></span></div></article>
+      </div>
+    </section>
+
+    <section id="answer" class="page">
+      <button class="back">← На главную</button>
+      <div class="answer-head"><div><span class="status"><i></i> Анализ завершён</span><h2 id="answerTitle">Справка к заседанию</h2><p id="answerPrompt"></p></div><button id="speak">🔊 Озвучить</button></div>
+      <div id="answerBody" class="answer-body"></div>
+      <div class="answer-actions"><button onclick="demo('speech')">Создать выступление</button><button onclick="demo('task')">Сформировать поручение</button><button class="outline" onclick="print()">Экспортировать справку</button></div>
+    </section>
+
+    <section id="listPage" class="page"><button class="back">← На главную</button><div id="listContent"></div></section>
+    <section id="robot" class="page robot-page"><button class="back">← На главную</button><div class="robot-panel"><h2>Управление роботом</h2><div class="robot-system"><span>Батарея<b id="robotBattery">—</b></span><span>Зарядка<b id="robotCharging">—</b></span><span>Карта<b id="robotMap">—</b></span><span>Точки<b id="robotPlaces">—</b></span></div><div class="system-actions"><button id="refreshRobot">Обновить статус</button><button id="chargeRobot">Вернуться на зарядку</button></div><p>Перед движением освободите пространство вокруг робота.</p><label class="motion-arm"><input id="motionArm" type="checkbox"> Разблокировать движение</label><div class="motion-pad"><button data-motion="forward">▲</button><button data-motion="left">◀</button><button id="motionStop" class="stop">СТОП</button><button data-motion="right">▶</button><button data-motion="backward">▼</button></div><div class="head-controls"><b>Голова и камера</b><button data-head="-35,35">Влево</button><button data-head="0,35">Центр</button><button data-head="35,35">Вправо</button><button data-head="0,55">Вверх</button></div><div class="navigation-control"><input id="robotPlace" placeholder="Точка на карте RobotOS"><button id="navigateRobot">Поехать</button></div><p id="motionStatus" class="motion-status">Управление заблокировано</p></div></section>
+  </main>
+
+  <div id="modal" class="modal hidden"><div class="modal-card"><button class="close">×</button><h2>Прямое подключение ChatGPT</h2><p>Введите API-ключ OpenAI или скопируйте его на роботе и нажмите «Вставить». После импорта буфер обмена очищается.</p><label>API-ключ OpenAI</label><input id="apiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="sk-proj-…"><button id="pasteApiKey" class="clipboard-import">Вставить ключ из буфера</button><div class="mode"><b>Модель</b><span id="modelLabel">gpt-6-astra</span></div><div id="aiKeyStatus" class="connection-test"></div><div class="settings-actions"><button id="deleteKey" class="danger">Удалить ключ</button><button id="saveApiKey" class="save">Сохранить ключ</button></div><details class="advanced"><summary>Дополнительно: собственный шлюз</summary><label>Адрес HTTPS-сервера</label><input id="endpoint" inputmode="url" autocomplete="off" placeholder="https://ai.example.kz/assistant"><div id="connectionTest" class="connection-test"></div><div class="settings-actions"><button id="testSettings" class="test">Проверить</button><button id="saveSettings" class="save">Сохранить шлюз</button></div></details></div></div>
+  <section id="voiceDock" class="voice-dock active" aria-live="polite">
+    <button id="dockMic" class="voice-avatar" aria-label="Проверить микрофон и говорить сейчас"><span class="voice-face">••</span><span class="voice-waves"><i></i><i></i><i></i><i></i></span></button>
+    <div class="voice-copy"><small id="voiceState">УДЕРЖИВАЙТЕ КНОПКУ</small><strong id="voiceTranscript">Нажмите и держите, пока говорите…</strong></div>
+    <button id="dockToggle" class="voice-toggle">Говорить</button>
+  </section>
+  <div id="toast"></div>
+  <script src="kazakhstan-map-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
