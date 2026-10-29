@@ -216,5 +216,5 @@ main>*:not(.bg-map){position:relative;z-index:1}
 .bg-map svg{opacity:.3}
 
 /* Text cards: slightly see-through (top almost solid, fading towards the bottom) so the map edges show faintly */
-.quick,.today,.result-card,.answer-head,.status-panel{background:linear-gradient(180deg,rgba(255,255,255,.94) 0%,rgba(255,255,255,.72) 100%)}
-.askbox{background:rgba(255,255,255,.95)}
+.askbox,.quick,.today,.result-card,.answer-head,.status-panel,.settings-panel .modal-card{background:linear-gradient(160deg,rgba(255,255,255,.94) 0%,rgba(255,255,255,.78) 55%,rgba(255,255,255,.6) 100%)}
+.askbox input{background:transparent}
