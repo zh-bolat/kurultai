@@ -275,3 +275,6 @@ body[data-page=listPage] main>.page.active,body[data-page=requests] main>.page.a
 .rq-th{background:rgba(238,243,249,.82)}
 .askbox,.quick,.today,.result-card,.status-panel,.settings-panel,.robot-panel,.cm-panel,.cm-card,.rq-count,.back{background:var(--glass)}
 .cm-card.on{background:rgba(255,255,255,.9)}
+
+/* Background map: centred in the content area (right of the menu), both ways */
+.bg-map{left:50%;top:50%;width:1400px;max-width:calc(100% - 96px);transform:translate(-50%,-50%)}
