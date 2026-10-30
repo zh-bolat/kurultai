@@ -65,7 +65,7 @@
     root.querySelector('#faceSleepHint').textContent = state === 'sleep' ? t('wakeHint') : '';
     root.querySelector('#faceMenuLabel').textContent = t('menu');
     root.querySelector('#faceMenuSub').textContent = t('menuSub');
-    toFace.innerHTML = '‹<small>' + t('face') + '</small>';
+    toFace.innerHTML = '›<small>' + t('face') + '</small>';
   }
 
   /* моргание и взгляды — как в прототипе */
