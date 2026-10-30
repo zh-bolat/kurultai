@@ -283,3 +283,17 @@ body[data-page=listPage] main>.page.active,body[data-page=requests] main>.page.a
 
 /* «‹ лицо» button: bottom-left of the sidebar, below the menu, so it never covers a menu item */
 html body #toFace{top:auto;bottom:150px;left:24px;transform:none;border-radius:22px}
+
+/* Face screen: sizes in layout pixels (the page is already scaled to the window), so on the robot it looks
+   exactly like at 1920×1080 — eyes in the middle, about half the screen wide. No double scaling by vw/vh. */
+html body #faceScreen .face-eyes{width:1100px;margin-top:-65px}
+html body #faceScreen .face-status{margin-top:38px}
+html body #faceScreen .face-heard{margin-top:13px;max-width:1340px}
+html body #faceScreen .face-sub{margin-top:22px;max-width:1500px}
+html body #faceScreen .face-sleep-hint{bottom:54px}
+/* Menu arrow on the face: no border or glow box, softer */
+html body #faceScreen .swipe-hint{border:0;background:none;box-shadow:none;animation:none;opacity:.6}
+html body #faceScreen .swipe-hint .chev i{text-shadow:none;color:#7fb4d8}
+html body #faceScreen .swipe-hint b{color:#9fc4de}
+html body #faceScreen .swipe-hint small{color:#6f95b3}
+html body #faceScreen.asleep .swipe-hint{opacity:.4}
