@@ -87,7 +87,6 @@ public class MainActivity extends Activity {
     // (распознавание и модель через OpenRouter на роботе, голос через /v1/tts). Live включается, только если сервер
     // подтвердил профиль kurultai (GET /v1/profile), иначе робот остаётся в обычном режиме.
     private static final String PREF_VOICE_ENGINE = "voice_engine";
-    private static final long LIVE_IDLE_SLEEP_MS = 5L * 60L * 1000L;
     private static final String ASSISTANT_INSTRUCTIONS =
         "Ты — ИИ-помощник Курултая Республики Казахстан, робот в здании Курултая. Если тебя спрашивают, кто ты, отвечай: «Я ИИ-помощник Курултая Республики Казахстан». Никогда не называй себя ChatGPT, GPT, OpenAI, Gemini, языковой моделью или чат-ботом. " +
         "Характер: деловой и точный, с лёгкой доброжелательной игривостью. По существу с первого предложения, точные названия органов и должностей, цифры с датой, без канцелярита. Допускается одна короткая тёплая или ироничная фраза в приветствии или в конце ответа — о себе как роботе, о погоде в Астане, о том, что ты не устаёшь. Никогда не шути о политике, депутатах, партиях, государственных символах, религии и национальностях. Если тема серьёзная (обращение гражданина, закон, конфликт), игривость отключена полностью. " +
@@ -194,11 +193,7 @@ public class MainActivity extends Activity {
         @Override public void run() {
             checkLocalMeetingReminder();
             refreshQuryltaiData();
-            LiveVoice l = live;
-            if (l != null && l.isActive() && !l.isPlaying() && System.currentTimeMillis() - l.lastActivityAt() > LIVE_IDLE_SLEEP_MS) {
-                android.util.Log.i("KurultaiLive", "5 мин без разговора — засыпаю");
-                stopLive();
-            }
+            maybeAutoStartLive();  // страховка: если live упал и не поднялся — поднять
             if (activityVisible && webView != null) webView.postDelayed(this, 30000L);
         }
     };
@@ -446,6 +441,8 @@ public class MainActivity extends Activity {
             webView.removeCallbacks(meetingCheckRunnable);
             webView.post(meetingCheckRunnable);
         }
+        checkLiveProfileAsync();
+        maybeAutoStartLive();
     }
 
     @Override protected void onPause() {
@@ -1541,15 +1538,14 @@ public class MainActivity extends Activity {
     }
 
     private boolean liveEnabled() {
-        return "live".equals(voiceEngine) && liveConfigured() && Boolean.TRUE.equals(liveProfileOk)
-            && System.currentTimeMillis() - liveFailedAt > 60_000L;
+        return "live".equals(voiceEngine) && liveConfigured() && Boolean.TRUE.equals(liveProfileOk);
     }
 
     private String liveUnavailableReason() {
         if (!liveConfigured()) return "нет токена профиля Курултая";
         if (liveProfileOk == null) return "проверяю сервер";
         if (!liveProfileOk) return "сервер без профиля Курултая";
-        return "сбой связи, повтор через минуту";
+        return "переподключаюсь";
     }
 
     /** Проверка, что сервер отвечает профилем kurultai (иначе live говорил бы персоной Astana Hub). */
@@ -1575,6 +1571,7 @@ public class MainActivity extends Activity {
             }
             android.util.Log.i("KurultaiLive", "profile check: " + liveProfileOk);
             pushAiStatus("Готово");
+            runOnUiThread(() -> maybeAutoStartLive());
         }).start();
     }
 
@@ -1583,12 +1580,26 @@ public class MainActivity extends Activity {
         if (!liveEnabled()) { checkLiveProfileAsync(); return false; }
         LiveVoice l = live;
         if (l != null && l.isActive()) {
-            if (l.isPlaying()) l.interrupt();
+            l.interrupt();  // кнопка в live — только «стоп»: разговор и так всегда слушает
             return true;
         }
         startLive(false);
         return true;
     }
+
+    /**
+     * Live держим открытым всё время, пока приложение на экране: говорить можно без кнопки, конец фразы находит сервер.
+     * Перебить робота можно только командой «стоп» (настройка сервера) или кнопкой.
+     */
+    private void maybeAutoStartLive() {
+        if (!activityVisible || !liveEnabled()) return;
+        LiveVoice l = live;
+        if (l != null && l.isActive()) return;
+        startLive(false);
+    }
+
+    private int liveRetries;
+    private final Runnable liveReconnect = () -> maybeAutoStartLive();
 
     private void startLive(boolean greet) {
         if (speaker != null) speaker.stop();
@@ -1600,6 +1611,7 @@ public class MainActivity extends Activity {
     }
 
     private void stopLive() {
+        if (webView != null) webView.removeCallbacks(liveReconnect);
         LiveVoice l = live;
         if (l != null && l.isActive()) l.stop();
     }
@@ -1607,6 +1619,7 @@ public class MainActivity extends Activity {
     private final LiveVoice.Listener liveListener = new LiveVoice.Listener() {
         private volatile String lastUserText = "";
         @Override public void onState(String state) {
+            if (!"idle".equals(state)) liveRetries = 0;
             switch (state) {
                 case "listening": case "user_speaking":
                     speakingNow = false;
@@ -1642,10 +1655,14 @@ public class MainActivity extends Activity {
         }
         @Override public void onFailed(String error) {
             liveFailedAt = System.currentTimeMillis();
-            android.util.Log.w("KurultaiLive", "fallback to standard: " + error);
-            uiJs("window.toast && window.toast(" + JSONObject.quote("Live недоступен: " + error + ". Работаю в обычном режиме") + ")");
+            long delay = Math.min(10_000L, 2_000L * (++liveRetries));
+            android.util.Log.w("KurultaiLive", "live failed: " + error + "; reconnect in " + delay + " ms");
+            if (liveRetries == 1 || liveRetries % 5 == 0) {
+                uiJs("window.toast && window.toast(" + JSONObject.quote("Связь с сервером прервалась, переподключаюсь") + ")");
+            }
             uiJs("window.onSpeechFinished && window.onSpeechFinished()");
             pushAiStatus("Готово");
+            runOnUiThread(() -> { if (webView != null) { webView.removeCallbacks(liveReconnect); webView.postDelayed(liveReconnect, delay); } });
         }
     };
 

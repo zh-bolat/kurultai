@@ -35,6 +35,11 @@ final class LiveVoice {
     private static final int FRAME_MS = 40;
     private static final int FRAME_BYTES = MIC_RATE / 1000 * FRAME_MS * 2;
     private static final int PLAYBACK_DONE_MARGIN_MS = 600;
+    // Запас звука перед началом ответа и после провала сети: пакеты из интернета приходят неровно, без запаса
+    // между ними слышны разрывы (у Astana Hub — тот же приём, jitter-буфер).
+    private static final int PREBUFFER_MS = 350;
+    private static final int REBUFFER_MS = 200;
+    private static final int PREBUFFER_MAX_WAIT_MS = 900;
 
     interface Listener {
         /** idle / listening / user_speaking / thinking / speaking — для голосовой панели. */
@@ -80,6 +85,7 @@ final class LiveVoice {
     private volatile long queuedBytes;
     private volatile long playedBytes;
     private volatile boolean playing;
+    private volatile boolean needPrebuffer = true;
 
     LiveVoice(Context context, String baseUrl, String token, Listener listener) {
         this.context = context.getApplicationContext();
@@ -152,10 +158,11 @@ final class LiveVoice {
     void interrupt() {
         if (!active) return;
         boolean wasPlaying = playing || (currentTurn != null && !turnEnded);
+        if (!wasPlaying) return;
         flushPlayback();
         dropping = currentTurn != null;
         sendJson("{\"type\":\"interrupt\"}");
-        if (wasPlaying) listener.onState("listening");
+        listener.onState("listening");
     }
 
     /** Закрыть разговор (посетитель ушёл, переход в обычный режим). */
@@ -201,6 +208,7 @@ final class LiveVoice {
                 currentTurn = str(msg, "turn_id");
                 dropping = false;
                 turnEnded = false;
+                needPrebuffer = true;
                 synchronized (turnText) { turnText.setLength(0); }
                 lastActivityAt = System.currentTimeMillis();
                 break;
@@ -348,7 +356,7 @@ final class LiveVoice {
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build(),
                 new AudioFormat.Builder().setSampleRate(rate).setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build(),
-                Math.max(min * 4, rate * 2 / 2), AudioTrack.MODE_STREAM, android.media.AudioManager.AUDIO_SESSION_ID_GENERATE);
+                Math.max(min * 4, rate * 2), AudioTrack.MODE_STREAM, android.media.AudioManager.AUDIO_SESSION_ID_GENERATE);
             track.play();
             queuedBytes = 0; playedBytes = 0;
             playThread = new Thread(this::playLoop, "live-play");
@@ -366,9 +374,14 @@ final class LiveVoice {
 
     private void playLoop() {
         while (active) {
+            if (needPrebuffer && !playQueue.isEmpty()) waitForBuffer(playedBytes == 0 || currentTurnFresh() ? PREBUFFER_MS : REBUFFER_MS);
             byte[] pcm;
             try { pcm = playQueue.poll(200, TimeUnit.MILLISECONDS); } catch (InterruptedException e) { return; }
-            if (pcm == null) continue;
+            if (pcm == null) {
+                // Очередь опустела посреди ответа (провал сети) — следующую порцию тоже копим, а не играем по кусочку.
+                if (playing && !turnEnded) needPrebuffer = true;
+                continue;
+            }
             AudioTrack t;
             synchronized (playLock) { t = track; }
             if (t == null) return;
@@ -380,6 +393,20 @@ final class LiveVoice {
             }
             playedBytes += pcm.length;
         }
+    }
+
+    private volatile long turnBytesAtStart;
+    private boolean currentTurnFresh() { return playedBytes == turnBytesAtStart; }
+
+    /** Копит в очереди не меньше ms звука (или ждёт конца хода / PREBUFFER_MAX_WAIT_MS), потом играет без пауз. */
+    private void waitForBuffer(int ms) {
+        long need = (long) playRate * 2 * ms / 1000;
+        long deadline = System.currentTimeMillis() + PREBUFFER_MAX_WAIT_MS;
+        while (active && !turnEnded && queuedBytes - playedBytes < need && System.currentTimeMillis() < deadline) {
+            try { Thread.sleep(15); } catch (InterruptedException e) { return; }
+        }
+        needPrebuffer = false;
+        turnBytesAtStart = playedBytes;
     }
 
     /** Доиграл ли трек всё записанное (позиция головки в кадрах ≥ записано байт / 2). */
@@ -403,6 +430,7 @@ final class LiveVoice {
             }
         }
         playing = false;
+        needPrebuffer = true;
     }
 
     private void stopPlayback() {
