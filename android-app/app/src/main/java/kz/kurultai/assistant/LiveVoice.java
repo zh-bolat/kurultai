@@ -140,10 +140,9 @@ final class LiveVoice {
         ws = client.newWebSocket(request, new WebSocketListener() {
             @Override public void onOpen(WebSocket socket, Response response) {
                 try {
-                    // aec=false: голос робота играет обычным звуком (не «звонок»), поэтому сервер сам отсекает эхо
-                    // собственной речи; перебивает только команда «стоп» (LIVE_BARGE_IN=stop_only).
+                    // Перебивает только команда «стоп» (на сервере LIVE_BARGE_IN=stop_only).
                     socket.send(new JSONObject().put("type", "hello").put("lang", helloLang)
-                        .put("place_id", JSONObject.NULL).put("aec", false).toString());
+                        .put("place_id", JSONObject.NULL).put("aec", aec).toString());
                     Log.i(TAG, "hello sent lang=" + helloLang + " aec=" + aec + " stereo=" + stereo);
                 } catch (Exception e) { Log.w(TAG, "hello failed", e); }
                 startMicThread();
@@ -370,10 +369,11 @@ final class LiveVoice {
             playRate = rate;
             if (track != null) return;
             int min = AudioTrack.getMinBufferSize(rate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
-            // USAGE_ASSISTANT — обычный голосовой звук: в режиме «звонка» (VOICE_COMMUNICATION) Android может
-            // приглушать и обрывать голос робота, когда рядом говорят. Эхо собственной речи отсекает сервер (aec=false).
+            // USAGE_VOICE_COMMUNICATION — как у Astana Hub на этом роботе (звук идёт опорой эхоподавления микрофона).
+            // 2026-10-30: USAGE_ASSISTANT на роботе молчал (сборки 143–145) — вернули маршрут, на котором голос был.
+            ensureAudible();
             track = new AudioTrack(
-                new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
+                new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build(),
                 new AudioFormat.Builder().setSampleRate(rate).setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build(),
@@ -384,6 +384,17 @@ final class LiveVoice {
             playThread.setDaemon(true);
             playThread.start();
         }
+    }
+
+    /** Громкость разговора и медиа не на нуле (иначе голос молчит без ошибок): поднять до 70 % максимума. */
+    private void ensureAudible() {
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+            for (int stream : new int[]{android.media.AudioManager.STREAM_VOICE_CALL, android.media.AudioManager.STREAM_MUSIC}) {
+                int max = am.getStreamMaxVolume(stream), cur = am.getStreamVolume(stream);
+                if (max > 0 && cur * 10 < max * 3) am.setStreamVolume(stream, Math.max(1, max * 7 / 10), 0);
+            }
+        } catch (Throwable e) { Log.w(TAG, "volume check failed", e); }
     }
 
     private void enqueueAudio(byte[] pcm) {

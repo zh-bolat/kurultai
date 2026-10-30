@@ -1229,7 +1229,7 @@ public class MainActivity extends Activity {
             .replaceFirst("(?iu)^\\s*(вывод|қорытынды|ответ|жауап|gpt)\\s*[:：-]\\s*", "").trim();
         pauseListeningInternal();
         speakingNow = true;
-        js("window.onSpeechStarted && window.onSpeechStarted()");
+        js("window.onSpeechStarted && window.onSpeechStarted(); window.onFaceState && window.onFaceState('speaking')");
         if (speaker == null) speaker = createSpeaker();
         speaker.speak(spokenText, language, (usedRobotTts, error) -> runOnUiThread(() -> {
             if (error != null) {
@@ -1268,7 +1268,7 @@ public class MainActivity extends Activity {
 
     private void finishSpeakingCycle() {
         speakingNow = false;
-        js("window.onSpeechFinished && window.onSpeechFinished()");
+        js("window.onSpeechFinished && window.onSpeechFinished(); window.onFaceState && window.onFaceState(" + (asleep ? "'sleep'" : "'listening'") + ")");
         if (automaticRecording) {
             automaticStartedAt = System.currentTimeMillis();
             setHandsFreeStatus("Слушаю вас");
@@ -1445,9 +1445,19 @@ public class MainActivity extends Activity {
         return value != null && value.startsWith("sk-or-") && value.length() >= 20;
     }
 
+    private String volumeLabel() {
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            return "громкость: разговор " + am.getStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL) + "/" +
+                am.getStreamMaxVolume(android.media.AudioManager.STREAM_VOICE_CALL) + ", медиа " +
+                am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) + "/" + am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) +
+                (asleep ? " · сплю" : "") + (live != null && live.isActive() ? " · live открыт" : " · live закрыт");
+        } catch (Throwable e) { return "громкость: ?"; }
+    }
+
     private String activeModelLabel() {
         String mode = liveEnabled() ? "Live через сервер" : "live".equals(voiceEngine) ? "Обычный (live недоступен: " + liveUnavailableReason() + ")" : "Обычный";
-        return mode + " · OpenRouter · " + llmModel + " · речь: " + sttModel + " · голос: " + ttsLabel();
+        return mode + " · " + volumeLabel() + " · голос: " + ttsLabel();
     }
 
     private String ttsLabel() {
@@ -1858,7 +1868,7 @@ public class MainActivity extends Activity {
         runOnUiThread(() -> {
             pauseListeningInternal();
             speakingNow = true;
-            js("window.onSpeechStarted && window.onSpeechStarted()");
+            js("window.onSpeechStarted && window.onSpeechStarted(); window.onFaceState && window.onFaceState('speaking')");
             if (continuousListening && personPresent && webView != null) webView.postDelayed(() -> startAutomaticListening(true), 650L);
         });
         return speaker.open(language, (usedRobotTts, error) -> runOnUiThread(() -> {
