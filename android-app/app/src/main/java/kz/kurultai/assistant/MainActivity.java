@@ -140,6 +140,11 @@ public class MainActivity extends Activity {
     private volatile Boolean liveProfileOk;        // null — не проверяли, true — сервер в профиле kurultai
     private volatile long liveProfileCheckedAt;
     private volatile long liveFailedAt;
+    // Сон как у Astana Hub: после запуска робот спит, live закрыт, микрофон на сервер не идёт. Один тап по лицу —
+    // проснуться, поздороваться и слушать всех; двойной тап — уснуть; сам засыпает через LIVE_IDLE_SLEEP_MS
+    // без разговора. Подошедший человек (камера) разговор не начинает.
+    private volatile boolean asleep = true;
+    private static final long LIVE_IDLE_SLEEP_MS = 5L * 60L * 1000L;
     private volatile boolean speakingNow;
     private volatile boolean announcedSpeechReady;
     private volatile boolean holdRecording;
@@ -193,6 +198,9 @@ public class MainActivity extends Activity {
         @Override public void run() {
             checkLocalMeetingReminder();
             refreshQuryltaiData();
+            LiveVoice idle = live;
+            if (!asleep && idle != null && idle.isActive() && !idle.isPlaying()
+                && System.currentTimeMillis() - idle.lastActivityAt() > LIVE_IDLE_SLEEP_MS) goToSleep("5 min idle");
             maybeAutoStartLive();  // страховка: если live упал и не поднялся — поднять
             if (activityVisible && webView != null) webView.postDelayed(this, 30000L);
         }
@@ -331,6 +339,7 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView view, String url) {
+                if (asleep) js("window.onFaceState && window.onFaceState('sleep')");
                 pushDeviceStatus();
                 pushAiStatus("Готово");
                 refreshQuryltaiData();
@@ -371,7 +380,7 @@ public class MainActivity extends Activity {
         }
         skillApi = applicationApi;
         setRobotSpeechReady(true);
-        if (!announcedSpeechReady) {
+        if (!announcedSpeechReady && !asleep) {
             announcedSpeechReady = true;
             runOnUiThread(() -> webView.postDelayed(
                 () -> speakAnswer("Голосовой помощник готов. Задайте вопрос.", listeningLanguage), 700));
@@ -533,6 +542,10 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface public void getLlmSettings() { pushLlmSettings(""); }
+
+        @JavascriptInterface public void sleepNow() { runOnUiThread(() -> goToSleep("double tap")); }
+
+        @JavascriptInterface public void wakeUp() { runOnUiThread(() -> wakeUpRobot(true)); }
 
         @JavascriptInterface public void saveOpenRouterKey(String apiKey) {
             new Thread(() -> {
@@ -751,11 +764,13 @@ public class MainActivity extends Activity {
     }
 
     private void greetVisitor(int angle) {
+        // Как у Astana Hub: разговор начинается только с пробуждения (тап по лицу), а не с камеры.
+        if (asleep || liveEnabled()) return;
         if (!activityVisible || speakingNow || holdRecording) return;
         if (liveEnabled()) {
             playFriendlyGreetingMotion(angle);
             uiJs("window.goHome && window.goHome(); window.onVisitorDetected && window.onVisitorDetected()");
-            startLive(true);  // поздоровается сервер голосом ElevenLabs и сразу слушает
+            wakeUpRobot(true);  // проснуться (если спал) — поздоровается сервер голосом ElevenLabs и сразу слушает
             return;
         }
         playFriendlyGreetingMotion(angle);
@@ -1266,7 +1281,51 @@ public class MainActivity extends Activity {
             backendResult(false, "Нет подключения к Wi-Fi. Проверьте сеть робота и повторите запрос.");
             return;
         }
+        // Ключ OpenRouter Курултая теперь только на сервере: без ключа на роботе вопрос уходит в /v1/chat (профиль kurultai).
+        if (!hasStoredOpenRouterKey() && !BuildConfig.BACKEND_URL.isEmpty() && !BuildConfig.BACKEND_TOKEN.isEmpty()) {
+            requestServerChat(payload);
+            return;
+        }
         requestOpenRouter(payload);
+    }
+
+    /** Текстовый вопрос со страницы → сервер Курултая POST /v1/chat → ответ на экран (голос — как обычно, /v1/tts). */
+    /** Ответы доступны: свой ключ OpenRouter на роботе или сервер Курултая (адрес и токен в сборке). */
+    private boolean answersAvailable() {
+        return hasStoredOpenRouterKey() || (!BuildConfig.BACKEND_URL.isEmpty() && !BuildConfig.BACKEND_TOKEN.isEmpty());
+    }
+
+    private void requestServerChat(String payload) {
+        HttpURLConnection c = null;
+        try {
+            JSONObject input = new JSONObject(payload);
+            String message = input.optString("message", "").trim();
+            if (message.isEmpty()) { backendResult(false, "Пустой вопрос"); return; }
+            String lang = input.optString("language", "ru");
+            JSONObject body = new JSONObject().put("question", message)
+                .put("lang", lang.startsWith("kk") ? "kk" : "ru")
+                .put("session_id", "page-" + Integer.toHexString(System.identityHashCode(this)));
+            String base = BuildConfig.BACKEND_URL.endsWith("/") ? BuildConfig.BACKEND_URL : BuildConfig.BACKEND_URL + "/";
+            c = (HttpURLConnection) new URL(base + "chat").openConnection();
+            c.setRequestMethod("POST"); c.setConnectTimeout(10000); c.setReadTimeout(60000); c.setDoOutput(true);
+            c.setRequestProperty("Authorization", "Bearer " + BuildConfig.BACKEND_TOKEN);
+            c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            c.setRequestProperty("Accept", "application/json");
+            try (OutputStream out = c.getOutputStream()) { out.write(body.toString().getBytes(StandardCharsets.UTF_8)); }
+            int code = c.getResponseCode();
+            String text = readBody(c, code);
+            if (code < 200 || code >= 300) { backendResult(false, friendlyServerError(code, text)); return; }
+            JSONObject res = new JSONObject(text);
+            String answer = jsonText(res, "answer");
+            if (answer.isEmpty()) { backendResult(false, "Сервер не вернул ответ. Повторите вопрос."); return; }
+            previousUserQuestion = message;
+            previousAssistantAnswer = answer;
+            backendResult(true, new JSONObject().put("answer", answer).put("language", jsonText(res, "lang").isEmpty() ? lang : jsonText(res, "lang")).toString());
+        } catch (Exception e) {
+            backendResult(false, "Нет связи с сервером Курултая: " + describeError(e));
+        } finally {
+            if (c != null) c.disconnect();
+        }
     }
 
     private boolean isScheduleQuestion(String message) {
@@ -1405,7 +1464,7 @@ public class MainActivity extends Activity {
     private void pushLlmSettings(String message) {
         uiJs("window.onLlmSettings && window.onLlmSettings(" + JSONObject.quote(llmModel) + "," + JSONObject.quote(sttModel) + "," +
             JSONObject.quote(ttsProvider) + "," + JSONObject.quote(ttsModel) + "," + JSONObject.quote(ttsVoice) + "," +
-            hasStoredOpenRouterKey() + "," + JSONObject.quote(message == null ? "" : message) + "," + JSONObject.quote(voiceEngine) + ")");
+            answersAvailable() + "," + JSONObject.quote(message == null ? "" : message) + "," + JSONObject.quote(voiceEngine) + ")");
     }
 
     /** Тот же промпт и контекст, что в requestOpenAI, но через OpenRouter chat/completions (без web_search). */
@@ -1592,10 +1651,29 @@ public class MainActivity extends Activity {
      * Перебить робота можно только командой «стоп» (настройка сервера) или кнопкой.
      */
     private void maybeAutoStartLive() {
-        if (!activityVisible || !liveEnabled()) return;
+        if (!activityVisible || !liveEnabled() || asleep) return;
         LiveVoice l = live;
         if (l != null && l.isActive()) return;
         startLive(false);
+    }
+
+    private void goToSleep(String reason) {
+        android.util.Log.i("KurultaiLive", "sleep: " + reason);
+        asleep = true;
+        LiveVoice l = live;
+        if (l != null && l.isActive()) l.interrupt();
+        stopLive();
+        if (speaker != null) speaker.stop();
+        uiJs("window.onFaceState && window.onFaceState('sleep')");
+    }
+
+    /** Тап по спящему лицу: проснуться, поздороваться (сервер, visitor_arrived) и слушать всех. */
+    private void wakeUpRobot(boolean greet) {
+        if (!asleep) return;
+        asleep = false;
+        uiJs("window.showFace && window.showFace(); window.onFaceState && window.onFaceState('listening')");
+        if (liveEnabled()) startLive(greet);
+        else uiJs("window.toast && window.toast(" + JSONObject.quote("Сервер голоса недоступен: " + liveUnavailableReason()) + ")");
     }
 
     private int liveRetries;
@@ -1620,6 +1698,7 @@ public class MainActivity extends Activity {
         private volatile String lastUserText = "";
         @Override public void onState(String state) {
             if (!"idle".equals(state)) liveRetries = 0;
+            if (!asleep) uiJs("window.onFaceState && window.onFaceState(" + JSONObject.quote(state) + ")");
             switch (state) {
                 case "listening": case "user_speaking":
                     speakingNow = false;
@@ -1638,8 +1717,14 @@ public class MainActivity extends Activity {
             if (text == null || text.isEmpty()) return;
             if (isFinal) lastUserText = text;
             uiJs("window.onVoicePartial && window.onVoicePartial(" + JSONObject.quote(text) + ")");
+            uiJs("window.onFaceHeard && window.onFaceHeard(" + JSONObject.quote(text) + ")");
         }
-        @Override public void onPhrase(String text) { }
+        @Override public void onPhrase(String text) {
+            uiJs("window.onFacePhrase && window.onFacePhrase(" + JSONObject.quote(text) + ")");
+        }
+        @Override public void onEmotion(String name) {
+            uiJs("window.onFaceEmotion && window.onFaceEmotion(" + JSONObject.quote(name == null ? "" : name) + ")");
+        }
         @Override public void onLevel(int level, boolean robot) {
             uiJs("window.onVoiceLevel && window.onVoiceLevel(" + level + "," + robot + ")");
         }
@@ -1800,7 +1885,7 @@ public class MainActivity extends Activity {
     }
 
     private void pushAiStatus(String message) {
-        uiJs("window.onAiStatus && window.onAiStatus(" + hasStoredOpenRouterKey() + "," + JSONObject.quote(activeModelLabel()) + "," + JSONObject.quote(message) + ")");
+        uiJs("window.onAiStatus && window.onAiStatus(" + answersAvailable() + "," + JSONObject.quote(activeModelLabel()) + "," + JSONObject.quote(message) + ")");
     }
 
     private void pushLocalMeeting(String status) {

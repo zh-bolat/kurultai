@@ -53,6 +53,8 @@ final class LiveVoice {
         void onFailed(String error);
         /** Громкость 0–100 для визуализации: robot=false — микрофон, true — голос робота. */
         void onLevel(int level, boolean robot);
+        /** Эмоция хода от сервера (neutral / happy / thinking / surprised / sad / excited) — для лица. */
+        void onEmotion(String name);
     }
 
     private final Context context;
@@ -228,6 +230,7 @@ final class LiveVoice {
                 synchronized (turnText) { turnText.setLength(0); }
                 lastActivityAt = System.currentTimeMillis();
                 break;
+            case "emotion": if (!dropping) listener.onEmotion(str(msg, "name")); break;
             case "phrase": {
                 if (dropping) break;
                 String phrase = str(msg, "text");
