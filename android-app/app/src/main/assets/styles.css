@@ -297,3 +297,6 @@ html body #faceScreen .swipe-hint .chev i{text-shadow:none;color:#7fb4d8}
 html body #faceScreen .swipe-hint b{color:#9fc4de}
 html body #faceScreen .swipe-hint small{color:#6f95b3}
 html body #faceScreen.asleep .swipe-hint{opacity:.4}
+/* «‹ лицо» on the page: no plate, border or glow; muted like the «Меню» hint on the face; tap area stays large */
+html body #toFace{background:transparent;box-shadow:none;color:#7fb4d8;opacity:.75;min-width:64px;min-height:64px;padding:18px 14px}
+html body #toFace small{color:#8aa6c0}
