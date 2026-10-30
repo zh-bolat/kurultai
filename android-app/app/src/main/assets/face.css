@@ -42,3 +42,8 @@
 #toFace small{display:block;font:600 14px/1.2 "Golos Text","Inter",system-ui,sans-serif;margin-top:6px;letter-spacing:.04em}
 /* 2026-10-30: субтитры и «услышанное» на лице убраны по просьбе владельца */
 #faceScreen .face-sub,#faceScreen .face-heard{display:none!important}
+/* 2026-10-30: без белой полоски по краю. Страница — блок 1920×1080, уменьшенный transform; лицо занимает этот блок,
+   и при неточном масштабе по краю виден светлый фон html. Лицо заходит за край на 6px, а пока оно на экране,
+   фон под страницей чёрный. inset не используем — его нет в старом WebView робота. */
+#faceScreen{inset:auto;top:-6px;left:-6px;width:calc(100% + 12px);height:calc(100% + 12px)}
+html.face-on,html.face-on body{background:#000!important}

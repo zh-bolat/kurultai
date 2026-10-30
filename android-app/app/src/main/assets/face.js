@@ -123,9 +123,10 @@
   window.onVoiceLevel = (lvl, robot) => { if (prevLevel) prevLevel(lvl, robot); level = Math.max(level, Number(lvl) || 0); };
 
   /* --- лицо ↔ страница --- */
-  function showFace() { root.classList.remove('hidden', 'dragging'); root.style.transform = ''; toFace.hidden = true; }
-  function showMenu() { root.classList.remove('dragging'); root.style.transform = ''; root.classList.add('hidden'); toFace.hidden = false; lastTouch = Date.now(); }
+  function showFace() { root.classList.remove('hidden', 'dragging'); root.style.transform = ''; toFace.hidden = true; document.documentElement.classList.add('face-on'); }
+  function showMenu() { root.classList.remove('dragging'); root.style.transform = ''; root.classList.add('hidden'); toFace.hidden = false; lastTouch = Date.now(); document.documentElement.classList.remove('face-on'); }
   window.showFace = showFace;
+  document.documentElement.classList.add('face-on');
   toFace.onclick = () => showFace();
 
   /* Ввод: на роботе старый WebView без Pointer Events — поэтому touch-события в первую очередь, pointer и mouse — запасные.
