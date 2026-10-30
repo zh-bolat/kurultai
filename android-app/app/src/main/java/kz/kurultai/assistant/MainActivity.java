@@ -1197,6 +1197,13 @@ public class MainActivity extends Activity {
     }
 
     private void importEmbeddedKeysOnce() {
+        // С 2026-10-30 ключ OpenRouter Курултая живёт только на сервере. Сборки без вшитого ключа один раз стирают
+        // ключ, который прошлые версии сохранили в Keystore робота.
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        if (BuildConfig.EMBEDDED_OPENROUTER_KEY.isEmpty() && !prefs.getBoolean("openrouter_key_purged_v1", false)) {
+            clearStoredKey(OPENROUTER_KEY_ALIAS, PREF_OR_CIPHER, PREF_OR_IV);
+            prefs.edit().putBoolean("openrouter_key_purged_v1", true).apply();
+        }
         if (!hasStoredOpenRouterKey() && isValidOpenRouterKey(BuildConfig.EMBEDDED_OPENROUTER_KEY)) {
             try { encryptAndStoreKey(OPENROUTER_KEY_ALIAS, PREF_OR_CIPHER, PREF_OR_IV, BuildConfig.EMBEDDED_OPENROUTER_KEY); } catch (Exception ignored) { }
         }

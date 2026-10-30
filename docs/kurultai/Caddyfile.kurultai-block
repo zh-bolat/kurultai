@@ -1,0 +1,51 @@
+
+# --- Робот Курултая: отдельный сервер (compose-проект kurultai-robot, ~/kurultai-robot) ---
+kurultai.89-144-34-185.sslip.io {
+	log {
+		output stdout
+		format json
+	}
+	import security_headers
+	@k_stt path /v1/stt
+	request_body @k_stt {
+		max_size 700KB
+	}
+	@k_small not path /v1/look /v1/stt /v1/live
+	request_body @k_small {
+		max_size 32KB
+	}
+	handle /v1/health {
+		reverse_proxy kurultai-api:8000
+	}
+	handle /v1/live {
+		@k_noauth_live not header_regexp Authorization ^Bearer\s+\S+
+		handle @k_noauth_live {
+			respond 401 {
+				close
+			}
+		}
+		reverse_proxy kurultai-api:8000 {
+			lb_try_duration 15s
+			lb_try_interval 500ms
+			stream_close_delay 5m
+			header_down -Server
+		}
+	}
+	handle /v1/* {
+		@k_noauth not header_regexp Authorization ^Bearer\s+\S+
+		handle @k_noauth {
+			respond 401 {
+				close
+			}
+		}
+		reverse_proxy kurultai-api:8000 {
+			lb_try_duration 15s
+			lb_try_interval 500ms
+			flush_interval -1
+			header_down -Server
+		}
+	}
+	handle {
+		error 404
+	}
+}

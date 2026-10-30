@@ -1,0 +1,74 @@
+# Сервер робота Курултая — отдельный compose-проект на том же VPS, что Astana Hub.
+# Код — ветка feature/kurultai-profile backend Astana Hub (профиль kurultai по токену KURULTAI_ROBOT_TOKEN).
+# Свои контейнеры, база, тома и .env. Общий с Astana Hub только входной Caddy: он ходит в kurultai-api по сети
+# astana-hub-robot_default. Имена сервисов намеренно не api/postgres — иначе DNS этой сети смешал бы их с Astana Hub.
+#
+# Запуск на сервере (из ~/kurultai-robot/infra):
+#   docker compose -f docker-compose.kurultai.yml up -d --build
+name: kurultai-robot
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  kurultai-api:
+    build:
+      context: ../backend
+    image: kurultai-robot-api:local
+    restart: unless-stopped
+    logging: *logging
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      DATABASE_URL: postgresql+psycopg://kurultai:${POSTGRES_PASSWORD:-}@kurultai-db:5432/kurultai
+      DB_AUTO_MIGRATE: "true"
+    volumes:
+      - api-data:/data
+    ports:
+      - "127.0.0.1:8010:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      kurultai-db:
+        condition: service_healthy
+    networks: [default, edge]
+
+  kurultai-db:
+    image: pgvector/pgvector:0.8.7-pg16-bookworm@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 512m
+    shm_size: 128m
+    environment:
+      POSTGRES_DB: kurultai
+      POSTGRES_USER: kurultai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U kurultai -d kurultai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [default]
+
+networks:
+  edge:
+    external: true
+    name: astana-hub-robot_default
+
+volumes:
+  api-data:
+  pg-data:
