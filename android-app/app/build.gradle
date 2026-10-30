@@ -43,6 +43,8 @@ android {
         // Наш сервер (голос ElevenLabs и, позже, live): адрес с /v1 и токен робота — из secrets.properties, вне git.
         buildConfigField 'String', 'BACKEND_URL', '"' + (secrets.getProperty('BACKEND_URL') ?: '') + '"'
         buildConfigField 'String', 'BACKEND_TOKEN', '"' + (secrets.getProperty('BACKEND_TOKEN') ?: '') + '"'
+        // Токен профиля kurultai на сервере (KURULTAI_ROBOT_TOKEN). Пусто — live выключен, голос только через /v1/tts.
+        buildConfigField 'String', 'LIVE_TOKEN', '"' + (secrets.getProperty('LIVE_TOKEN') ?: '') + '"'
         buildConfigField 'String', 'EMBEDDED_OPENROUTER_KEY', '"' + (secrets.getProperty('OPENROUTER_KEY') ?: System.getenv('KURULTAI_EMBEDDED_OPENROUTER_KEY') ?: '') + '"'
     }
 
@@ -73,4 +75,6 @@ dependencies {
     implementation files('libs/robotservice.jar')
     // RobotApi.<clinit> constructs Gson; RobotOS does not expose Gson to third-party APKs.
     implementation 'com.google.code.gson:gson:2.10.1'
+    // WebSocket для live-режима (WS /v1/live). Ветка 3.12 — на чистой Java, без рантайма Kotlin; поддерживает Android 5+.
+    implementation 'com.squareup.okhttp3:okhttp:3.12.13'
 }

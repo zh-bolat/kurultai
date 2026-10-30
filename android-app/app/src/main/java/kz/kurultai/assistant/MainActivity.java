@@ -83,6 +83,11 @@ public class MainActivity extends Activity {
     private static final String PREF_TTS_PROVIDER = "tts_provider";
     private static final String PREF_TTS_MODEL = "tts_model";
     private static final String PREF_TTS_VOICE = "tts_voice";
+    // Режим голоса: "live" — живой разговор через сервер (WS /v1/live, профиль kurultai), "standard" — вопрос → ответ
+    // (распознавание и модель через OpenRouter на роботе, голос через /v1/tts). Live включается, только если сервер
+    // подтвердил профиль kurultai (GET /v1/profile), иначе робот остаётся в обычном режиме.
+    private static final String PREF_VOICE_ENGINE = "voice_engine";
+    private static final long LIVE_IDLE_SLEEP_MS = 5L * 60L * 1000L;
     private static final String ASSISTANT_INSTRUCTIONS =
         "Ты — ИИ-помощник Курултая Республики Казахстан, робот в здании Курултая. Если тебя спрашивают, кто ты, отвечай: «Я ИИ-помощник Курултая Республики Казахстан». Никогда не называй себя ChatGPT, GPT, OpenAI, Gemini, языковой моделью или чат-ботом. " +
         "Характер: деловой и точный, с лёгкой доброжелательной игривостью. По существу с первого предложения, точные названия органов и должностей, цифры с датой, без канцелярита. Допускается одна короткая тёплая или ироничная фраза в приветствии или в конце ответа — о себе как роботе, о погоде в Астане, о том, что ты не устаёшь. Никогда не шути о политике, депутатах, партиях, государственных символах, религии и национальностях. Если тема серьёзная (обращение гражданина, закон, конфликт), игривость отключена полностью. " +
@@ -131,6 +136,11 @@ public class MainActivity extends Activity {
     private volatile String ttsProvider = DEFAULT_TTS_PROVIDER;
     private volatile String ttsModel = DEFAULT_TTS_MODEL;
     private volatile String ttsVoice = DEFAULT_TTS_VOICE;
+    private volatile String voiceEngine = "live";
+    private volatile LiveVoice live;
+    private volatile Boolean liveProfileOk;        // null — не проверяли, true — сервер в профиле kurultai
+    private volatile long liveProfileCheckedAt;
+    private volatile long liveFailedAt;
     private volatile boolean speakingNow;
     private volatile boolean announcedSpeechReady;
     private volatile boolean holdRecording;
@@ -184,6 +194,11 @@ public class MainActivity extends Activity {
         @Override public void run() {
             checkLocalMeetingReminder();
             refreshQuryltaiData();
+            LiveVoice l = live;
+            if (l != null && l.isActive() && !l.isPlaying() && System.currentTimeMillis() - l.lastActivityAt() > LIVE_IDLE_SLEEP_MS) {
+                android.util.Log.i("KurultaiLive", "5 мин без разговора — засыпаю");
+                stopLive();
+            }
             if (activityVisible && webView != null) webView.postDelayed(this, 30000L);
         }
     };
@@ -298,6 +313,8 @@ public class MainActivity extends Activity {
         ttsProvider = normalizeTtsProvider(assistantPrefs.getString(PREF_TTS_PROVIDER, DEFAULT_TTS_PROVIDER));
         ttsModel = assistantPrefs.getString(PREF_TTS_MODEL, DEFAULT_TTS_MODEL);
         ttsVoice = assistantPrefs.getString(PREF_TTS_VOICE, DEFAULT_TTS_VOICE);
+        voiceEngine = "standard".equals(assistantPrefs.getString(PREF_VOICE_ENGINE, "live")) ? "standard" : "live";
+        checkLiveProfileAsync();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         hideSystemUi();
 
@@ -433,6 +450,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onPause() {
         activityVisible = false;
+        stopLive();
         greetingMotionGeneration++;
         if (followingPerson) stopFollowingPerson(false, "ru");
         continuousListening = false;
@@ -449,10 +467,12 @@ public class MainActivity extends Activity {
 
     private class RobotBridge {
         @JavascriptInterface public void startHoldRecording() {
-            runOnUiThread(() -> startRawRecording());
+            runOnUiThread(() -> { if (!liveTap()) startRawRecording(); });
         }
 
         @JavascriptInterface public void stopHoldRecording() {
+            LiveVoice l = live;
+            if (l != null && l.isActive()) return;  // в live конец фразы находит сервер
             stopRawRecordingAndTranscribe();
         }
 
@@ -489,8 +509,11 @@ public class MainActivity extends Activity {
             uiJs("window.onAssistantPreferences && window.onAssistantPreferences(" + automaticVoiceMode + "," + JSONObject.quote(answerLanguageMode) + ")");
         }
 
-        @JavascriptInterface public void saveLlmSettings(String model, String speechModel, String voiceProvider, String voiceModel, String voiceName) {
+        @JavascriptInterface public void saveLlmSettings(String model, String speechModel, String voiceProvider, String voiceModel, String voiceName, String engine) {
             runOnUiThread(() -> {
+                voiceEngine = "standard".equals(engine) ? "standard" : "live";
+                if (!liveEnabled()) stopLive();
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREF_VOICE_ENGINE, voiceEngine).apply();
                 String cleanModel = model == null ? "" : model.trim();
                 llmModel = cleanModel.isEmpty() ? DEFAULT_OPENROUTER_MODEL : cleanModel;
                 String cleanStt = speechModel == null ? "" : speechModel.trim();
@@ -732,6 +755,12 @@ public class MainActivity extends Activity {
 
     private void greetVisitor(int angle) {
         if (!activityVisible || speakingNow || holdRecording) return;
+        if (liveEnabled()) {
+            playFriendlyGreetingMotion(angle);
+            uiJs("window.goHome && window.goHome(); window.onVisitorDetected && window.onVisitorDetected()");
+            startLive(true);  // поздоровается сервер голосом ElevenLabs и сразу слушает
+            return;
+        }
         playFriendlyGreetingMotion(angle);
         continuousListening = automaticVoiceMode;
         setHandsFreeStatus(automaticVoiceMode ? "Приветствую и затем включу микрофон" : "Приветствую · ручной режим микрофона");
@@ -795,6 +824,8 @@ public class MainActivity extends Activity {
 
     private void startAutomaticListening(boolean allowWhileSpeaking) {
         if (!activityVisible || !continuousListening || !personPresent || (!allowWhileSpeaking && speakingNow) || holdRecording) return;
+        LiveVoice l = live;
+        if (l != null && l.isActive()) return;  // микрофоном владеет live
         if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return;
         voiceTurnId++;
         automaticRecording = true;
@@ -1173,6 +1204,8 @@ public class MainActivity extends Activity {
 
     private void speakAnswer(String text, String language) {
         if (text == null || text.trim().isEmpty()) return;
+        LiveVoice activeLive = live;
+        if (activeLive != null && activeLive.isActive()) activeLive.interrupt();  // один голос за раз
         String spokenText = text.replaceFirst("(?s)\\n\\nИсточники:.*$", "").replaceAll("https?://\\S+", "")
             .replaceFirst("(?iu)^\\s*(вывод|қорытынды|ответ|жауап|gpt)\\s*[:：-]\\s*", "").trim();
         pauseListeningInternal();
@@ -1349,7 +1382,10 @@ public class MainActivity extends Activity {
         return value != null && value.startsWith("sk-or-") && value.length() >= 20;
     }
 
-    private String activeModelLabel() { return "OpenRouter · " + llmModel + " · речь: " + sttModel + " · голос: " + ttsLabel(); }
+    private String activeModelLabel() {
+        String mode = liveEnabled() ? "Live через сервер" : "live".equals(voiceEngine) ? "Обычный (live недоступен: " + liveUnavailableReason() + ")" : "Обычный";
+        return mode + " · OpenRouter · " + llmModel + " · речь: " + sttModel + " · голос: " + ttsLabel();
+    }
 
     private String ttsLabel() {
         if ("robot".equals(ttsProvider)) return "RobotOS TTS";
@@ -1365,7 +1401,7 @@ public class MainActivity extends Activity {
     private void pushLlmSettings(String message) {
         uiJs("window.onLlmSettings && window.onLlmSettings(" + JSONObject.quote(llmModel) + "," + JSONObject.quote(sttModel) + "," +
             JSONObject.quote(ttsProvider) + "," + JSONObject.quote(ttsModel) + "," + JSONObject.quote(ttsVoice) + "," +
-            hasStoredOpenRouterKey() + "," + JSONObject.quote(message == null ? "" : message) + ")");
+            hasStoredOpenRouterKey() + "," + JSONObject.quote(message == null ? "" : message) + "," + JSONObject.quote(voiceEngine) + ")");
     }
 
     /** Тот же промпт и контекст, что в requestOpenAI, но через OpenRouter chat/completions (без web_search). */
@@ -1489,6 +1525,125 @@ public class MainActivity extends Activity {
         } finally {
             if (connection != null) connection.disconnect();
         }
+    }
+
+    // ---------- live-режим ----------
+
+    private boolean liveConfigured() {
+        return !BuildConfig.BACKEND_URL.isEmpty() && !BuildConfig.LIVE_TOKEN.isEmpty();
+    }
+
+    private boolean liveEnabled() {
+        return "live".equals(voiceEngine) && liveConfigured() && Boolean.TRUE.equals(liveProfileOk)
+            && System.currentTimeMillis() - liveFailedAt > 60_000L;
+    }
+
+    private String liveUnavailableReason() {
+        if (!liveConfigured()) return "нет токена профиля Курултая";
+        if (liveProfileOk == null) return "проверяю сервер";
+        if (!liveProfileOk) return "сервер без профиля Курултая";
+        return "сбой связи, повтор через минуту";
+    }
+
+    /** Проверка, что сервер отвечает профилем kurultai (иначе live говорил бы персоной Astana Hub). */
+    private void checkLiveProfileAsync() {
+        if (!liveConfigured()) { liveProfileOk = false; return; }
+        long now = System.currentTimeMillis();
+        if (Boolean.TRUE.equals(liveProfileOk) || now - liveProfileCheckedAt < 60_000L) return;
+        liveProfileCheckedAt = now;
+        new Thread(() -> {
+            HttpURLConnection c = null;
+            try {
+                String base = BuildConfig.BACKEND_URL.endsWith("/") ? BuildConfig.BACKEND_URL : BuildConfig.BACKEND_URL + "/";
+                c = (HttpURLConnection) new URL(base + "profile").openConnection();
+                c.setConnectTimeout(8000); c.setReadTimeout(8000);
+                c.setRequestProperty("Authorization", "Bearer " + BuildConfig.LIVE_TOKEN);
+                int code = c.getResponseCode();
+                String body = readBody(c, code);
+                liveProfileOk = code == 200 && "kurultai".equals(jsonText(new JSONObject(body), "profile"));
+            } catch (Exception e) {
+                liveProfileOk = false;
+            } finally {
+                if (c != null) c.disconnect();
+            }
+            android.util.Log.i("KurultaiLive", "profile check: " + liveProfileOk);
+            pushAiStatus("Готово");
+        }).start();
+    }
+
+    /** Нажатие круга в live: открыть разговор, а если робот говорит — перебить. false — live не используется. */
+    private boolean liveTap() {
+        if (!liveEnabled()) { checkLiveProfileAsync(); return false; }
+        LiveVoice l = live;
+        if (l != null && l.isActive()) {
+            if (l.isPlaying()) l.interrupt();
+            return true;
+        }
+        startLive(false);
+        return true;
+    }
+
+    private void startLive(boolean greet) {
+        if (speaker != null) speaker.stop();
+        cancelAutomaticRecording();
+        holdRecording = false;
+        try { wavRecorder.cancel(); } catch (Throwable ignored) { }
+        if (live == null) live = new LiveVoice(this, BuildConfig.BACKEND_URL, BuildConfig.LIVE_TOKEN, liveListener);
+        live.start(effectiveAnswerLanguage(listeningLanguage), greet);
+    }
+
+    private void stopLive() {
+        LiveVoice l = live;
+        if (l != null && l.isActive()) l.stop();
+    }
+
+    private final LiveVoice.Listener liveListener = new LiveVoice.Listener() {
+        private volatile String lastUserText = "";
+        @Override public void onState(String state) {
+            switch (state) {
+                case "listening": case "user_speaking":
+                    speakingNow = false;
+                    uiJs("window.onRawRecordingStarted && window.onRawRecordingStarted()"); break;
+                case "thinking":
+                    uiJs("window.onRawRecordingStopped && window.onRawRecordingStopped()"); break;
+                case "speaking":
+                    speakingNow = true;
+                    uiJs("window.onSpeechStarted && window.onSpeechStarted()"); break;
+                default:
+                    speakingNow = false;
+                    uiJs("window.onSpeechFinished && window.onSpeechFinished()"); break;
+            }
+        }
+        @Override public void onUserText(String text, boolean isFinal, String lang) {
+            if (text == null || text.isEmpty()) return;
+            if (isFinal) lastUserText = text;
+            uiJs("window.onVoicePartial && window.onVoicePartial(" + JSONObject.quote(text) + ")");
+        }
+        @Override public void onPhrase(String text) { }
+        @Override public void onTurnDone(String answer, String lang) {
+            if (answer == null || answer.trim().isEmpty()) return;
+            previousUserQuestion = lastUserText;
+            previousAssistantAnswer = answer;
+            boolean kk = lang != null && lang.startsWith("kk");
+            String html = "<article class=\"result-card wide\"><p>" + escapeHtml(answer).replace("\n", "<br>") + "</p></article>";
+            uiJs("window.answer && window.answer(" + JSONObject.quote(kk ? "Көмекшінің жауабы" : "Ответ помощника") + "," +
+                JSONObject.quote(lastUserText) + "," + JSONObject.quote(html) + "," + JSONObject.quote(answer) + ")");
+            uiJs("window.onSpeechFinished && window.onSpeechFinished()");
+        }
+        @Override public void onIgnored(String reason) {
+            if (reason != null && reason.startsWith("error:")) uiJs("window.toast && window.toast(" + JSONObject.quote(reason.substring(6).trim()) + ")");
+        }
+        @Override public void onFailed(String error) {
+            liveFailedAt = System.currentTimeMillis();
+            android.util.Log.w("KurultaiLive", "fallback to standard: " + error);
+            uiJs("window.toast && window.toast(" + JSONObject.quote("Live недоступен: " + error + ". Работаю в обычном режиме") + ")");
+            uiJs("window.onSpeechFinished && window.onSpeechFinished()");
+            pushAiStatus("Готово");
+        }
+    };
+
+    private static String escapeHtml(String text) {
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
     }
 
     private static final class StreamResult {
@@ -1732,6 +1887,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         activityVisible = false;
+        stopLive();
         unregisterPersonDetection();
         if (speaker != null) speaker.shutdown();
         stopRobotMotion();
