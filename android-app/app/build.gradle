@@ -44,6 +44,8 @@ android {
         buildConfigField 'String', 'BACKEND_URL', '"' + (secrets.getProperty('BACKEND_URL') ?: '') + '"'
         buildConfigField 'String', 'BACKEND_TOKEN', '"' + (secrets.getProperty('BACKEND_TOKEN') ?: '') + '"'
         // Токен профиля kurultai на сервере (KURULTAI_ROBOT_TOKEN). Пусто — live выключен, голос только через /v1/tts.
+        // PIN вкладки «Робот и настройки» — из secrets.properties (вне git). Пусто — вкладка без PIN.
+        buildConfigField 'String', 'ADMIN_PIN', '"' + (secrets.getProperty('ADMIN_PIN') ?: '') + '"'
         buildConfigField 'String', 'LIVE_TOKEN', '"' + (secrets.getProperty('LIVE_TOKEN') ?: '') + '"'
         buildConfigField 'String', 'EMBEDDED_OPENROUTER_KEY', '"' + (secrets.getProperty('OPENROUTER_KEY') ?: System.getenv('KURULTAI_EMBEDDED_OPENROUTER_KEY') ?: '') + '"'
     }

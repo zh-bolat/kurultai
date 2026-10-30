@@ -543,6 +543,15 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public void getLlmSettings() { pushLlmSettings(""); }
 
+        /** PIN вкладки «Робот и настройки»: сверяется здесь, в JS значение PIN не попадает. */
+        @JavascriptInterface public boolean checkAdminPin(String pin) {
+            String expected = BuildConfig.ADMIN_PIN;
+            return expected.isEmpty() || (pin != null && java.security.MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8), pin.trim().getBytes(StandardCharsets.UTF_8)));
+        }
+
+        @JavascriptInterface public boolean adminPinRequired() { return !BuildConfig.ADMIN_PIN.isEmpty(); }
+
         @JavascriptInterface public void sleepNow() { runOnUiThread(() -> goToSleep("double tap")); }
 
         @JavascriptInterface public void wakeUp() { runOnUiThread(() -> wakeUpRobot(true)); }
