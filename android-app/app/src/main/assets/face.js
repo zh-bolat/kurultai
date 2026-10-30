@@ -106,11 +106,12 @@
     render();
   };
   window.onFacePhrase = text => {
+    return; // субтитры на лице убраны
     subLine.textContent = String(text || '');
     clearTimeout(subTimer);
     subTimer = setTimeout(() => { if (state !== 'speaking') subLine.textContent = ''; }, 6000);
   };
-  window.onFaceHeard = text => { heardLine.textContent = text ? '«' + String(text) + '»' : ''; };
+  window.onFaceHeard = () => {}; // «услышанное» на лице убрано
   window.onFaceEmotion = name => {
     const x = EMOTION[name];
     clearTimeout(moodTimer);
@@ -127,21 +128,30 @@
   window.showFace = showFace;
   toFace.onclick = () => showFace();
 
-  /* жесты на лице: свайп влево — меню; тап — разбудить; двойной тап — уснуть */
-  let x0 = 0, y0 = 0, dragging = false, moved = false, lastTap = 0, tapTimer = null;
-  root.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; dragging = true; moved = false; root.classList.add('dragging'); });
+  /* жесты на лице: свайп влево — меню (лёгкий: палец ведёт экран, хватает короткого быстрого взмаха);
+     тап — разбудить; двойной тап — уснуть */
+  let x0 = 0, y0 = 0, t0 = 0, lastX = 0, lastT = 0, vx = 0, dragging = false, moved = false, lastTap = 0, tapTimer = null;
+  const SWIPE_DIST = () => window.innerWidth * 0.08, FLICK_V = 0.35; // px/мс
+  root.addEventListener('pointerdown', e => {
+    x0 = lastX = e.clientX; y0 = e.clientY; t0 = lastT = performance.now(); vx = 0; dragging = true; moved = false;
+    root.classList.add('dragging');
+    try { root.setPointerCapture(e.pointerId); } catch (_) {}
+  });
   root.addEventListener('pointermove', e => {
     if (!dragging) return;
-    const dx = e.clientX - x0, dy = e.clientY - y0;
-    if (Math.abs(dx) > 14 || Math.abs(dy) > 14) moved = true;
-    if (dx < 0 && Math.abs(dx) > Math.abs(dy)) root.style.transform = 'translateX(' + dx + 'px)';
+    const now = performance.now(), dx = e.clientX - x0, dy = e.clientY - y0;
+    if (now > lastT) vx = 0.7 * vx + 0.3 * ((e.clientX - lastX) / (now - lastT));
+    lastX = e.clientX; lastT = now;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
+    if (dx < 0 && Math.abs(dx) > Math.abs(dy) * 0.6) root.style.transform = 'translate3d(' + dx + 'px,0,0)';
   });
   const end = e => {
     if (!dragging) return;
     dragging = false;
-    const dx = (e.clientX || x0) - x0, dy = (e.clientY || y0) - y0;
+    const dx = (e.clientX || lastX) - x0, dy = (e.clientY || y0) - y0;
     root.classList.remove('dragging');
-    if (moved && dx < -window.innerWidth * 0.18 && Math.abs(dx) > Math.abs(dy)) { showMenu(); return; }
+    const horizontal = Math.abs(dx) > Math.abs(dy) * 0.6;
+    if (moved && horizontal && (dx < -SWIPE_DIST() || (vx < -FLICK_V && dx < -20))) { showMenu(); return; }
     root.style.transform = '';
     if (moved) return;
     const now = Date.now();
@@ -151,7 +161,7 @@
       return;
     }
     lastTap = now;
-    tapTimer = setTimeout(() => {            // одиночный тап: спит — разбудить, не спит — улыбнуться
+    tapTimer = setTimeout(() => {            // одиночный тап: спит — проснуться и поздороваться, не спит — улыбнуться
       if (state === 'sleep') { if (window.Robot && Robot.wakeUp) Robot.wakeUp(); }
       else window.onFaceEmotion('happy');
     }, 380);
@@ -165,7 +175,7 @@
   document.addEventListener('pointerup', e => {
     if (!root.classList.contains('hidden')) return;
     const dx = e.clientX - px, dy = e.clientY - py;
-    if (dx > window.innerWidth * 0.25 && Math.abs(dy) < 90) showFace();
+    if (dx > window.innerWidth * 0.12 && Math.abs(dy) < Math.abs(dx) * 0.6) showFace();
   }, true);
   setInterval(() => { if (root.classList.contains('hidden') && Date.now() - lastTouch > 60000) showFace(); }, 5000);
 

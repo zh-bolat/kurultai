@@ -2,7 +2,7 @@
    Свайп влево — основная страница. Тап по спящему лицу — разбудить, двойной тап — усыпить. */
 #faceScreen{position:fixed;inset:0;z-index:9000;background:#000;color:#3AA8F5;display:flex;flex-direction:column;
   align-items:center;justify-content:center;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;
-  transition:transform .45s cubic-bezier(.22,.8,.24,1),opacity .45s ease}
+  transition:transform .24s cubic-bezier(.2,.9,.3,1),opacity .24s ease;will-change:transform}
 #faceScreen.hidden{transform:translateX(-100%);opacity:.2;pointer-events:none}
 #faceScreen.dragging{transition:none}
 #faceScreen .face-eyes{width:min(72vw,1100px);aspect-ratio:2/1;margin-top:-6vh;filter:drop-shadow(0 0 18px rgba(58,168,245,.55)) drop-shadow(0 0 42px rgba(58,168,245,.25))}
@@ -40,3 +40,5 @@
 #toFace{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:8000;border:none;border-radius:0 22px 22px 0;padding:18px 14px;
   background:rgba(14,30,52,.82);color:#cdeeff;font:800 34px/1 system-ui,sans-serif;box-shadow:0 0 18px rgba(58,168,245,.35)}
 #toFace small{display:block;font:600 14px/1.2 "Golos Text","Inter",system-ui,sans-serif;margin-top:6px;letter-spacing:.04em}
+/* 2026-10-30: субтитры и «услышанное» на лице убраны по просьбе владельца */
+#faceScreen .face-sub,#faceScreen .face-heard{display:none!important}
