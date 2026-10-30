@@ -243,3 +243,8 @@ main>header:not(.bg-map){z-index:6}
 #listContent{display:flex;flex-direction:column;gap:28px}
 #requests,#committees .cm-left{gap:28px}
 .rq-head{align-items:flex-start}
+/* Голос без кнопки: круг — визуализация, нажатия на него ничего не делают (2026-10-30). */
+#voiceBanner{pointer-events:none;cursor:default}
+#vbFabLabel,#dockToggle,#dockMic{display:none!important}
+#orbBtn .orb-core i{animation:none!important;transform-origin:center;transition:transform .06s linear}
+#orbBtn.robot-voice .orb-core i{background:#4aa8dc}

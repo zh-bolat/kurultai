@@ -1640,6 +1640,9 @@ public class MainActivity extends Activity {
             uiJs("window.onVoicePartial && window.onVoicePartial(" + JSONObject.quote(text) + ")");
         }
         @Override public void onPhrase(String text) { }
+        @Override public void onLevel(int level, boolean robot) {
+            uiJs("window.onVoiceLevel && window.onVoiceLevel(" + level + "," + robot + ")");
+        }
         @Override public void onTurnDone(String answer, String lang) {
             if (answer == null || answer.trim().isEmpty()) return;
             previousUserQuestion = lastUserText;

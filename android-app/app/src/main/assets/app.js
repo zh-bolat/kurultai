@@ -166,8 +166,8 @@ render();
 // A very short tap sends nothing and shows a hint; a tap while the robot speaks stops the speech.
 let talkTimer=null,toggleTalk=null;
 ;(function(){
-const TXT={ru:{idle:['Удерживайте и говорите','Удерживайте круг, пока говорите','ГОТОВ СЛУШАТЬ'],listening:['Слушаю…','Говорите, пока держите круг. Отпустите — вопрос отправится','РОБОТ СЛУШАЕТ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Нажмите на круг, чтобы остановить','РОБОТ ГОВОРИТ']},
-kk:{idle:['Басып тұрып сөйлеңіз','Шеңберді басып тұрып сөйлеңіз','ТЫҢДАУҒА ДАЙЫН'],listening:['Тыңдап тұрмын…','Шеңберді басып тұрып сөйлеңіз. Жіберсеңіз — сұрақ жіберіледі','ТЫҢДАП ТҰР'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін шеңберді басыңыз','РОБОТ СӨЙЛЕП ТҰР']}};
+const TXT={ru:{idle:['Говорите — я слушаю','Просто начните говорить. Чтобы остановить меня, скажите «стоп»','СЛУШАЮ'],listening:['Слушаю…','Говорите, я пойму, когда вы закончите','РОБОТ СЛУШАЕТ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Чтобы остановить, скажите «стоп»','РОБОТ ГОВОРИТ']},
+kk:{idle:['Сөйлей беріңіз — тыңдап тұрмын','Жай ғана сөйлей бастаңыз. Тоқтату үшін «тоқта» деңіз','ТЫҢДАП ТҰРМЫН'],listening:['Тыңдап тұрмын…','Сөйлеңіз, сөзіңіз біткенін өзім түсінемін','ТЫҢДАП ТҰР'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін «тоқта» деңіз','РОБОТ СӨЙЛЕП ТҰР']}};
 const SHORT={ru:'Удерживайте круг, пока говорите',kk:'Сөйлеп тұрғанда шеңберді басып тұрыңыз'};
 let state='idle',live='',guard=null,pressAt=0,shortTap=false,flash=null;
 const norm=s=>(s==='listening'||s==='thinking'||s==='speaking')?s:'idle';
@@ -326,4 +326,19 @@ const badge=el('connectionBadge'),slot=el('rbBadgeSlot');if(badge&&slot)slot.app
 const qd=window.onQuryltaiData;window.onQuryltaiData=function(){const r=qd?qd.apply(this,arguments):undefined;renderSidebarSource();renderToday();if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if((page==='bills'||page==='session')&&document.body.dataset.page==='listPage')renderList(page);return r};
 const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);applyTexts();return r};
 applyTexts();
+})();
+// Голос без кнопки (2026-10-30): круг больше не кнопка, а визуализация. Полоски двигаются от громкости:
+// микрофона, пока робот слушает, и голоса робота, пока он говорит. Разговор открыт всегда (live), перебить — словом «стоп».
+;(function(){
+const bars=()=>document.querySelectorAll('#orbBtn .orb-core i');
+let target=0,shown=0,robot=false,last=0;
+window.onVoiceLevel=(lvl,isRobot)=>{target=Math.max(0,Math.min(100,Number(lvl)||0));robot=!!isRobot;last=Date.now()};
+function frame(){const now=Date.now();if(now-last>400)target=0;shown+=(target-shown)*0.35;
+ const b=bars();const k=[.55,.8,1,.8,.55];
+ b.forEach((el,i)=>{const wobble=0.15*Math.sin(now/120+i*1.3);const v=Math.max(.18,Math.min(1.25,(shown/100)*1.6*k[i]+.18+(shown>8?wobble*k[i]:0)));el.style.transform='scaleY('+v.toFixed(3)+')'});
+ const o=document.getElementById('orbBtn');if(o)o.classList.toggle('robot-voice',robot&&shown>5);
+ requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+const vb=document.getElementById('voiceBanner');if(vb){vb.setAttribute('aria-disabled','true');vb.tabIndex=-1}
+const lbl=document.getElementById('vbFabLabel');if(lbl)lbl.textContent='';
 })();

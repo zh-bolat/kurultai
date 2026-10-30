@@ -51,6 +51,8 @@ final class LiveVoice {
         void onIgnored(String reason);
         /** Сессия упала или закрыта сервером: робот переходит на обычный режим. */
         void onFailed(String error);
+        /** Громкость 0–100 для визуализации: robot=false — микрофон, true — голос робота. */
+        void onLevel(int level, boolean robot);
     }
 
     private final Context context;
@@ -76,6 +78,18 @@ final class LiveVoice {
     private NoiseSuppressor noise;
     private boolean stereo;
     private Thread micThread;
+    private int micLevelTick;
+    private long lastRobotLevelAt;
+
+    /** RMS PCM16 LE → 0–100 (логарифмически, речь ≈ 30–80). */
+    static int level(byte[] pcm, int length) {
+        long sum = 0; int n = 0;
+        for (int i = 0; i + 1 < length; i += 2) { int v = (short) ((pcm[i] & 0xFF) | (pcm[i + 1] << 8)); sum += (long) v * v; n++; }
+        if (n == 0) return 0;
+        double rms = Math.sqrt(sum / (double) n);
+        double db = 20 * Math.log10(Math.max(1.0, rms));
+        return (int) Math.max(0, Math.min(100, (db - 30) * 2.2));
+    }
 
     private final Object playLock = new Object();
     private AudioTrack track;
@@ -124,8 +138,10 @@ final class LiveVoice {
         ws = client.newWebSocket(request, new WebSocketListener() {
             @Override public void onOpen(WebSocket socket, Response response) {
                 try {
+                    // aec=false: голос робота играет обычным звуком (не «звонок»), поэтому сервер сам отсекает эхо
+                    // собственной речи; перебивает только команда «стоп» (LIVE_BARGE_IN=stop_only).
                     socket.send(new JSONObject().put("type", "hello").put("lang", helloLang)
-                        .put("place_id", JSONObject.NULL).put("aec", aec).toString());
+                        .put("place_id", JSONObject.NULL).put("aec", false).toString());
                     Log.i(TAG, "hello sent lang=" + helloLang + " aec=" + aec + " stereo=" + stereo);
                 } catch (Exception e) { Log.w(TAG, "hello failed", e); }
                 startMicThread();
@@ -328,6 +344,7 @@ final class LiveVoice {
                 }
                 WebSocket s = ws;
                 if (s != null) s.send(ByteString.of(frame));
+                if (!playing && ++micLevelTick % 2 == 0) listener.onLevel(level(frame, frame.length), false);
             }
         }, "live-mic");
         micThread.setDaemon(true);
@@ -350,9 +367,10 @@ final class LiveVoice {
             playRate = rate;
             if (track != null) return;
             int min = AudioTrack.getMinBufferSize(rate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
-            // USAGE_VOICE_COMMUNICATION — как у Astana Hub: звук идёт опорой эхоподавления микрофона.
+            // USAGE_ASSISTANT — обычный голосовой звук: в режиме «звонка» (VOICE_COMMUNICATION) Android может
+            // приглушать и обрывать голос робота, когда рядом говорят. Эхо собственной речи отсекает сервер (aec=false).
             track = new AudioTrack(
-                new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build(),
                 new AudioFormat.Builder().setSampleRate(rate).setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build(),
@@ -392,6 +410,8 @@ final class LiveVoice {
                 off += n;
             }
             playedBytes += pcm.length;
+            long now = System.currentTimeMillis();
+            if (now - lastRobotLevelAt > 70) { lastRobotLevelAt = now; listener.onLevel(level(pcm, pcm.length), true); }
         }
     }
 
