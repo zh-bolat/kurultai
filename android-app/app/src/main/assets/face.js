@@ -128,32 +128,38 @@
   window.showFace = showFace;
   toFace.onclick = () => showFace();
 
-  /* жесты на лице: свайп влево — меню (лёгкий: палец ведёт экран, хватает короткого быстрого взмаха);
-     тап — разбудить; двойной тап — уснуть */
-  let x0 = 0, y0 = 0, t0 = 0, lastX = 0, lastT = 0, vx = 0, dragging = false, moved = false, lastTap = 0, tapTimer = null;
+  /* Ввод: на роботе старый WebView без Pointer Events — поэтому touch-события в первую очередь, pointer и mouse — запасные.
+     Одно касание обрабатывается один раз (после touch браузер может прислать ещё и mouse/pointer — их пропускаем). */
+  const HAS_TOUCH = 'ontouchstart' in window, HAS_POINTER = !!window.PointerEvent;
+  let lastTouchEndAt = 0;
+  function pointFrom(e) {
+    const t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]) || e;
+    return { x: t.clientX, y: t.clientY };
+  }
+  function bind(el, onStart, onMove, onEnd, onCancel) {
+    if (HAS_TOUCH) {
+      el.addEventListener('touchstart', e => onStart(pointFrom(e), e), { passive: true });
+      el.addEventListener('touchmove', e => onMove(pointFrom(e), e), { passive: true });
+      el.addEventListener('touchend', e => { lastTouchEndAt = Date.now(); onEnd(pointFrom(e), e); }, { passive: true });
+      el.addEventListener('touchcancel', e => onCancel(e), { passive: true });
+    }
+    const skip = () => HAS_TOUCH && Date.now() - lastTouchEndAt < 800;
+    if (HAS_POINTER) {
+      el.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; if (!skip()) onStart(pointFrom(e), e); });
+      el.addEventListener('pointermove', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; onMove(pointFrom(e), e); });
+      el.addEventListener('pointerup', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; if (!skip()) onEnd(pointFrom(e), e); });
+    } else {
+      el.addEventListener('mousedown', e => { if (!skip()) onStart(pointFrom(e), e); });
+      el.addEventListener('mousemove', e => onMove(pointFrom(e), e));
+      el.addEventListener('mouseup', e => { if (!skip()) onEnd(pointFrom(e), e); });
+    }
+  }
+
+  /* жесты на лице: свайп влево — меню (палец ведёт экран, хватает короткого быстрого взмаха);
+     тап — спит: проснуться и поздороваться; двойной тап — уснуть */
+  let x0 = 0, y0 = 0, lastX = 0, lastT = 0, vx = 0, dragging = false, moved = false, lastTap = 0, tapTimer = null;
   const SWIPE_DIST = () => window.innerWidth * 0.08, FLICK_V = 0.35; // px/мс
-  root.addEventListener('pointerdown', e => {
-    x0 = lastX = e.clientX; y0 = e.clientY; t0 = lastT = performance.now(); vx = 0; dragging = true; moved = false;
-    root.classList.add('dragging');
-    try { root.setPointerCapture(e.pointerId); } catch (_) {}
-  });
-  root.addEventListener('pointermove', e => {
-    if (!dragging) return;
-    const now = performance.now(), dx = e.clientX - x0, dy = e.clientY - y0;
-    if (now > lastT) vx = 0.7 * vx + 0.3 * ((e.clientX - lastX) / (now - lastT));
-    lastX = e.clientX; lastT = now;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
-    if (dx < 0 && Math.abs(dx) > Math.abs(dy) * 0.6) root.style.transform = 'translate3d(' + dx + 'px,0,0)';
-  });
-  const end = e => {
-    if (!dragging) return;
-    dragging = false;
-    const dx = (e.clientX || lastX) - x0, dy = (e.clientY || y0) - y0;
-    root.classList.remove('dragging');
-    const horizontal = Math.abs(dx) > Math.abs(dy) * 0.6;
-    if (moved && horizontal && (dx < -SWIPE_DIST() || (vx < -FLICK_V && dx < -20))) { showMenu(); return; }
-    root.style.transform = '';
-    if (moved) return;
+  function onTap() {
     const now = Date.now();
     if (now - lastTap < 380) {               // двойной тап — уснуть
       clearTimeout(tapTimer); lastTap = 0;
@@ -161,22 +167,57 @@
       return;
     }
     lastTap = now;
-    tapTimer = setTimeout(() => {            // одиночный тап: спит — проснуться и поздороваться, не спит — улыбнуться
-      if (state === 'sleep') { if (window.Robot && Robot.wakeUp) Robot.wakeUp(); }
+    tapTimer = setTimeout(() => {
+      if (state === 'sleep') { notice(''); if (window.Robot && Robot.wakeUp) Robot.wakeUp(); }
       else window.onFaceEmotion('happy');
     }, 380);
-  };
-  root.addEventListener('pointerup', end);
-  root.addEventListener('pointercancel', () => { dragging = false; root.classList.remove('dragging'); root.style.transform = ''; });
+  }
+  bind(root, p => {
+    x0 = lastX = p.x; y0 = p.y; lastT = Date.now(); vx = 0; dragging = true; moved = false; root.classList.add('dragging');
+  }, p => {
+    if (!dragging) return;
+    const now = Date.now(), dx = p.x - x0, dy = p.y - y0;
+    if (now > lastT) vx = 0.7 * vx + 0.3 * ((p.x - lastX) / (now - lastT));
+    lastX = p.x; lastT = now;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
+    if (dx < 0 && Math.abs(dx) > Math.abs(dy) * 0.6) root.style.transform = 'translate3d(' + dx + 'px,0,0)';
+  }, p => {
+    if (!dragging) return;
+    dragging = false;
+    const dx = (p.x == null ? lastX : p.x) - x0, dy = (p.y == null ? y0 : p.y) - y0;
+    root.classList.remove('dragging');
+    if (moved && Math.abs(dx) > Math.abs(dy) * 0.6 && (dx < -SWIPE_DIST() || (vx < -FLICK_V && dx < -20))) { showMenu(); return; }
+    root.style.transform = '';
+    if (!moved) onTap();
+  }, () => { dragging = false; root.classList.remove('dragging'); root.style.transform = ''; });
+
+  /* сообщения на лице (ошибки связи, «сервер недоступен») — раньше toast прятался под лицом */
+  let noticeTimer = null;
+  function notice(text) {
+    clearTimeout(noticeTimer);
+    const el = root.querySelector('#faceSleepHint');
+    if (!text) { render(); return; }
+    el.textContent = String(text);
+    el.style.color = '#ffb4b4';
+    noticeTimer = setTimeout(() => { el.style.color = ''; render(); }, 7000);
+  }
+  window.onFaceNotice = notice;
 
   /* на странице: свайп вправо — к лицу; минута без касаний — к лицу */
   let px = 0, py = 0;
-  document.addEventListener('pointerdown', e => { lastTouch = Date.now(); px = e.clientX; py = e.clientY; }, true);
-  document.addEventListener('pointerup', e => {
+  const pageStart = p => { lastTouch = Date.now(); px = p.x; py = p.y; };
+  const pageEnd = p => {
     if (!root.classList.contains('hidden')) return;
-    const dx = e.clientX - px, dy = e.clientY - py;
+    const dx = p.x - px, dy = p.y - py;
     if (dx > window.innerWidth * 0.12 && Math.abs(dy) < Math.abs(dx) * 0.6) showFace();
-  }, true);
+  };
+  if (HAS_TOUCH) {
+    document.addEventListener('touchstart', e => pageStart(pointFrom(e)), { capture: true, passive: true });
+    document.addEventListener('touchend', e => pageEnd(pointFrom(e)), { capture: true, passive: true });
+  } else {
+    document.addEventListener(HAS_POINTER ? 'pointerdown' : 'mousedown', e => pageStart(pointFrom(e)), true);
+    document.addEventListener(HAS_POINTER ? 'pointerup' : 'mouseup', e => pageEnd(pointFrom(e)), true);
+  }
   setInterval(() => { if (root.classList.contains('hidden') && Date.now() - lastTouch > 60000) showFace(); }, 5000);
 
   const ul = typeof applyUiLanguage === 'function' ? applyUiLanguage : null;

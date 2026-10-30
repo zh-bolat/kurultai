@@ -1454,13 +1454,20 @@ public class MainActivity extends Activity {
         return value != null && value.startsWith("sk-or-") && value.length() >= 20;
     }
 
+    private String webViewVersion() {
+        try {
+            java.util.regex.Matcher mm = java.util.regex.Pattern.compile("Chrome/([0-9.]+)").matcher(WebSettings.getDefaultUserAgent(this));
+            return mm.find() ? "WebView " + mm.group(1) : "WebView ?";
+        } catch (Throwable e) { return "WebView ?"; }
+    }
+
     private String volumeLabel() {
         try {
             android.media.AudioManager am = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
             return "громкость: разговор " + am.getStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL) + "/" +
                 am.getStreamMaxVolume(android.media.AudioManager.STREAM_VOICE_CALL) + ", медиа " +
                 am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) + "/" + am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) +
-                (asleep ? " · сплю" : "") + (live != null && live.isActive() ? " · live открыт" : " · live закрыт");
+                (asleep ? " · сплю" : "") + (live != null && live.isActive() ? " · live открыт" : " · live закрыт") + " · " + webViewVersion();
         } catch (Throwable e) { return "громкость: ?"; }
     }
 
@@ -1616,7 +1623,9 @@ public class MainActivity extends Activity {
     }
 
     private boolean liveEnabled() {
-        return "live".equals(voiceEngine) && liveConfigured() && Boolean.TRUE.equals(liveProfileOk);
+        // Обычный режим слушает только с ключом OpenRouter на роботе; без ключа (с 2026-10-30) — всегда live.
+        boolean wantLive = "live".equals(voiceEngine) || !hasStoredOpenRouterKey();
+        return wantLive && liveConfigured() && Boolean.TRUE.equals(liveProfileOk);
     }
 
     private String liveUnavailableReason() {
@@ -1691,8 +1700,12 @@ public class MainActivity extends Activity {
         if (!asleep) return;
         asleep = false;
         uiJs("window.showFace && window.showFace(); window.onFaceState && window.onFaceState('listening')");
-        if (liveEnabled()) startLive(greet);
-        else uiJs("window.toast && window.toast(" + JSONObject.quote("Сервер голоса недоступен: " + liveUnavailableReason()) + ")");
+        if (liveEnabled()) { startLive(greet); return; }
+        String why = "Сервер голоса недоступен: " + liveUnavailableReason();
+        uiJs("window.onFaceNotice && window.onFaceNotice(" + JSONObject.quote(why) + "); window.toast && window.toast(" + JSONObject.quote(why) + ")");
+        checkLiveProfileAsync();
+        asleep = true;  // не проснулся — остаётся спящим, тап можно повторить
+        uiJs("window.onFaceState && window.onFaceState('sleep')");
     }
 
     private int liveRetries;
@@ -1765,7 +1778,8 @@ public class MainActivity extends Activity {
             long delay = Math.min(10_000L, 2_000L * (++liveRetries));
             android.util.Log.w("KurultaiLive", "live failed: " + error + "; reconnect in " + delay + " ms");
             if (liveRetries == 1 || liveRetries % 5 == 0) {
-                uiJs("window.toast && window.toast(" + JSONObject.quote("Связь с сервером прервалась, переподключаюсь") + ")");
+                String msg = "Связь с сервером прервалась, переподключаюсь";
+                uiJs("window.toast && window.toast(" + JSONObject.quote(msg) + "); window.onFaceNotice && window.onFaceNotice(" + JSONObject.quote(msg) + ")");
             }
             uiJs("window.onSpeechFinished && window.onSpeechFinished()");
             pushAiStatus("Готово");
