@@ -45,6 +45,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.UUID;
@@ -74,8 +75,9 @@ public class MainActivity extends Activity {
     private static final String PREF_OR_IV = "openrouter_key_iv";
     private static final String PREF_LLM_MODEL = "llm_model";
     private static final String PREF_STT_MODEL = "stt_model";
-    // Озвучка: "openrouter" (gpt-audio-mini, голос cedar, см. OpenRouterTts) или "robot" (TTS RobotOS / Android).
-    private static final String DEFAULT_TTS_PROVIDER = "openrouter";
+    // Озвучка: "server" (ElevenLabs через наш сервер, ServerTts), "openrouter" (gpt-audio-mini, голос cedar) или
+    // "robot" (TTS RobotOS / Android). При сбое — следующий по списку.
+    private static final String DEFAULT_TTS_PROVIDER = "server";
     private static final String DEFAULT_TTS_MODEL = "openai/gpt-audio-mini";
     private static final String DEFAULT_TTS_VOICE = "cedar";
     private static final String PREF_TTS_PROVIDER = "tts_provider";
@@ -293,7 +295,7 @@ public class MainActivity extends Activity {
         answerLanguageMode = assistantPrefs.getString(PREF_ANSWER_LANGUAGE, "auto");
         llmModel = assistantPrefs.getString(PREF_LLM_MODEL, DEFAULT_OPENROUTER_MODEL);
         sttModel = assistantPrefs.getString(PREF_STT_MODEL, DEFAULT_STT_MODEL);
-        ttsProvider = "robot".equals(assistantPrefs.getString(PREF_TTS_PROVIDER, DEFAULT_TTS_PROVIDER)) ? "robot" : "openrouter";
+        ttsProvider = normalizeTtsProvider(assistantPrefs.getString(PREF_TTS_PROVIDER, DEFAULT_TTS_PROVIDER));
         ttsModel = assistantPrefs.getString(PREF_TTS_MODEL, DEFAULT_TTS_MODEL);
         ttsVoice = assistantPrefs.getString(PREF_TTS_VOICE, DEFAULT_TTS_VOICE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -493,7 +495,7 @@ public class MainActivity extends Activity {
                 llmModel = cleanModel.isEmpty() ? DEFAULT_OPENROUTER_MODEL : cleanModel;
                 String cleanStt = speechModel == null ? "" : speechModel.trim();
                 sttModel = cleanStt.isEmpty() ? DEFAULT_STT_MODEL : cleanStt;
-                ttsProvider = "robot".equals(voiceProvider) ? "robot" : "openrouter";
+                ttsProvider = normalizeTtsProvider(voiceProvider);
                 String cleanTts = voiceModel == null ? "" : voiceModel.trim();
                 ttsModel = cleanTts.isEmpty() ? DEFAULT_TTS_MODEL : cleanTts;
                 String cleanVoice = voiceName == null ? "" : voiceName.trim();
@@ -555,6 +557,7 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface public void speak(String text, String language) {
+            if (consumeStreamedAnswer(text)) return;  // этот ответ уже звучит по фразам из потока модели
             runOnUiThread(() -> speakAnswer(text, language));
         }
 
@@ -1199,7 +1202,9 @@ public class MainActivity extends Activity {
             return KurultaiApplication.get().connectedSkillApi();
         };
         Speaker.CloudConfig cloud = new Speaker.CloudConfig() {
-            @Override public boolean enabled() { return !"robot".equals(ttsProvider); }
+            @Override public String provider() { return ttsProvider; }
+            @Override public String serverUrl() { return BuildConfig.BACKEND_URL; }
+            @Override public String serverToken() { return BuildConfig.BACKEND_TOKEN; }
             @Override public String apiKey() {
                 try { return readStoredKey(OPENROUTER_KEY_ALIAS, PREF_OR_CIPHER, PREF_OR_IV); } catch (Exception e) { return ""; }
             }
@@ -1346,7 +1351,16 @@ public class MainActivity extends Activity {
 
     private String activeModelLabel() { return "OpenRouter · " + llmModel + " · речь: " + sttModel + " · голос: " + ttsLabel(); }
 
-    private String ttsLabel() { return "robot".equals(ttsProvider) ? "RobotOS TTS" : ttsModel + " / " + ttsVoice; }
+    private String ttsLabel() {
+        if ("robot".equals(ttsProvider)) return "RobotOS TTS";
+        if ("server".equals(ttsProvider)) return "ElevenLabs (сервер)";
+        return ttsModel + " / " + ttsVoice;
+    }
+
+    private static String normalizeTtsProvider(String value) {
+        if ("robot".equals(value) || "openrouter".equals(value)) return value;
+        return "server";
+    }
 
     private void pushLlmSettings(String message) {
         uiJs("window.onLlmSettings && window.onLlmSettings(" + JSONObject.quote(llmModel) + "," + JSONObject.quote(sttModel) + "," +
@@ -1393,7 +1407,10 @@ public class MainActivity extends Activity {
             boolean needsWeb = needsWebSearch(message);
             String answer = "";
             String usedModel = llmModel;
+            Speaker.Utterance spoken = null;
             for (int attempt = 0; attempt < 2 && answer.isEmpty(); attempt++) {
+                // Первая попытка — потоком: робот начинает говорить с первой готовой фразы, не дожидаясь всего ответа.
+                boolean stream = attempt == 0;
                 JSONObject request = new JSONObject();
                 request.put("model", llmModel);
                 request.put("messages", new JSONArray()
@@ -1413,6 +1430,7 @@ public class MainActivity extends Activity {
                     request.put("max_tokens", attempt == 0 ? 1000 : 1500);
                 }
                 request.put("temperature", 0.4);
+                if (stream) request.put("stream", true);
 
                 connection = (HttpURLConnection) new URL(OPENROUTER_URL).openConnection();
                 connection.setRequestMethod("POST");
@@ -1420,7 +1438,7 @@ public class MainActivity extends Activity {
                 connection.setReadTimeout(90000);
                 connection.setRequestProperty("Authorization", "Bearer " + apiKey);
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                connection.setRequestProperty("Accept", "application/json");
+                connection.setRequestProperty("Accept", stream ? "text/event-stream" : "application/json");
                 connection.setRequestProperty("HTTP-Referer", "https://github.com/zh-bolat/kurultai");
                 connection.setRequestProperty("X-Title", "Kurultai Robot Assistant");
                 connection.setDoOutput(true);
@@ -1429,6 +1447,18 @@ public class MainActivity extends Activity {
                 }
 
                 int code = connection.getResponseCode();
+                if (stream && code >= 200 && code < 300) {
+                    StreamResult streamed = readAnswerStream(connection, outputLanguage);
+                    connection.disconnect();
+                    connection = null;
+                    answer = cleanAnswerText(streamed.text);
+                    spoken = streamed.utterance;
+                    if (answer.isEmpty()) {
+                        android.util.Log.w("KurultaiLLM", "empty streamed answer finish=" + streamed.finish + " web=" + needsWeb);
+                        if (spoken != null) { spoken.close(); spoken = null; }
+                    }
+                    continue;
+                }
                 String body = readBody(connection, code);
                 connection.disconnect();
                 connection = null;
@@ -1445,10 +1475,12 @@ public class MainActivity extends Activity {
             if (answer.isEmpty()) backendResult(false, "Модель не вернула текстовый ответ. Повторите вопрос.");
             else if ("[REPEAT]".equalsIgnoreCase(answer) || "REPEAT".equalsIgnoreCase(answer) ||
                 "[SILENCE]".equalsIgnoreCase(answer) || "SILENCE".equalsIgnoreCase(answer)) {
+                if (spoken != null) spoken.close();
                 ignoreUnclearSpeech();
             } else {
                 previousUserQuestion = message;
                 previousAssistantAnswer = answer;
+                if (spoken != null) streamedAnswerKey = speechKey(answer);
                 backendResult(true, new JSONObject().put("answer", answer).put("language", outputLanguage)
                     .put("model", usedModel).toString());
             }
@@ -1457,6 +1489,118 @@ public class MainActivity extends Activity {
         } finally {
             if (connection != null) connection.disconnect();
         }
+    }
+
+    private static final class StreamResult {
+        String text = ""; String finish = ""; Speaker.Utterance utterance;
+    }
+
+    private volatile String streamedAnswerKey;
+
+    private static String speechKey(String text) {
+        return text == null ? "" : text.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", "");
+    }
+
+    /** true, если этот текст уже озвучивается потоком (тогда повторный Robot.speak из JS пропускаем). */
+    private boolean consumeStreamedAnswer(String text) {
+        String key = streamedAnswerKey;
+        if (key == null || key.isEmpty()) return false;
+        streamedAnswerKey = null;
+        return key.equals(speechKey(text));
+    }
+
+    /**
+     * Читает потоковый ответ OpenRouter (SSE) и сразу отдаёт готовые фразы в озвучку. Маркеры [REPEAT]/[SILENCE]
+     * не озвучиваются: пока ответ начинается с «[», фразы придерживаются до конца.
+     */
+    private StreamResult readAnswerStream(HttpURLConnection connection, String language) throws Exception {
+        StreamResult result = new StreamResult();
+        StringBuilder full = new StringBuilder();
+        PhraseSplitter splitter = new PhraseSplitter();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.startsWith("data:")) continue;
+                String payload = line.substring(5).trim();
+                if (payload.equals("[DONE]")) break;
+                JSONObject event;
+                try { event = new JSONObject(payload); } catch (Exception ignored) { continue; }
+                JSONObject error = event.optJSONObject("error");
+                if (error != null) throw new Exception(jsonText(error, "message").isEmpty() ? "ошибка потока" : jsonText(error, "message"));
+                JSONArray choices = event.optJSONArray("choices");
+                JSONObject first = choices == null || choices.length() == 0 ? null : choices.optJSONObject(0);
+                if (first == null) continue;
+                String finish = jsonText(first, "finish_reason");
+                if (!finish.isEmpty()) result.finish = finish;
+                String piece = jsonText(first.optJSONObject("delta"), "content");
+                if (piece.isEmpty()) continue;
+                full.append(piece);
+                if (full.toString().trim().startsWith("[")) continue;  // возможный маркер — не озвучиваем
+                for (String phrase : splitter.feed(piece)) {
+                    if (result.utterance == null) result.utterance = beginStreamedSpeech(language);
+                    if (result.utterance != null) result.utterance.add(phrase);
+                }
+            }
+        }
+        result.text = full.toString();
+        String tail = splitter.flush();
+        boolean marker = result.text.trim().startsWith("[");
+        if (!marker && !tail.isEmpty()) {
+            if (result.utterance == null) result.utterance = beginStreamedSpeech(language);
+            if (result.utterance != null) result.utterance.add(tail);
+        }
+        if (result.utterance != null) result.utterance.close();
+        return result;
+    }
+
+    /** Режет поток текста на фразы для озвучки: первая — как можно раньше, дальше — по предложениям. */
+    static final class PhraseSplitter {
+        private final StringBuilder buffer = new StringBuilder();
+        private int emitted;
+        List<String> feed(String piece) {
+            buffer.append(piece);
+            List<String> out = new java.util.ArrayList<>();
+            int cut;
+            while ((cut = findCut()) > 0) {
+                String phrase = buffer.substring(0, cut).trim();
+                buffer.delete(0, cut);
+                if (!phrase.isEmpty()) { out.add(phrase); emitted++; }
+            }
+            return out;
+        }
+        private int findCut() {
+            int min = emitted == 0 ? 20 : 60;
+            for (int i = min; i < buffer.length() - 1; i++) {
+                char c = buffer.charAt(i);
+                if ((c == '.' || c == '!' || c == '?' || c == '…' || c == ';' || c == '\n') && Character.isWhitespace(buffer.charAt(i + 1))) return i + 1;
+            }
+            if (buffer.length() > 240) {
+                int at = buffer.lastIndexOf(", ", 240);
+                if (at > min) return at + 1;
+                at = buffer.lastIndexOf(" ", 240);
+                if (at > min) return at + 1;
+            }
+            return -1;
+        }
+        String flush() { String rest = buffer.toString().trim(); buffer.setLength(0); return rest; }
+    }
+
+    /** Начало потоковой озвучки ответа: те же состояния, что у speakAnswer (панель «говорю», перебивание). */
+    private Speaker.Utterance beginStreamedSpeech(String language) {
+        if (speaker == null) return null;
+        runOnUiThread(() -> {
+            pauseListeningInternal();
+            speakingNow = true;
+            js("window.onSpeechStarted && window.onSpeechStarted()");
+            if (continuousListening && personPresent && webView != null) webView.postDelayed(() -> startAutomaticListening(true), 650L);
+        });
+        return speaker.open(language, (usedRobotTts, error) -> runOnUiThread(() -> {
+            if (error != null) {
+                String diagnostic = robotSpeechState + "; " + error + ". " + speaker.diagnose();
+                uiJs("window.onLocalTtsStatus && window.onLocalTtsStatus(false," + JSONObject.quote(diagnostic) + ")");
+            }
+            finishSpeakingCycle();
+        }));
     }
 
     private String friendlyOpenRouterError(int code, String body) {

@@ -40,6 +40,9 @@ android {
         // Штамп версии: git sha + дата сборки, чтобы версию было видно на роботе (бейдж подключения).
         versionName "5.50-${gitSha()}-${new Date().format('yyyyMMdd')}"
         // Ключ OpenRouter из secrets.properties (вне git): при первом запуске импортируется в Keystore робота.
+        // Наш сервер (голос ElevenLabs и, позже, live): адрес с /v1 и токен робота — из secrets.properties, вне git.
+        buildConfigField 'String', 'BACKEND_URL', '"' + (secrets.getProperty('BACKEND_URL') ?: '') + '"'
+        buildConfigField 'String', 'BACKEND_TOKEN', '"' + (secrets.getProperty('BACKEND_TOKEN') ?: '') + '"'
         buildConfigField 'String', 'EMBEDDED_OPENROUTER_KEY', '"' + (secrets.getProperty('OPENROUTER_KEY') ?: System.getenv('KURULTAI_EMBEDDED_OPENROUTER_KEY') ?: '') + '"'
     }
 

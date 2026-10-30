@@ -23,15 +23,43 @@ final class Speaker {
     private static final int ROBOT_MAX_CHUNK = 2000;
     interface Callback { void onSpeechDone(boolean usedRobotTts, String error); }
     interface SkillProvider { SkillApi getConnectedSkillApi(); }
-    /** Облачная озвучка через OpenRouter (см. OpenRouterTts); если выключена или упала — голос робота / Android TTS. */
-    interface CloudConfig { boolean enabled(); String apiKey(); String model(); String voice(); }
+    /**
+     * Откуда голос: "server" — ElevenLabs через наш сервер (ServerTts), "openrouter" — gpt-audio через OpenRouter
+     * (OpenRouterTts), "robot" — TTS RobotOS / Android. При сбое облачного голоса — следующий по списку.
+     */
+    interface CloudConfig {
+        String provider(); String apiKey(); String model(); String voice(); String serverUrl(); String serverToken();
+    }
     private static final int CLOUD_MAX_CHUNK = 700;
+    private static final int SERVER_MAX_CHUNK = 280;
+    private static final String END = "\u0000END";
     private final Context context;
     private final SkillProvider provider;
     private final CloudConfig cloudConfig;
     private final OpenRouterTts cloud = new OpenRouterTts();
+    private final ServerTts server;
     private final java.util.concurrent.ExecutorService cloudExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private final java.util.concurrent.ExecutorService fetchExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
     private volatile String lastCloudError;
+    private volatile Utterance currentUtterance;
+
+    /**
+     * Один ответ, озвучиваемый по фразам: фразы добавляются по мере генерации текста (add) и играются по очереди;
+     * следующая фраза скачивается, пока звучит текущая. close() — фраз больше не будет.
+     */
+    final class Utterance {
+        final int gen; final String language; final Callback callback;
+        final java.util.concurrent.LinkedBlockingQueue<String> queue = new java.util.concurrent.LinkedBlockingQueue<>();
+        private volatile boolean closed;
+        Utterance(int gen, String language, Callback callback) { this.gen = gen; this.language = language; this.callback = callback; }
+        void add(String phrase) {
+            if (closed) return;
+            String clean = sanitize(phrase);
+            if (clean.isEmpty()) return;
+            for (String part : chunk(clean, SERVER_MAX_CHUNK)) queue.add(part);
+        }
+        void close() { if (!closed) { closed = true; queue.add(END); } }
+    }
     private final Handler main = new Handler(Looper.getMainLooper());
     private TextToSpeech tts;
     private volatile boolean initFinished;
@@ -49,6 +77,7 @@ final class Speaker {
         context = activity.getApplicationContext();
         provider = skillProvider;
         cloudConfig = cloud;
+        server = new ServerTts(context);
         Log.i(TAG, "Creating Android TextToSpeech early");
         tts = new TextToSpeech(context, status -> {
             initFinished = true;
@@ -76,42 +105,104 @@ final class Speaker {
     void speak(String raw, String language, Callback callback) {
         String clean = sanitize(raw);
         if (clean.isEmpty()) { callback.onSpeechDone(false, "Пустой текст"); return; }
-        if (cloudConfig != null && cloudConfig.enabled()) {
-            final String key = cloudConfig.apiKey();
-            if (key != null && !key.isEmpty()) {
-                speakCloud(clean, language, ++generation, callback, key, cloudConfig.model(), cloudConfig.voice());
-                return;
-            }
-            Log.w(TAG, "cloud tts enabled but no key -> device tts");
-        }
-        speakDevice(clean, language, callback);
+        Utterance u = open(language, callback);
+        u.add(clean);
+        u.close();
     }
 
-    private void speakCloud(final String clean, final String language, final int gen, final Callback callback,
-                            final String key, final String model, final String voice) {
-        final List<String> parts = chunk(clean, CLOUD_MAX_CHUNK);
-        Log.i(TAG, "CLOUD tts model=" + model + " voice=" + voice + " chunks=" + parts.size());
-        cloudExecutor.execute(() -> {
-            for (int i = 0; i < parts.size(); i++) {
-                if (gen != generation) return;
-                String error = cloud.speakBlocking(key, model, voice, parts.get(i), language);
-                if (gen != generation) return;
-                if (error != null) {
-                    lastCloudError = error;
-                    Log.w(TAG, "cloud tts failed on part " + i + ": " + error);
-                    if (i == 0) {
-                        // Ничего не прозвучало — целиком уходим на голос устройства.
-                        final String rest = clean;
-                        main.post(() -> { if (gen == generation) speakDevice(rest, language, callback); });
-                    } else {
-                        main.post(() -> callback.onSpeechDone(false, error));
-                    }
-                    return;
+    /** Начать озвучку ответа по фразам (поток). Прерывает то, что звучало до этого. */
+    Utterance open(String language, Callback callback) {
+        Utterance previous = currentUtterance;
+        if (previous != null) previous.close();
+        try { server.cancel(); } catch (Throwable ignored) { }
+        try { cloud.cancel(); } catch (Throwable ignored) { }
+        final Utterance u = new Utterance(++generation, language, callback);
+        currentUtterance = u;
+        cloudExecutor.execute(() -> runUtterance(u));
+        return u;
+    }
+
+    private String providerName() {
+        String p = cloudConfig == null ? "robot" : cloudConfig.provider();
+        return p == null ? "robot" : p;
+    }
+
+    private String take(Utterance u) {
+        try {
+            String next = u.queue.poll(120, java.util.concurrent.TimeUnit.SECONDS);
+            return next == null ? END : next;
+        } catch (InterruptedException e) { return END; }
+    }
+
+    private java.util.concurrent.Future<byte[]> fetchLater(final String text, final String language) {
+        final String url = cloudConfig.serverUrl(), token = cloudConfig.serverToken();
+        return fetchExecutor.submit(() -> server.fetch(url, token, text, language));
+    }
+
+    /** Рабочий поток одного ответа: сервер (с предзагрузкой следующей фразы) → OpenRouter → голос робота. */
+    private void runUtterance(final Utterance u) {
+        final String mode = providerName();
+        makeMediaAudible();
+        String firstError = null;
+        boolean anyPlayed = false;
+        if ("robot".equals(mode)) {
+            StringBuilder all = new StringBuilder();
+            for (String t = take(u); !END.equals(t) && u.gen == generation; t = take(u)) all.append(all.length() > 0 ? " " : "").append(t);
+            final String text = all.toString();
+            if (u.gen == generation) main.post(() -> { if (u.gen == generation) speakDevice(text, u.language, u.callback); });
+            return;
+        }
+        boolean useServer = "server".equals(mode) && cloudConfig.serverUrl() != null && !cloudConfig.serverUrl().isEmpty();
+        String text = take(u);
+        java.util.concurrent.Future<byte[]> pending = null;
+        while (!END.equals(text) && u.gen == generation) {
+            String error = null;
+            String next = u.queue.poll();
+            java.util.concurrent.Future<byte[]> nextFetch = null;
+            if (useServer) {
+                java.util.concurrent.Future<byte[]> fetch = pending != null ? pending : fetchLater(text, u.language);
+                if (next != null && !END.equals(next)) nextFetch = fetchLater(next, u.language);
+                try {
+                    byte[] mp3 = fetch.get(20, java.util.concurrent.TimeUnit.SECONDS);
+                    if (u.gen != generation) return;
+                    error = server.playBlocking(mp3);
+                } catch (java.util.concurrent.ExecutionException e) {
+                    Throwable cause = e.getCause() == null ? e : e.getCause();
+                    error = cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
+                } catch (Exception e) {
+                    error = "сервер голоса: " + e.getClass().getSimpleName();
                 }
+                if (error != null) {
+                    Log.w(TAG, "server tts failed: " + error + " -> openrouter for this phrase");
+                    lastCloudError = error;
+                    if (firstError == null) firstError = error;
+                    String key = cloudConfig.apiKey();
+                    error = key == null || key.isEmpty() ? error : cloud.speakBlocking(key, cloudConfig.model(), cloudConfig.voice(), text, u.language);
+                }
+            } else {
+                String key = cloudConfig.apiKey();
+                error = key == null || key.isEmpty() ? "нет ключа OpenRouter" : cloud.speakBlocking(key, cloudConfig.model(), cloudConfig.voice(), text, u.language);
             }
-            lastCloudError = null;
-            main.post(() -> { if (gen == generation) callback.onSpeechDone(false, null); });
-        });
+            if (u.gen != generation) return;
+            if (error != null) {
+                // Облачный голос не сработал — остаток ответа читает голос робота.
+                lastCloudError = error;
+                if (firstError == null) firstError = error;
+                StringBuilder rest = new StringBuilder(text);
+                if (next != null && !END.equals(next)) rest.append(' ').append(next);
+                if (!END.equals(next)) for (String t = take(u); !END.equals(t); t = take(u)) rest.append(' ').append(t);
+                final String restText = rest.toString();
+                main.post(() -> { if (u.gen == generation) speakDevice(restText, u.language, u.callback); });
+                return;
+            }
+            anyPlayed = true;
+            pending = nextFetch;
+            text = next != null ? next : take(u);
+        }
+        if (u.gen != generation) return;
+        if (anyPlayed) lastCloudError = null;
+        final String err = anyPlayed ? null : firstError;
+        main.post(() -> { if (u.gen == generation) u.callback.onSpeechDone(false, err); });
     }
 
     private void speakDevice(String clean, String language, Callback callback) {
@@ -207,7 +298,7 @@ final class Speaker {
         return null;
     }
 
-    private void makeMediaAudible() {
+    void makeMediaAudible() {
         try {
             AudioManager audio=(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
             int current=audio.getStreamVolume(AudioManager.STREAM_MUSIC), max=audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
@@ -219,13 +310,13 @@ final class Speaker {
     String diagnose() {
         String state;
         try { state = KurultaiApplication.get().stateText(); } catch (Throwable ignored) { state = "Application unavailable"; }
-        StringBuilder out=new StringBuilder("cloudTts=").append(cloudConfig!=null&&cloudConfig.enabled()?cloudConfig.model()+"/"+cloudConfig.voice():"off").append("; cloudError=").append(lastCloudError).append("; robotState=").append(state).append("; robotTts=").append(robotApi()!=null).append("; androidReady=").append(ready).append("; initFinished=").append(initFinished).append("; error=").append(initError).append("; engine=").append(safeEngine());
+        StringBuilder out=new StringBuilder("voice=").append(providerName()).append("; cloudError=").append(lastCloudError).append("; robotState=").append(state).append("; robotTts=").append(robotApi()!=null).append("; androidReady=").append(ready).append("; initFinished=").append(initFinished).append("; error=").append(initError).append("; engine=").append(safeEngine());
         try{out.append("; engines=").append(tts==null?0:tts.getEngines().size());}catch(Throwable ignored){}
         try{AudioManager a=(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);out.append("; musicVolume=").append(a.getStreamVolume(AudioManager.STREAM_MUSIC)).append('/').append(a.getStreamMaxVolume(AudioManager.STREAM_MUSIC));}catch(Throwable ignored){}
         Log.i(TAG,"DIAG "+out); return out.toString();
     }
 
-    void stop(){generation++;pending=null;try{cloud.cancel();}catch(Throwable ignored){}try{SkillApi api=robotApi();if(api!=null)api.stopTTS();}catch(Throwable ignored){}try{if(tts!=null)tts.stop();}catch(Throwable ignored){}}
+    void stop(){generation++;pending=null;Utterance u=currentUtterance;if(u!=null)u.close();try{server.cancel();}catch(Throwable ignored){}try{cloud.cancel();}catch(Throwable ignored){}try{SkillApi api=robotApi();if(api!=null)api.stopTTS();}catch(Throwable ignored){}try{if(tts!=null)tts.stop();}catch(Throwable ignored){}}
     void shutdown(){stop();try{if(tts!=null)tts.shutdown();}catch(Throwable ignored){}tts=null;ready=false;}
     private String safeEngine(){try{return tts==null?"none":tts.getDefaultEngine();}catch(Throwable ignored){return "unknown";}}
 
