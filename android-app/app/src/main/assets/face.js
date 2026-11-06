@@ -45,7 +45,8 @@
     + '<div class="face-status" id="faceStatusLine"></div><div class="face-heard" id="faceHeardLine"></div>'
     + '<p class="face-sub" id="faceSubLine" aria-live="polite"></p>'
     + '<div class="swipe-hint" aria-hidden="true"><span class="chev"><i>‹</i><i>‹</i><i>‹</i></span><b id="faceMenuLabel"></b><small id="faceMenuSub"></small></div>'
-    + '<div class="face-sleep-hint" id="faceSleepHint"></div>';
+    + '<div class="face-sleep-hint" id="faceSleepHint"></div>'
+    + '<div class="face-lang" id="faceLang"><button type="button" data-l="kk">ҚАЗ</button><button type="button" data-l="ru">РУС</button></div>';
   document.body.appendChild(root);
   const toFace = document.createElement('button');
   toFace.id = 'toFace';
@@ -58,6 +59,7 @@
   let state = 'sleep', mood = null, moodTimer = null, shownExpr = '', level = 0, lastTouch = Date.now(), subTimer = null;
 
   function render() {
+    root.querySelectorAll('#faceLang button').forEach(b => b.classList.toggle('on', b.getAttribute('data-l') === lang()));
     const x = mood || STATE_EXPR[state] || 'neutral';
     if (x !== shownExpr) { svg.innerHTML = EXPR[x](); shownExpr = x; }
     root.classList.toggle('asleep', state === 'sleep');
@@ -221,7 +223,29 @@
   }
   setInterval(() => { if (root.classList.contains('hidden') && Date.now() - lastTouch > 60000) showFace(); }, 5000);
 
+  /* Язык экрана (ҚАЗ|РУС) — робот отвечает на нём. fromRobot — сервер сам перешёл на язык фразы, обратно не сообщаем. */
+  window.setUiLanguage = (l, fromRobot) => {
+    if ((l !== 'ru' && l !== 'kk') || typeof language === 'undefined') return;
+    if (l !== language) {
+      language = l; questionLanguage = l;
+      try { localStorage.language = l; } catch (e) {}
+      if (typeof applyUiLanguage === 'function') applyUiLanguage();
+    }
+    render();
+    if (!fromRobot && window.Robot && Robot.setUiLanguage) Robot.setUiLanguage(l);
+  };
+  /* переключатель на лице: свои касания гасит, чтобы лицо не приняло их за тап (разбудить) или свайп */
+  const langBox = root.querySelector('#faceLang');
+  ['touchstart', 'touchmove', 'touchend', 'pointerdown', 'pointerup', 'mousedown', 'mouseup'].forEach(type =>
+    langBox.addEventListener(type, e => e.stopPropagation(), { passive: true }));
+  langBox.addEventListener('click', e => {
+    e.stopPropagation();
+    const b = e.target && e.target.closest ? e.target.closest('button[data-l]') : null;
+    if (b) window.setUiLanguage(b.getAttribute('data-l'));
+  });
+
   const ul = typeof applyUiLanguage === 'function' ? applyUiLanguage : null;
   if (ul) applyUiLanguage = function () { const r = ul.apply(this, arguments); render(); return r; };
   render();
+  if (window.Robot && Robot.setUiLanguage && typeof language !== 'undefined') Robot.setUiLanguage(language);  // язык экрана → робот
 })();

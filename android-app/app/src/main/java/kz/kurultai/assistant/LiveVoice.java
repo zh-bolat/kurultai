@@ -72,6 +72,8 @@ final class LiveVoice {
     private volatile boolean dropping;
     private volatile boolean turnEnded;
     private volatile String turnLang = "ru";
+    // Язык экрана для hello: сервер отвечает на нём, другой язык — только если фраза явно на нём
+    private volatile String helloLang = "ru";
     private final StringBuilder turnText = new StringBuilder();
     private volatile long lastActivityAt;
 
@@ -133,18 +135,13 @@ final class LiveVoice {
             listener.onFailed("микрофон не открылся");
             return;
         }
-        String safeLang = lang != null && lang.startsWith("kk") ? "kk" : "ru";
+        String safeLang = safeLang(lang);
+        helloLang = safeLang;
         String url = liveUrl(baseUrl, safeLang, UUID.randomUUID().toString());
         Request request = new Request.Builder().url(url).header("Authorization", "Bearer " + token).build();
-        final String helloLang = safeLang;
         ws = client.newWebSocket(request, new WebSocketListener() {
             @Override public void onOpen(WebSocket socket, Response response) {
-                try {
-                    // Перебивает только команда «стоп» (на сервере LIVE_BARGE_IN=stop_only).
-                    socket.send(new JSONObject().put("type", "hello").put("lang", helloLang)
-                        .put("place_id", JSONObject.NULL).put("aec", aec).toString());
-                    Log.i(TAG, "hello sent lang=" + helloLang + " aec=" + aec + " stereo=" + stereo);
-                } catch (Exception e) { Log.w(TAG, "hello failed", e); }
+                sendHello(socket);
                 startMicThread();
             }
             @Override public void onMessage(WebSocket socket, String text) { handle(text); }
@@ -164,6 +161,29 @@ final class LiveVoice {
             }
         });
     }
+
+    /** Язык экрана сменили (ҚАЗ|РУС): повторный hello — сервер дальше отвечает на нём. */
+    void setLanguage(String lang) {
+        String safe = safeLang(lang);
+        if (safe.equals(helloLang)) return;
+        helloLang = safe;
+        WebSocket s = ws;
+        if (active && s != null) sendHello(s);
+    }
+
+    /** Сервер сам перешёл на язык фразы (user_final.lang): запомнить без hello — для переподключения. */
+    void noteLanguage(String lang) { helloLang = safeLang(lang); }
+
+    private void sendHello(WebSocket socket) {
+        try {
+            // Перебивает только команда «стоп» (на сервере LIVE_BARGE_IN=stop_only).
+            socket.send(new JSONObject().put("type", "hello").put("lang", helloLang)
+                .put("place_id", JSONObject.NULL).put("aec", aec).toString());
+            Log.i(TAG, "hello sent lang=" + helloLang + " aec=" + aec + " stereo=" + stereo);
+        } catch (Exception e) { Log.w(TAG, "hello failed", e); }
+    }
+
+    private static String safeLang(String lang) { return lang != null && lang.startsWith("kk") ? "kk" : "ru"; }
 
     void visitorArrived() {
         lastActivityAt = System.currentTimeMillis();

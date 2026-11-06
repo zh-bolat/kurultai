@@ -553,6 +553,16 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public boolean adminPinRequired() { return !BuildConfig.ADMIN_PIN.isEmpty(); }
 
+        /** Язык экрана (ҚАЗ|РУС): робот отвечает на нём, открытый live узнаёт о смене повторным hello. */
+        @JavascriptInterface public void setUiLanguage(String language) {
+            final String lang = "kk".equals(language) ? "kk" : "ru";
+            runOnUiThread(() -> {
+                listeningLanguage = lang;
+                LiveVoice l = live;
+                if (l != null && l.isActive()) l.setLanguage(effectiveAnswerLanguage(lang));
+            });
+        }
+
         @JavascriptInterface public void sleepNow() { runOnUiThread(() -> goToSleep("double tap")); }
 
         @JavascriptInterface public void wakeUp() { runOnUiThread(() -> wakeUpRobot(true)); }
@@ -1749,6 +1759,13 @@ public class MainActivity extends Activity {
         @Override public void onUserText(String text, boolean isFinal, String lang) {
             if (text == null || text.isEmpty()) return;
             if (isFinal) lastUserText = text;
+            if (isFinal && ("ru".equals(lang) || "kk".equals(lang)) && !lang.equals(listeningLanguage)) {
+                // фраза явно на другом языке — сервер перешёл на него; экран следом (без обратного hello)
+                listeningLanguage = lang;
+                LiveVoice l = live;
+                if (l != null) l.noteLanguage(lang);
+                uiJs("window.setUiLanguage && window.setUiLanguage(" + JSONObject.quote(lang) + ", true)");
+            }
             uiJs("window.onVoicePartial && window.onVoicePartial(" + JSONObject.quote(text) + ")");
             uiJs("window.onFaceHeard && window.onFaceHeard(" + JSONObject.quote(text) + ")");
         }
