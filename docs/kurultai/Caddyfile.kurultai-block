@@ -10,7 +10,12 @@ kurultai.89-144-34-185.sslip.io {
 	request_body @k_stt {
 		max_size 700KB
 	}
-	@k_small not path /v1/look /v1/stt /v1/live
+	@k_small not path /v1/look /v1/stt /v1/live /app/admin/api/materials
+	# Загрузка материалов в админку (PDF, DOCX…): до 25 МБ
+	@k_upload path /app/admin/api/materials
+	request_body @k_upload {
+		max_size 25MB
+	}
 	request_body @k_small {
 		max_size 32KB
 	}
