@@ -31,6 +31,9 @@ services:
       DB_AUTO_MIGRATE: "true"
     volumes:
       - api-data:/data
+      # APK робота для страницы /app (KURULTAI_APP_PASSWORD в .env); кладёт docs/kurultai/publish-apk.sh.
+      # Каталог ~/kurultai-apk создать заранее (mkdir), иначе Docker создаст его от root.
+      - ../../kurultai-apk:/apk:ro
     ports:
       - "127.0.0.1:8010:8000"
     healthcheck:

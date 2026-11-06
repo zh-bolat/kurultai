@@ -45,6 +45,12 @@ kurultai.89-144-34-185.sslip.io {
 			header_down -Server
 		}
 	}
+	# Скачивание APK из браузера робота (страница с паролем, app/kurultai/download.py); без пароля в .env — 404
+	handle /app* {
+		reverse_proxy kurultai-api:8000 {
+			header_down -Server
+		}
+	}
 	handle {
 		error 404
 	}
