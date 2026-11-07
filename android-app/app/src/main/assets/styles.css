@@ -411,3 +411,60 @@ main{padding-right:84px}
 main>header{right:84px}
 /* 2026-11-07: в шапке меню — имя робота «Ақылтай», как пишется, без капслока */
 .brand b{text-transform:none;letter-spacing:.5px;font-size:32px}
+
+/* ===== 2026-11-07: единая сетка страниц =====
+   Одинаковые поля у всех разделов (сверху 48, слева 56, справа 84 — место под «×», снизу 150 — место под кругом голоса),
+   один шаг отступов 28 px, шапка раздела всегда на одной высоте. Страницы с таблицами и комитеты занимают экран
+   целиком: таблица тянется до низа и прокручивается внутри, без пустых полос и «прилипших» блоков. */
+body main{padding:48px 84px 150px 56px!important}
+main>header{top:48px!important}
+.page.active{gap:28px}
+#listPage>.back{display:none}                       /* раздел открывается из меню — шапка как у остальных */
+.pg-head{gap:10px}
+.pg-head h1,.rb-head h1{font-size:40px;line-height:1.15;margin:0}
+.pg-head span{font-size:19px}
+.rq-head{min-height:96px;align-items:flex-end}
+
+/* главная: заголовок → строка вопроса → плитки (тянутся по высоте) → «Сегодня» внизу */
+#home.active{min-height:100%;gap:28px}
+.hero{min-height:0}
+.hero h2{font-size:56px;line-height:1.08;margin:0 0 14px}
+.quick-grid{flex:1 1 auto;min-height:240px;max-height:420px;gap:24px}
+.quick{min-height:0;height:100%;justify-content:flex-start}
+.quick b{margin-top:8px}
+
+/* таблицы: заполняют высоту, прокручиваются только строки */
+#listContent{gap:28px}
+.rq-table{flex:1 1 auto}
+.rq-body{flex:1 1 auto;padding:2px 6px 12px 2px;margin:0 -6px 0 -2px}
+.rq-body .rq-row{min-height:76px}
+
+/* пленарное: карточки одной высоты, вопросы одной строкой */
+.pl-cards{gap:24px}
+.pl-card{min-height:200px}
+.pl-ask{gap:14px 18px}
+.pl-h{margin:0}
+
+/* комитеты: две колонки на всю высоту, состав — справа целиком */
+#committees.active{gap:28px;height:100%}
+.cm-left{gap:28px}
+.cm-grid{gap:16px;grid-auto-rows:minmax(112px,auto)}
+.cm-panel{align-self:stretch;max-height:none;height:auto}
+
+/* робот и настройки, ответ — те же поля и шаг */
+#robot.active{gap:28px}
+.rb-grid{gap:28px}
+#answer.active{gap:28px}
+/* шлифовка сетки: главная — блоки распределены по высоте; комитеты — карточки тянутся до низа вровень с составом;
+   вопросы пленарного — три равные кнопки в ряд; низ прокручиваемых строк мягко растворяется */
+#home.active{justify-content:space-between}
+.quick-grid{flex:0 0 auto;height:300px;min-height:0;max-height:none}
+.cm-left{flex:1.15 1 0}
+.cm-grid{flex:1 1 auto;grid-auto-rows:1fr;overflow:hidden}
+.cm-card{justify-content:center;min-height:0}
+.pl-ask{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));align-items:stretch}
+.pl-ask>div{display:contents}
+.pl-ask>span{align-self:center}
+.pl-ask button{justify-content:center;text-align:center;line-height:1.3;padding:12px 20px;min-height:64px;border-radius:20px}
+.rq-body{-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent)}
+.rq-row .n:empty{visibility:hidden}
