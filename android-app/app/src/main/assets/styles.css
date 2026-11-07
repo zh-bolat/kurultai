@@ -523,3 +523,11 @@ main>header{top:48px!important}
 .rq-row.row-review::before{background:#2B8FCB}.rq-row.row-step::before{background:#E0A43A}.rq-row.row-done::before{background:#2E9B6B}.rq-row.row-off::before{background:#B8C4D6}
 .rq-row.row-off .t{color:#6B7891}
 .cm-members .cm-m:first-child{border-top:0}
+/* hero fills the top: big welcome title */
+body .hero{max-width:calc(100% - 190px)}
+body .hero>div{max-width:none;gap:10px}
+body .hero h2{font-size:86px;line-height:1.02;letter-spacing:-1.6px;margin:0 0 8px}
+body .hero p{font-size:26px}
+body .quick-grid{height:360px}
+body .quick-grid .quick:nth-child(1),body .quick-grid .quick:nth-child(2){padding:24px 28px;justify-content:center}
+body .quick-grid .quick:nth-child(1)::after,body .quick-grid .quick:nth-child(2)::after{left:auto;right:26px;top:24px;bottom:auto}
