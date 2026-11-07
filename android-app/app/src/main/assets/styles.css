@@ -659,3 +659,8 @@ body .quick-grid .quick:nth-child(3)::after{content:'→';left:auto;right:36px;b
 body .quick-grid .quick:nth-child(3)::after{content:'';font-size:0;width:88px;height:88px;right:34px;bottom:34px;
   background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232384C6' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6'/%3E%3C/svg%3E") center/56px 56px no-repeat;
   box-shadow:0 12px 26px -10px rgba(14,60,110,.5)}
+
+/* главная: блоки идут плотно друг за другом, без растягивания по высоте окна */
+body #home.active{justify-content:flex-start;gap:26px}
+body #home .hero h2{margin-bottom:4px}
+body #home .quick-grid{flex:1 1 auto;height:auto;min-height:400px;max-height:620px}
