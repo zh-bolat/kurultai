@@ -271,7 +271,7 @@ function applyTexts(){const t=T();
  setT('askLabel',t.askLabel);setT('fuTitle',t.fuTitle);
  setT('cmTitle',t.cmTitle);setT('cmCap',t.cmCap);setT('cmAsk',t.cmAsk);
  setT('rqTitle',t.rqTitle);setT('rqSub',t.rqSub);setT('rqCountL',t.rqCountL);t.rqH.forEach((v,i)=>setT('rqH'+(i+1),v));
- setT('rbTitle',t.rbTitle);
+ setT('rbTitle',t.rbTitle);const ex0=el('exitBtn');if(ex0)ex0.setAttribute('aria-label',language==='kk'?'Жабу':'Закрыть');
  renderSidebarSource();renderToday();renderFollowups();
  if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if(page==='bills'||page==='session'||page==='plenary')renderList(page)}
 
@@ -326,6 +326,8 @@ function go(p){setActive(p);page=p;
  if(p==='committees'){renderCommittees();show('committees');return}
  if(p==='requests'){renderRequests();show('requests');return}}
 document.querySelectorAll('.nav').forEach(n=>{if(n.dataset.page==='robot')return;n.onclick=()=>go(n.dataset.page)});
+// 2026-11-07: «×» в правом верхнем углу — закрыть страницы и вернуться к лицу робота (под лицом — главная)
+const ex=el('exitBtn');if(ex)ex.onclick=()=>{go('home');if(window.showFace)window.showFace()};
 document.querySelectorAll('.quick').forEach(c=>c.onclick=()=>{const a=c.dataset.act;if(a==='committees')return go('committees');if(a==='bills')return go('bills');askNow(language==='kk'?c.dataset.qKk:c.dataset.qRu)});
 
 // Answer screen: question as the heading, date chip under the answer, follow-up questions
