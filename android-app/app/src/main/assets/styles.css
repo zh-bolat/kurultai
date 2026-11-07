@@ -287,11 +287,13 @@ html body #toFace{top:auto;bottom:150px;left:24px;transform:none;border-radius:2
 /* Face screen: sizes in layout pixels (the page is already scaled to the window), so on the robot it looks
    exactly like at 1920×1080 — eyes in the middle, about half the screen wide. No double scaling by vw/vh. */
 html body #faceScreen{top:0;left:0;right:0;bottom:0}
-html body #faceScreen .face-eyes{width:1100px;height:550px;margin-top:-65px}
-html body #faceScreen .face-status{margin-top:38px}
+/* 2026-11-07: глаза ровно по центру экрана; строка состояния не сдвигает их — стоит под глазами отдельно */
+html body #faceScreen .face-eyes{width:1100px;height:550px;margin-top:0}
+html body #faceScreen .face-status{position:absolute;left:0;right:0;top:840px;margin-top:0;text-align:center}
 html body #faceScreen .face-heard{margin-top:13px;max-width:1340px}
 html body #faceScreen .face-sub{margin-top:22px;max-width:1500px}
-html body #faceScreen .face-sleep-hint{bottom:54px}
+html body #faceScreen .face-sleep-hint{bottom:132px}
+html body #faceScreen .face-lang{bottom:40px}  /* 2026-11-07: ҚАЗ · РУС внизу по центру, подсказка сна над ним */
 /* Menu arrow on the face: no border or glow box, softer */
 html body #faceScreen .swipe-hint{border:0;background:none;box-shadow:none;animation:none;opacity:.6}
 html body #faceScreen .swipe-hint .chev i{text-shadow:none;color:#7fb4d8}

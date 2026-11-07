@@ -60,3 +60,11 @@ html.face-on,html.face-on body{background:#000!important}
 #faceScreen .swipe-hint b.fade{opacity:0}
 @keyframes swipe-nudge{0%,60%,100%{transform:translateX(0);opacity:.7}30%{transform:translateX(-10px);opacity:1}}
 #faceScreen.asleep .swipe-hint{opacity:.85}
+/* 2026-11-07: ҚАЗ · РУС внизу по центру, без рамки: выбранный язык светится цветом глаз, второй приглушён.
+   Высота в пикселях макета 1920×1080 — в styles.css (html body #faceScreen …). Центр — через left/right, без transform. */
+#faceScreen .face-lang{position:absolute;left:0;right:0;bottom:4vh;z-index:2;text-align:center;white-space:nowrap;font-size:0}
+#faceScreen .face-lang button{display:inline-block;vertical-align:middle;margin:0;border:none;background:none;color:#4d6680;
+  min-width:96px;min-height:64px;padding:0 18px;font:600 22px/64px "Golos Text","Inter",system-ui,sans-serif;letter-spacing:.2em;
+  transition:color .25s ease,text-shadow .25s ease}
+#faceScreen .face-lang button.on{color:#3AA8F5;text-shadow:0 0 14px rgba(58,168,245,.55)}
+#faceScreen .face-lang i{display:inline-block;vertical-align:middle;width:1px;height:22px;background:#2a3d52}
