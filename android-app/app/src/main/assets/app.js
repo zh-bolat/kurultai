@@ -20,7 +20,7 @@ function applyUiLanguage(){let t=uiText[language]||uiText.ru;document.documentEl
 function show(id){$$('.page').forEach(x=>x.classList.remove('active'));$('#'+id).classList.add('active');document.querySelector('main').scrollTop=0}
 window.goHome=()=>show('home');$$('.back').forEach(b=>b.onclick=goHome);
 function toast(t){let e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2200)}
-function answer(title,prompt,html,speech){$('#answerTitle').textContent=title;$('#answerPrompt').textContent=prompt;$('#answerBody').innerHTML=html;lastSpeech=speech||prompt;show('answer')}
+function answer(title,prompt,html,speech){$('#answerTitle').textContent=title;$('#answerPrompt').textContent=prompt;$('#answerBody').innerHTML=html;lastSpeech=speech||prompt}  // 2026-11-07: страница ответа не открывается — робот отвечает голосом, экран остаётся как был
 const cards={
  bill:{prompt:'Проанализируй проект закона по вопросам онлайн-платформ, искусственного интеллекта и масс-медиа',html:`<article class="result-card wide"><h3>Суть документа</h3><p>Проект формирует требования к цифровым платформам и применению алгоритмических систем: прозрачность рекомендаций, маркировка синтетического контента, защита персональных данных и ответственность операторов.</p></article><article class="result-card"><h3>Ключевые нормы</h3><ul><li>обязательная идентификация AI-контента;</li><li>аудит алгоритмов высокого риска;</li><li>механизм обжалования автоматизированных решений;</li><li>локализация реагирования на инциденты.</li></ul></article><article class="result-card"><h3>Оценка воздействия</h3><div class="metric-row"><div class="metric"><b>12</b><small>связанных НПА</small></div><div class="metric"><b>6</b><small>госорганов</small></div><div class="metric"><b>4</b><small>зоны риска</small></div></div><p>Потребуется согласование с нормами о персональных данных, связи, кибербезопасности и защите прав потребителей.</p></article><article class="result-card"><h3>Позиция комитета</h3><ul><li>поддержать риск-ориентированный подход;</li><li>исключить избыточную нагрузку на стартапы;</li><li>закрепить независимую оценку алгоритмов.</li></ul></article><article class="result-card"><h3>Вопросы разработчикам</h3><ul><li>Кто определяет класс риска AI-системы?</li><li>Как гражданин оспорит решение алгоритма?</li><li>Какие данные доступны для парламентского контроля?</li></ul></article>`,speech:'Проект регулирует онлайн-платформы и системы искусственного интеллекта. Комитету рекомендуется поддержать риск-ориентированный подход, уточнив аудит алгоритмов, защиту граждан и условия для развития казахстанских стартапов.'},
  appeal:{prompt:'Покажи обращения граждан по вопросам цифровизации',html:`<article class="result-card wide"><h3>Цифровая повестка · последние 30 дней</h3><div class="metric-row"><div class="metric"><b>286</b><small>обращений</small></div><div class="metric"><b>+18%</b><small>к прошлому месяцу</small></div><div class="metric"><b>34</b><small>требуют контроля</small></div></div></article><article class="result-card"><h3>Основные темы</h3><ul><li>качество мобильного интернета — 61</li><li>доступность электронных госуслуг — 38</li><li>интернет-мошенничество — 29</li><li>защита персональных данных — 24</li></ul></article><article class="result-card"><h3>Выявленный сигнал</h3><p><b>Цифровой разрыв в сельских районах.</b> Обращения из трёх территорий показывают нестабильную связь и невозможность воспользоваться социально значимыми онлайн-услугами.</p></article>`,speech:'За месяц поступило 286 обращений по цифровой повестке. Главный сигнал — качество мобильного интернета и доступность электронных услуг в сельских районах. Тридцать четыре обращения требуют парламентского контроля.'},
@@ -55,7 +55,7 @@ window.onQuryltaiData=(data,fresh)=>{quryltaiOfficial=data||null;if(!data)return
 $('#speak').onclick=()=>{if(window.Robot)Robot.speak(lastSpeech,lastSpeechLanguage);else toast('Озвучивание доступно на роботе')};
 window.onSpeechStarted=()=>{$('#speak').textContent='■ Остановить';setVoiceDock('speaking',lastSpeech);$('#speak').onclick=()=>{Robot.stopSpeaking();window.onSpeechFinished()}};
 window.onSpeechFinished=()=>{$('#speak').textContent='🔊 Озвучить';setVoiceDock(continuousVoice?'active':'paused',continuousVoice?'Готов слушать следующий вопрос':'Нажмите «Спросить голосом» и задайте вопрос');$('#speak').onclick=()=>{if(window.Robot)Robot.speak(lastSpeech,lastSpeechLanguage)}};
-function showLoading(q){answer('Готовлю ответ',q,`<article class="result-card wide"><h3>Анализирую вопрос…</h3><p>Ответ появится на экране и будет озвучен.</p></article>`,'')}
+function showLoading(q){if(window.vbSubtitle)window.vbSubtitle('heard',q);answer('Готовлю ответ',q,`<article class="result-card wide"><h3>Анализирую вопрос…</h3><p>Ответ появится на экране и будет озвучен.</p></article>`,'')}
 window.onBackendResult=(ok,body)=>{let resultLanguage=answerLanguage==='auto'?questionLanguage:answerLanguage;let responseText=body;if(ok){try{let j=JSON.parse(body);responseText=j.answer||j.message||body;resultLanguage=j.language||resultLanguage}catch(e){}}let kk=resultLanguage==='kk';if(!ok){answer(kk?'Қызметпен байланыс жоқ':'Нет связи с сервисом',lastPrompt,`<article class="result-card wide error-card"><h3>${kk?'Сұрау орындалмады':'Запрос не выполнен'}</h3><p>${escapeHtml(body)}</p><button id="retryRequest" class="retry">${kk?'Қайталау':'Повторить запрос'}</button></article>`,'');setTimeout(()=>{let b=$('#retryRequest');if(b)b.onclick=submit},0);voiceRequest=false;return}responseText=String(responseText).replace(/\*\*/g,'').replace(/^#{1,6}\s*/gm,'').replace(/`/g,'').replace(/^\s*(вывод|қорытынды|ответ|жауап|gpt)\s*[:：-]\s*/i,'').trim();lastSpeechLanguage=resultLanguage;answer(kk?'Көмекшінің жауабы':'Ответ помощника',lastPrompt,`<article class="result-card wide"><p>${escapeHtml(responseText).replace(/\n/g,'<br>')}</p></article>`,responseText);if(responseText&&window.Robot)Robot.speak(responseText,resultLanguage);voiceRequest=false};
 function escapeHtml(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 $('#lang').onclick=e=>{const s=e&&e.target&&e.target.closest&&e.target.closest('[data-l]');if(s&&s.dataset.l===language)return;language=language==='ru'?'kk':'ru';questionLanguage=language;localStorage.language=language;applyUiLanguage();if(window.Robot&&Robot.setUiLanguage)Robot.setUiLanguage(language);if(continuousVoice&&window.Robot)Robot.setContinuousListening(true,language);toast(language==='ru'?'Русский язык':'Қазақ тілі')};
@@ -170,16 +170,18 @@ let talkTimer=null,toggleTalk=null;
 const TXT={ru:{idle:['Говорите — я слушаю','Просто начните говорить. Чтобы остановить меня, скажите «стоп»','СЛУШАЮ'],listening:['Слушаю…','Говорите, я пойму, когда вы закончите','РОБОТ СЛУШАЕТ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Чтобы остановить, скажите «стоп»','РОБОТ ГОВОРИТ']},
 kk:{idle:['Сөйлей беріңіз — тыңдап тұрмын','Жай ғана сөйлей бастаңыз. Тоқтату үшін «тоқта» деңіз','ТЫҢДАП ТҰРМЫН'],listening:['Тыңдап тұрмын…','Сөйлеңіз, сөзіңіз біткенін өзім түсінемін','ТЫҢДАП ТҰР'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін «тоқта» деңіз','РОБОТ СӨЙЛЕП ТҰР']}};
 const SHORT={ru:'Удерживайте круг, пока говорите',kk:'Сөйлеп тұрғанда шеңберді басып тұрыңыз'};
-let state='idle',live='',guard=null,pressAt=0,shortTap=false,flash=null;
+let state='idle',live='',subQ='',subA='',guard=null,pressAt=0,shortTap=false,flash=null;
 const norm=s=>(s==='listening'||s==='thinking'||s==='speaking')?s:'idle';
 const L=()=>language==='kk'?TXT.kk:TXT.ru;
 function render(){const t=L()[state];const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
- set('orbCaption',t[0]);set('orbHint',(state==='listening'&&live)?live.slice(0,140):t[1]);set('vbStatus',t[2]);
+ const q=subQ?'«'+subQ+'»':'';  // субтитры: вопрос посетителя и то, что робот говорит сейчас
+ set('orbCaption',(state==='speaking'||state==='thinking')&&q?q:t[0]);
+ set('orbHint',(state==='listening'&&(live||subQ))?(live||subQ).slice(-160):(state==='speaking'&&subA)?subA:(state==='thinking'&&q)?t[0]:t[1]);set('vbStatus',t[2]);
  set('vbFabLabel',flash?SHORT[language==='kk'?'kk':'ru']:L().idle[0]);
  const b=document.getElementById('voiceBanner');if(b){b.classList.toggle('listening',state==='listening');b.setAttribute('aria-label',t[0])}
  const o=document.getElementById('orbBtn');if(o){o.classList.toggle('listening',state==='listening');o.classList.toggle('thinking',state==='thinking');o.classList.toggle('speaking',state==='speaking')}
  const d=document.getElementById('voiceDock');if(d)d.className='voice-dock '+(state==='idle'?'active':state)}
-setVoiceDock=function(s){const n=norm(s);if(n!==state){state=n;live=''}
+setVoiceDock=function(s){const n=norm(s);if(n!==state){state=n;live='';if(n==='idle'){subQ='';subA=''}}
  clearTimeout(guard);
  // Safety nets so the bar can never stay stuck if a "finished" event is lost.
  if(n==='speaking')guard=setTimeout(()=>{if(state==='speaking')setVoiceDock('idle')},Math.min(120000,10000+String(typeof lastSpeech==='string'?lastSpeech:'').length*90));
@@ -199,6 +201,7 @@ function release(e){if(e&&e.preventDefault)e.preventDefault();if(!holdActive)ret
 toggleTalk=press;
 // A short recording is rejected by the robot; show our hint instead of its error.
 const verr=window.onVoiceError;window.onVoiceError=t=>{if(shortTap){shortTap=false;holdActive=false;setVoiceDock('idle');return}if(verr)verr(t)};
+window.vbSubtitle=(kind,t)=>{t=String(t||'').replace(/\s+/g,' ').trim();if(!t)return;if(kind==='heard'){subQ=t;subA=''}else subA=t;render()};
 const part=window.onVoicePartial;window.onVoicePartial=t=>{if(part)part(t);if(state==='listening'){live=String(t||'');render()}};
 const err=window.onVoiceServiceError;window.onVoiceServiceError=t=>{holdActive=false;clearTimeout(talkTimer);if(err)err(t);setVoiceDock('idle')};
 const vb=document.getElementById('voiceBanner');
@@ -220,7 +223,7 @@ document.body.classList.toggle('on-home',!!document.querySelector('#home.active'
 // filled from quryltai.kz data, the "Today" row, follow-up questions, and scaling to the real window.
 ;(function(){
 const UI={
- ru:{brand:'ИИ-помощник Курултая',nav:['Главная','Законопроекты','План недели','Комитеты и депутаты','Депутатские запросы','Робот и настройки'],src:'Официальные данные',upd:'обновлено',
+ ru:{brand:'ИИ-помощник Курултая',nav:['Главная','Законопроекты','План недели','Пленарное заседание','Комитеты и депутаты','Депутатские запросы','Робот и настройки'],src:'Официальные данные',upd:'обновлено',
   hero:'Добро пожаловать в Курултай Республики Казахстан',heroSub:'Просто начните говорить — или напишите вопрос в строке ниже',query:'Задайте вопрос о Курултае…',ask:'Спросить',
   quick:[['Что такое Курултай','Кратко об органе и его полномочиях'],['Состав комитетов','Какие комитеты и кто их возглавляет'],['Законопроекты этой недели','Что сейчас рассматривает Курултай'],['Как подать обращение','Куда и как обратиться гражданину']],
   today:'Сегодня',todaySub:'По плану Курултая',planT:'Последний опубликованный план',back:'На главную',askLabel:'ВЫ СПРОСИЛИ',fuTitle:'Можно спросить дальше',
@@ -228,8 +231,9 @@ const UI={
   cmTitle:'Комитеты и депутаты',cmSub:n=>'В Курултае '+n+' постоянных комитетов. Выберите комитет, чтобы увидеть председателя и депутатов',cmCap:'СОСТАВ КОМИТЕТА',chairL:'Председатель комитета',chairP:'Председатель: ',member:'Член комитета',cmAsk:'Спросить помощника об этом комитете',cmQ:n=>'Расскажи о комитете Курултая: '+n,
   rqTitle:'Депутатские запросы',rqSub:'Официальные запросы депутатов в министерства и государственные органы — самые свежие сверху',rqCountL:'запросов всего',rqH:['ДАТА','ТЕМА','АВТОРЫ','НОМЕР'],
   billsT:'Законопроекты',billsCount:'законопроектов всего',billsSub:'Законопроекты, которые сейчас рассматривает Курултай, и на каком они этапе. Данные с quryltai.kz',billsH:['НОМЕР','НАЗВАНИЕ','СТАТУС'],planTitle:'План недели',planSub:'Заседания, встречи и мероприятия Курултая по неделям. Данные с quryltai.kz',planH:['ПЛАН','НАЗВАНИЕ','ИСТОЧНИК'],planRow:'План',lastPlan:'Последний опубликованный план:',
+  plTitle:'Пленарное заседание',plSub:'Заседание, на котором собираются все депутаты Курултая: здесь обсуждают и принимают законопроекты',plWhatT:'Как проходит',plWhat:'Депутаты вместе рассматривают законопроекты в чтениях и голосуют. Итог каждого чтения — новый статус законопроекта',plWhenT:'Когда',plWhenNo:'Дата есть в плане недели Курултая',plDoneT:'Решения',plDone:'законопроектов одобрено или принято',plTableT:'Законопроекты с решениями пленарных заседаний',plH:['НОМЕР','НАЗВАНИЕ','РЕШЕНИЕ'],plAskT:'Спросите Ақылтая',plQ:['Когда ближайшее пленарное заседание?','Что рассматривали на последнем пленарном заседании?','Какие законопроекты вынесут на пленарное заседание?'],plEmpty:'Пока нет законопроектов с решениями',
   noData:'Данные ещё не загружены — нужно подключение к интернету',rbTitle:'Робот и настройки',review:'На рассмотрении',statusX:'Статус '},
- kk:{brand:'Құрылтайдың ЖИ-көмекшісі',nav:['Басты бет','Заң жобалары','Апта жоспары','Комитеттер мен депутаттар','Депутаттық сауалдар','Робот және баптаулар'],src:'Ресми деректер',upd:'жаңартылды',
+ kk:{brand:'Құрылтайдың ЖИ-көмекшісі',nav:['Басты бет','Заң жобалары','Апта жоспары','Пленарлық отырыс','Комитеттер мен депутаттар','Депутаттық сауалдар','Робот және баптаулар'],src:'Ресми деректер',upd:'жаңартылды',
   hero:'Қазақстан Республикасының Құрылтайына қош келдіңіз',heroSub:'Жай ғана сөйлей бастаңыз — немесе сұрағыңызды төмендегі жолға жазыңыз',query:'Құрылтай туралы сұрақ қойыңыз…',ask:'Сұрау',
   quick:[['Құрылтай деген не','Орган және оның өкілеттіктері туралы қысқаша'],['Комитеттер құрамы','Қандай комитеттер бар және оларды кім басқарады'],['Осы аптадағы заң жобалары','Құрылтай қазір не қарап жатыр'],['Өтініш қалай беріледі','Азаматқа қайда және қалай жүгінуге болады']],
   today:'Бүгін',todaySub:'Құрылтай жоспары бойынша',planT:'Соңғы жарияланған жоспар',back:'Басты бетке',askLabel:'СІЗ СҰРАДЫҢЫЗ',fuTitle:'Тағы сұрауға болады',
@@ -237,6 +241,7 @@ const UI={
   cmTitle:'Комитеттер мен депутаттар',cmSub:n=>'Құрылтайда '+n+' тұрақты комитет бар. Төрағасы мен депутаттарын көру үшін комитетті таңдаңыз',cmCap:'КОМИТЕТ ҚҰРАМЫ',chairL:'Комитет төрағасы',chairP:'Төраға: ',member:'Комитет мүшесі',cmAsk:'Осы комитет туралы көмекшіден сұрау',cmQ:n=>'Құрылтай комитеті туралы айтып бер: '+n,
   rqTitle:'Депутаттық сауалдар',rqSub:'Депутаттардың министрліктер мен мемлекеттік органдарға ресми сауалдары — ең жаңалары жоғарыда',rqCountL:'сауал барлығы',rqH:['КҮНІ','ТАҚЫРЫБЫ','АВТОРЛАРЫ','НӨМІРІ'],
   billsT:'Заң жобалары',billsCount:'заң жобасы барлығы',billsSub:'Құрылтай қазір қарап жатқан заң жобалары және олардың кезеңі. Деректер quryltai.kz сайтынан',billsH:['НӨМІРІ','АТАУЫ','МӘРТЕБЕСІ'],planTitle:'Апта жоспары',planSub:'Құрылтайдың апталық отырыстары, кездесулері мен іс-шаралары. Деректер quryltai.kz сайтынан',planH:['ЖОСПАР','АТАУЫ','ДЕРЕККӨЗ'],planRow:'Жоспар',lastPlan:'Соңғы жарияланған жоспар:',
+  plTitle:'Пленарлық отырыс',plSub:'Құрылтайдың барлық депутаттары жиналатын отырыс: мұнда заң жобалары талқыланып, қабылданады',plWhatT:'Қалай өтеді',plWhat:'Депутаттар заң жобаларын оқылымдарда бірге қарап, дауыс береді. Әр оқылымның қорытындысы — заң жобасының жаңа мәртебесі',plWhenT:'Қашан',plWhenNo:'Күні Құрылтайдың апта жоспарында көрсетілген',plDoneT:'Шешімдер',plDone:'заң жобасы мақұлданды немесе қабылданды',plTableT:'Пленарлық отырыс шешім қабылдаған заң жобалары',plH:['НӨМІРІ','АТАУЫ','ШЕШІМ'],plAskT:'Ақылтайдан сұраңыз',plQ:['Жақын пленарлық отырыс қашан болады?','Соңғы пленарлық отырыста не қаралды?','Пленарлық отырысқа қандай заң жобалары шығарылады?'],plEmpty:'Әзірге шешім қабылданған заң жобалары жоқ',
   noData:'Деректер әлі жүктелмеді — интернет қажет',rbTitle:'Робот және баптаулар',review:'Қаралуда',statusX:'Мәртебе '}};
 const T=()=>language==='kk'?UI.kk:UI.ru;
 const el=id=>document.getElementById(id);
@@ -257,8 +262,8 @@ function data(){return (typeof quryltaiOfficial!=='undefined'&&quryltaiOfficial)
 function setActive(p){document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.page===p))}
 
 function applyTexts(){const t=T();
- const bs=document.querySelector('.brand b');if(bs)bs.textContent='Құрылтай';const bsp=document.querySelector('.brand span');if(bsp)bsp.textContent=t.brand;
- const order=['home','bills','session','committees','requests','robot'];
+ const bs=document.querySelector('.brand b');if(bs)bs.textContent='Ақылтай';const bsp=document.querySelector('.brand span');if(bsp)bsp.textContent=t.brand;
+ const order=['home','bills','session','plenary','committees','requests','robot'];
  order.forEach((p,i)=>{const n=document.querySelector('.nav[data-page="'+p+'"] span');if(n)n.textContent=t.nav[i]});
  setT('sbSrcT',t.src);
  const hh=document.querySelector('.hero h2');if(hh)hh.textContent=t.hero;const hp=document.querySelector('.hero p');if(hp)hp.textContent=t.heroSub;
@@ -269,9 +274,9 @@ function applyTexts(){const t=T();
  setT('askLabel',t.askLabel);setT('fuTitle',t.fuTitle);
  setT('cmTitle',t.cmTitle);setT('cmCap',t.cmCap);setT('cmAsk',t.cmAsk);
  setT('rqTitle',t.rqTitle);setT('rqSub',t.rqSub);setT('rqCountL',t.rqCountL);t.rqH.forEach((v,i)=>setT('rqH'+(i+1),v));
- setT('rbTitle',t.rbTitle);
+ setT('rbTitle',t.rbTitle);const ex0=el('exitBtn');if(ex0)ex0.setAttribute('aria-label',language==='kk'?'Жабу':'Закрыть');
  renderSidebarSource();renderToday();renderFollowups();
- if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if(page==='bills'||page==='session')renderList(page)}
+ if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if(page==='bills'||page==='session'||page==='plenary')renderList(page)}
 
 function renderSidebarSource(){const d=data();const t=T();setT('sbSrc','quryltai.kz · '+t.upd+' '+(d&&d.updated_at?fmtDay(new Date(Number(d.updated_at))):'—'))}
 function renderToday(){setT('todayDate',fmtDay(new Date()));const d=data();const p=d&&d.weekly_plans&&d.weekly_plans[0];setT('todayPlan',p?String(p.title||'').replace(/\s+/g,' ').trim():'—')}
@@ -284,10 +289,25 @@ function tableHtml(head,rows,cls){return '<div class="rq-table '+(cls||'')+'"><d
 function renderList(kind){const t=T(),d=data();let html='';
  if(kind==='bills'){const rows=d&&d.bills?d.bills.slice(0,20).map(b=>['№ '+b.id,b.title,stName(b.status)]):[];
   html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.billsT)+'</h1><span>'+esc(t.billsSub)+'</span></div>'+(d?'<div class="rq-count"><b>'+esc(d.bill_count||0)+'</b><span>'+esc(t.billsCount)+'</span></div>':'')+'</div>'+tableHtml(t.billsH,rows,'cols3')}
+ else if(kind==='plenary'){const done=d&&d.bills?d.bills.filter(b=>[6,12,7,8,9].indexOf(Number(b.status))>=0):[];
+  const rows=done.slice(0,20).map(b=>['№ '+b.id,b.title,stName(b.status)]);
+  const plan=d&&d.weekly_plans&&d.weekly_plans[0]?String(d.weekly_plans[0].title||'').replace(/\s+/g,' ').trim():'';
+  const card=(icon,title,body,big)=>'<div class="pl-card"><i>'+icon+'</i><span>'+esc(title)+'</span>'+(big!=null?'<b>'+esc(big)+'</b>':'')+'<p>'+esc(body)+'</p></div>';
+  const ic=p=>'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'+p+'</svg>';
+  html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.plTitle)+'</h1><span>'+esc(t.plSub)+'</span></div></div>'+
+   '<div class="pl-cards">'+card(ic('<path d="M3 21h18M5 21v-9M12 21v-9M19 21v-9M3 12h18L12 4z"/>'),t.plWhatT,t.plWhat)+
+   card(ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),t.plWhenT,plan?t.lastPlan+' '+plan:t.plWhenNo)+
+   card(ic('<path d="M5 12l5 5 9-10"/>'),t.plDoneT,t.plDone,d?done.length:'—')+'</div>'+
+   '<div class="pl-ask"><span>'+esc(t.plAskT)+'</span><div>'+t.plQ.map(q=>'<button type="button">'+esc(q)+'</button>').join('')+'</div></div>'+
+   '<h2 class="pl-h">'+esc(t.plTableT)+'</h2>'+(d&&!rows.length?'<div class="rq-empty">'+esc(t.plEmpty)+'</div>':tableHtml(t.plH,rows,'cols3'))}
  else{const rows=d&&d.weekly_plans?d.weekly_plans.map(p=>[t.planRow,String(p.title||'').replace(/\s+/g,' ').trim(),'quryltai.kz']):[];
   const last=rows[0]?'<div class="plan-last"><b>'+esc(t.lastPlan)+'</b> '+esc(rows[0][1])+'</div>':'';
   html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.planTitle)+'</h1><span>'+esc(t.planSub)+'</span></div></div>'+last+tableHtml(t.planH,rows,'cols3')}
- const c=el('listContent');if(c)c.innerHTML=html}
+ const c=el('listContent');if(c){c.innerHTML=html;c.querySelectorAll('.pl-ask button').forEach(b=>b.onclick=()=>askNow(b.textContent));
+  if(kind!=='session'){const grp={5:'review',6:'step',12:'step',7:'done',8:'done',9:'done',10:'off',13:'off',11:'off'};const name={};[5,6,12,7,8,9,10,13,11].forEach(k=>{name[stName(k)]=grp[k]});c.querySelectorAll('.rq-body .rq-row .n').forEach(n=>{const g=name[n.textContent];if(g){n.classList.add('st-'+g);n.parentNode.classList.add('row-'+g)}});addLegend(c)}}}
+function addLegend(c){const kk=language==='kk';const lab={review:kk?'Қаралуда':'На рассмотрении',step:kk?'Оқылымда, жұмыс жалғасуда':'В работе, идут чтения',done:kk?'Қабылданды немесе қол қойылды':'Принят или подписан',off:kk?'Кері қайтарылды немесе қабылданбады':'Отозван или отклонён'};
+ const have=['review','step','done','off'].filter(g=>c.querySelector('.rq-row.row-'+g));const h=c.querySelector('.pg-head');if(!have.length||!h)return;
+ const L=document.createElement('div');L.className='st-legend';L.innerHTML=have.map(g=>'<span class="lg lg-'+g+'"><i></i>'+esc(lab[g])+'</span>').join('');h.appendChild(L)}
 function renderRequests(){const t=T(),d=data();setT('rqCount',d?String(d.deputy_request_count||0):'—');
  const rows=d&&d.deputy_requests?d.deputy_requests.slice(0,30).map(r=>[r.date,r.title,r.authors,r.number]):[];
  const box=el('rqRows');if(box)box.innerHTML=rows.length?rows.map(r=>'<div class="rq-row"><b>'+esc(r[0])+'</b><span class="t">'+esc(r[1])+'</span><span class="a">'+esc(r[2])+'</span><span class="n">'+esc(r[3])+'</span></div>').join(''):'<div class="rq-empty">'+esc(t.noData)+'</div>'}
@@ -308,10 +328,12 @@ const sh=show;show=function(id){const r=sh.apply(this,arguments);page=id==='list
 document.body.dataset.page='home';document.body.classList.add('on-home');
 function go(p){setActive(p);page=p;
  if(p==='home'){goHome();return}
- if(p==='bills'||p==='session'){renderList(p);show('listPage');page=p;return}
+ if(p==='bills'||p==='session'||p==='plenary'){renderList(p);show('listPage');page=p;return}
  if(p==='committees'){renderCommittees();show('committees');return}
  if(p==='requests'){renderRequests();show('requests');return}}
 document.querySelectorAll('.nav').forEach(n=>{if(n.dataset.page==='robot')return;n.onclick=()=>go(n.dataset.page)});
+// 2026-11-07: «×» в правом верхнем углу — закрыть страницы и вернуться к лицу робота (под лицом — главная)
+const ex=el('exitBtn');if(ex)ex.onclick=()=>{if(window.Robot&&window.Robot.exitApp){window.Robot.exitApp();return}go('home');if(window.showFace)window.showFace()};
 document.querySelectorAll('.quick').forEach(c=>c.onclick=()=>{const a=c.dataset.act;if(a==='committees')return go('committees');if(a==='bills')return go('bills');askNow(language==='kk'?c.dataset.qKk:c.dataset.qRu)});
 
 // Answer screen: question as the heading, date chip under the answer, follow-up questions
@@ -324,7 +346,7 @@ const ans=answer;answer=function(title,prompt,html,speech){const r=ans.apply(thi
 const badge=el('connectionBadge'),slot=el('rbBadgeSlot');if(badge&&slot)slot.appendChild(badge);
 
 // Re-render when fresh data from quryltai.kz arrives and when the language changes
-const qd=window.onQuryltaiData;window.onQuryltaiData=function(){const r=qd?qd.apply(this,arguments):undefined;renderSidebarSource();renderToday();if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if((page==='bills'||page==='session')&&document.body.dataset.page==='listPage')renderList(page);return r};
+const qd=window.onQuryltaiData;window.onQuryltaiData=function(){const r=qd?qd.apply(this,arguments):undefined;renderSidebarSource();renderToday();if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if((page==='bills'||page==='session'||page==='plenary')&&document.body.dataset.page==='listPage')renderList(page);return r};
 const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);applyTexts();return r};
 applyTexts();
 })();

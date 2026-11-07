@@ -288,7 +288,7 @@ public class MainActivity extends Activity {
         if (!liveConfigured()) return;
         final JSONObject d = new JSONObject();
         try {
-            d.put("version", BuildConfig.VERSION_NAME).put("api_ready", robotApiReady())
+            d.put("version", BuildConfig.VERSION_NAME).put("webview", webViewVersion()).put("api_ready", robotApiReady())
                 .put("person_listener", personListenerRegistered).put("welcome", welcomeMode).put("asleep", asleep)
                 .put("person_present", personPresent).put("following", followingPerson).put("speaking", speakingNow)
                 .put("polls", diagPolls).put("polls_skipped", diagPollSkipped).put("polls_with_faces", diagFacesPolls)
@@ -685,6 +685,9 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void sleepNow() { runOnUiThread(() -> goToSleep("double tap")); }
 
         @JavascriptInterface public void wakeUp() { runOnUiThread(() -> wakeUpRobot(true)); }
+
+        // × in the corner: close the whole app (onPause/onDestroy stop voice, motion and TTS)
+        @JavascriptInterface public void exitApp() { runOnUiThread(() -> finishAndRemoveTask()); }
 
         @JavascriptInterface public void saveOpenRouterKey(String apiKey) {
             new Thread(() -> {

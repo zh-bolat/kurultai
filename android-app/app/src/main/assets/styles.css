@@ -287,11 +287,13 @@ html body #toFace{top:auto;bottom:150px;left:24px;transform:none;border-radius:2
 /* Face screen: sizes in layout pixels (the page is already scaled to the window), so on the robot it looks
    exactly like at 1920×1080 — eyes in the middle, about half the screen wide. No double scaling by vw/vh. */
 html body #faceScreen{top:0;left:0;right:0;bottom:0}
-html body #faceScreen .face-eyes{width:1100px;height:550px;margin-top:-65px}
-html body #faceScreen .face-status{margin-top:38px}
+/* 2026-11-07: глаза ровно по центру экрана; строка состояния не сдвигает их — стоит под глазами отдельно */
+html body #faceScreen .face-eyes{width:1100px;height:550px;margin-top:0}
+html body #faceScreen .face-status{position:absolute;left:0;right:0;top:calc(50% + 370px);margin-top:0;text-align:center}  /* под глазами (550 px высотой, по центру) на любом экране */
 html body #faceScreen .face-heard{margin-top:13px;max-width:1340px}
 html body #faceScreen .face-sub{margin-top:22px;max-width:1500px}
-html body #faceScreen .face-sleep-hint{bottom:54px}
+html body #faceScreen .face-sleep-hint{bottom:132px}
+html body #faceScreen .face-lang{bottom:40px}  /* 2026-11-07: ҚАЗ · РУС внизу по центру, подсказка сна над ним */
 /* Menu arrow on the face: no border or glow box, softer */
 html body #faceScreen .swipe-hint{border:0;background:none;box-shadow:none;animation:none;opacity:.6}
 html body #faceScreen .swipe-hint .chev i{text-shadow:none;color:#7fb4d8}
@@ -301,3 +303,430 @@ html body #faceScreen.asleep .swipe-hint{opacity:.4}
 /* «‹ лицо» on the page: no plate, border or glow; muted like the «Меню» hint on the face; tap area stays large */
 html body #toFace{background:transparent;box-shadow:none;color:#7fb4d8;opacity:.75;min-width:64px;min-height:64px;padding:18px 14px}
 html body #toFace small{color:#8aa6c0}
+
+/* 2026-11-07: раздел «Пленарное заседание» — три карточки, вопросы к помощнику, таблица решений */
+.pl-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.pl-card{display:flex;flex-direction:column;gap:10px;background:var(--glass);border:1.5px solid var(--line);border-radius:16px;padding:24px 28px;box-shadow:var(--shadow)}
+.pl-card i{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:#E4F1FA;color:var(--accent-ink)}
+.pl-card span{font-size:22px;font-weight:700;color:var(--ink)}
+.pl-card b{font-size:40px;line-height:1;font-weight:800;color:var(--accent-ink)}
+.pl-card p{margin:0;font-size:17px;line-height:1.45;color:var(--muted)}
+.pl-ask{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.pl-ask>span{font-size:18px;color:var(--muted);font-weight:600}
+.pl-ask>div{display:flex;gap:12px;flex-wrap:wrap}
+.pl-ask button{display:flex;align-items:center;min-height:54px;padding:0 22px;border-radius:28px;background:var(--glass);border:1.5px solid var(--line);font-size:18px;color:var(--ink)}
+.pl-h{margin:4px 0 0;font-size:22px;font-weight:700;color:var(--ink)}
+
+/* ===== 2026-11-07: «дружелюбный киоск» — та же раскладка и цвета Курултая, но мягче и проще для касаний =====
+   Меньше рамок и линеек «как на госсайте»: карточки на мягкой тени, крупные скругления, явные подсказки «можно нажать»,
+   отклик на касание, статусы законопроектов цветными метками (без красного). Только оформление, логика не тронута. */
+:root{--line:#D3DCE8;--line2:#EDF1F6;--soft:#EEF4FA;--r-lg:26px;--r-md:20px;
+  --shadow:0 2px 6px rgba(23,37,64,.04),0 14px 34px rgba(23,37,64,.07);--shadow-up:0 4px 10px rgba(23,37,64,.06),0 20px 40px rgba(23,37,64,.10)}
+body{background:linear-gradient(180deg,#F3F7FC 0%,#EEF3F9 100%)}
+html,body{background:#F1F5FA}
+
+/* касание: всё нажимаемое чуть «проседает» */
+button:active,.quick:active,.cm-card:active,.nav:active{transform:scale(.98)}
+button,.quick,.cm-card,.nav{transition:transform .12s ease,background .2s ease,box-shadow .2s ease,color .2s ease}
+
+/* боковое меню: мягкие «таблетки», иконка в кружке, без жёсткой полосы под гербом */
+.brand{border-bottom:0;box-shadow:none;background:transparent;padding-bottom:10px}
+.brand-in{border-left:0;padding-left:0;gap:8px}
+.brand b{font-size:28px;letter-spacing:3px}
+.brand span{font-size:14px;letter-spacing:.3px;color:#AFC2DD}
+.sidebar{background:linear-gradient(180deg,#22345A 0%,#1B2A4A 100%);gap:22px}
+.sidebar nav{gap:8px}
+.nav{min-height:64px;border-radius:18px;padding:0 14px;gap:14px;color:#D2DCEC;font-size:19px}
+.nav svg{width:40px;height:40px;padding:9px;border-radius:12px;background:rgba(255,255,255,.07);box-sizing:border-box}
+.nav.active{background:#fff;color:var(--nav);font-weight:700;box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.nav.active svg{background:var(--accent);color:#fff}
+.privacy{border-top:1px solid rgba(255,255,255,.10)}
+
+/* заголовки разделов: спокойнее, подпись — обычным текстом */
+.pg-head h1,.rb-head h1{font-size:38px;letter-spacing:-.3px}
+.pg-head span{font-size:18px;line-height:1.45;max-width:1100px}
+.cap{letter-spacing:.6px;text-transform:none;font-size:15px}
+
+/* кнопка «назад» — круглая таблетка со стрелкой */
+.back{min-height:56px;border-radius:28px;padding:0 24px 0 18px;border:0;background:#fff;box-shadow:var(--shadow)}
+
+/* главная: карточки-плитки с подсказкой «→», без рамок */
+.askbox{border:0;border-radius:var(--r-lg);box-shadow:var(--shadow-up);background:#fff}
+.send{border-radius:18px;padding:0 40px}
+.quick{border:0;border-radius:var(--r-lg);box-shadow:var(--shadow);background:#fff;position:relative;padding:30px 30px 64px}
+.quick::after{content:'→';position:absolute;left:30px;bottom:24px;font-size:24px;font-weight:700;color:var(--accent)}
+.quick b{font-size:25px}
+.q4{background:#EEEAFB;color:#5B4BB7}   /* было розово-красным — без красного */
+.today{border:0;border-radius:var(--r-lg);box-shadow:var(--shadow);background:#fff}
+.lang-switch,#lang{border:0;box-shadow:var(--shadow);border-radius:18px}
+.lang-switch span{border-radius:14px}
+
+/* таблицы: строки — отдельные мягкие полоски, шапка без заливки */
+.rq-table{border:0;background:transparent;border-radius:0;overflow:visible;gap:10px}
+.rq-th{background:transparent;padding:4px 28px 0;font-size:14px;letter-spacing:.6px;color:#8592A8}
+.rq-body{display:flex;flex-direction:column;gap:10px}
+.rq-body .rq-row{border-top:0;background:#fff;border-radius:var(--r-md);box-shadow:0 1px 3px rgba(23,37,64,.05),0 6px 16px rgba(23,37,64,.05)}
+.rq-row b{font-size:18px;color:var(--accent-ink)}
+.rq-row .t{font-size:20px}
+.rq-row .n{border-radius:999px;padding:9px 16px}
+.rq-row .n.st-review{background:#E4F1FA;color:#1F6FA3}
+.rq-row .n.st-step{background:#FBF1DF;color:#8A5A12}
+.rq-row .n.st-done{background:#E3F3EC;color:#1E7553}
+.rq-row .n.st-off{background:#EEF1F5;color:#5C6B84}
+.rq-empty{border-top:0;background:#fff;border-radius:var(--r-md)}
+.rq-count{border:0;box-shadow:var(--shadow);background:#fff;border-radius:var(--r-md)}
+.plan-last{border-radius:var(--r-md)}
+
+/* комитеты: выбранный — с голубой полосой слева, состав — с цветными инициалами */
+.cm-card{border:0;background:#fff;border-radius:var(--r-md);box-shadow:0 1px 3px rgba(23,37,64,.05),0 6px 16px rgba(23,37,64,.05);position:relative;overflow:hidden}
+.cm-card.on{border:0;background:#F2F8FD;box-shadow:var(--shadow-up)}
+.cm-card.on::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:5px;border-radius:0 5px 5px 0;background:var(--accent)}
+.cm-panel{border:0;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.cm-m{border-top:1px solid var(--line2)}
+.cm-m i{background:#EEF4FA;color:#3E5878}
+.cm-m.chair i{background:var(--accent);color:#fff}
+.cm-ask{border-radius:18px}
+
+/* пленарное заседание и ответ */
+.pl-card{border:0;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.pl-ask button,#fuList button{border:0;background:#fff;box-shadow:0 1px 3px rgba(23,37,64,.06),0 6px 14px rgba(23,37,64,.06);color:var(--accent-ink);font-weight:600}
+.answer-head{border:0;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.answer-body .result-card,.answer-body article{border:0;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+#speak{border:0;background:#EEF4FA;border-radius:18px}
+
+/* робот и настройки */
+.status-panel,.settings-panel,.robot-panel{border:0;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.status-grid div{background:#F4F7FB;border-radius:16px}
+.settings-panel input,.settings-panel select,.robot-panel input{border-radius:14px}
+.rq-th{border:0!important;box-shadow:none}
+.system-actions button,.head-controls button,.motion-pad button,.navigation-control button,.settings-actions button{border:0;background:#EEF4FA;border-radius:14px;color:var(--ink)}
+.motion-pad button.stop,#motionStop{background:var(--nav);color:#fff}
+
+/* 2026-11-07: «×» в правом верхнем углу — вернуться к лицу робота. Неприметный: без фона и тени, светло-серый; зона касания 60 px */
+.exit-x{position:fixed;top:22px;right:22px;z-index:50;width:60px;height:60px;display:flex;align-items:center;justify-content:center;
+  border:0;border-radius:50%;background:transparent;color:#AAB5C5;box-shadow:none;opacity:.7}
+.exit-x svg{width:22px;height:22px}
+.exit-x:active{background:rgba(23,37,64,.06);color:var(--muted);opacity:1}
+main{padding-right:84px}
+main>header{right:84px}
+/* 2026-11-07: в шапке меню — имя робота «Ақылтай», как пишется, без капслока */
+.brand b{text-transform:none;letter-spacing:.5px;font-size:32px}
+
+/* ===== 2026-11-07: единая сетка страниц =====
+   Одинаковые поля у всех разделов (сверху 48, слева 56, справа 84 — место под «×», снизу 150 — место под кругом голоса),
+   один шаг отступов 28 px, шапка раздела всегда на одной высоте. Страницы с таблицами и комитеты занимают экран
+   целиком: таблица тянется до низа и прокручивается внутри, без пустых полос и «прилипших» блоков. */
+body main{padding:48px 84px 150px 56px!important}
+main>header{top:48px!important}
+.page.active{gap:28px}
+#listPage>.back{display:none}                       /* раздел открывается из меню — шапка как у остальных */
+.pg-head{gap:10px}
+.pg-head h1,.rb-head h1{font-size:40px;line-height:1.15;margin:0}
+.pg-head span{font-size:19px}
+.rq-head{min-height:96px;align-items:flex-end}
+
+/* главная: заголовок → строка вопроса → плитки (тянутся по высоте) → «Сегодня» внизу */
+#home.active{min-height:100%;gap:28px}
+.hero{min-height:0}
+.hero h2{font-size:56px;line-height:1.08;margin:0 0 14px}
+.quick-grid{flex:1 1 auto;min-height:240px;max-height:420px;gap:24px}
+.quick{min-height:0;height:100%;justify-content:flex-start}
+.quick b{margin-top:8px}
+
+/* таблицы: заполняют высоту, прокручиваются только строки */
+#listContent{gap:28px}
+.rq-table{flex:1 1 auto}
+.rq-body{flex:1 1 auto;padding:2px 6px 12px 2px;margin:0 -6px 0 -2px}
+.rq-body .rq-row{min-height:76px}
+
+/* пленарное: карточки одной высоты, вопросы одной строкой */
+.pl-cards{gap:24px}
+.pl-card{min-height:200px}
+.pl-ask{gap:14px 18px}
+.pl-h{margin:0}
+
+/* комитеты: две колонки на всю высоту, состав — справа целиком */
+#committees.active{gap:28px;height:100%}
+.cm-left{gap:28px}
+.cm-grid{gap:16px;grid-auto-rows:minmax(112px,auto)}
+.cm-panel{align-self:stretch;max-height:none;height:auto}
+
+/* робот и настройки, ответ — те же поля и шаг */
+#robot.active{gap:28px}
+.rb-grid{gap:28px}
+#answer.active{gap:28px}
+/* шлифовка сетки: главная — блоки распределены по высоте; комитеты — карточки тянутся до низа вровень с составом;
+   вопросы пленарного — три равные кнопки в ряд; низ прокручиваемых строк мягко растворяется */
+#home.active{justify-content:space-between}
+.quick-grid{flex:0 0 auto;height:300px;min-height:0;max-height:none}
+.cm-left{flex:1.15 1 0}
+.cm-grid{flex:1 1 auto;grid-auto-rows:1fr;overflow:hidden}
+.cm-card{justify-content:center;min-height:0}
+.pl-ask{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));align-items:stretch}
+.pl-ask>div{display:contents}
+.pl-ask>span{align-self:center}
+.pl-ask button{justify-content:center;text-align:center;line-height:1.3;padding:12px 20px;min-height:64px;border-radius:20px}
+.rq-body{-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent)}
+.rq-row .n:empty{visibility:hidden}
+
+/* ===== 2026-11-07: разные по весу блоки вместо одинаковых карточек =====
+   Главное — крупно и залито цветом, второстепенное — с обводкой или лёгкой подложкой. Без красного. */
+/* главная: «Законопроекты этой недели» — большая синяя плитка слева на две строки; справа «Что такое Курултай»
+   с обводкой, «Состав комитетов» на голубой подложке, «Как подать обращение» — широкая белая плитка снизу */
+.quick-grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;grid-template-rows:1fr 1fr;height:400px;gap:24px}
+.quick-grid .quick:nth-child(3){grid-column:1;grid-row:1 / span 2;background:linear-gradient(150deg,#2B8FCB 0%,#1F5F99 100%);color:#fff;padding:40px}
+.quick-grid .quick:nth-child(3) b{font-size:38px;line-height:1.15;color:#fff}
+.quick-grid .quick:nth-child(3) small{font-size:21px;color:rgba(255,255,255,.82)}
+.quick-grid .quick:nth-child(3) .qicon{background:rgba(255,255,255,.18);color:#fff;width:64px;height:64px}
+.quick-grid .quick:nth-child(3)::after{color:#fff;font-size:32px;left:40px;bottom:34px}
+.quick-grid .quick:nth-child(1){grid-column:2;grid-row:1;background:transparent;box-shadow:none;border:2px solid var(--accent)}
+.quick-grid .quick:nth-child(2){grid-column:3;grid-row:1;background:#E4F1FA;box-shadow:none}
+.quick-grid .quick:nth-child(4){grid-column:2 / span 2;grid-row:2;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:22px;row-gap:6px;align-content:center;padding:28px 34px}
+.quick-grid .quick:nth-child(4) .qicon{grid-row:1 / span 2;align-self:center;width:60px;height:60px}
+.quick-grid .quick:nth-child(4) b{margin:0;align-self:end}
+.quick-grid .quick:nth-child(4)::after{left:auto;right:34px;bottom:auto;top:50%;transform:translateY(-50%)}
+.quick-grid .quick:nth-child(1) b,.quick-grid .quick:nth-child(2) b{font-size:24px}
+/* «Сегодня» — выделенная строка: тёмно-синяя, дата крупно */
+.today{background:var(--nav);color:#fff;box-shadow:0 14px 34px rgba(23,37,64,.18)}
+.today h3,.today-plan b{color:#fff}
+.today>div:first-child p,.today-plan span{color:#B9C8DE}
+.today-date{color:#7CC6F7;font-size:24px}
+.today-sep{background:rgba(255,255,255,.18)}
+
+/* счётчики в разделах — залитые синим */
+.rq-count{background:var(--accent);box-shadow:0 12px 28px rgba(43,143,203,.30)}
+.rq-count b{color:#fff}.rq-count span{color:rgba(255,255,255,.85)}
+
+/* пленарное: «Решения» — синяя, «Как проходит» — с обводкой, «Когда» — голубая подложка */
+.pl-cards .pl-card:nth-child(1){background:transparent;box-shadow:none;border:2px solid var(--accent)}
+.pl-cards .pl-card:nth-child(2){background:#E4F1FA;box-shadow:none}
+.pl-cards .pl-card:nth-child(3){background:linear-gradient(150deg,#2B8FCB 0%,#1F5F99 100%);color:#fff}
+.pl-cards .pl-card:nth-child(3) span,.pl-cards .pl-card:nth-child(3) b{color:#fff}
+.pl-cards .pl-card:nth-child(3) p{color:rgba(255,255,255,.85)}
+.pl-cards .pl-card:nth-child(3) i{background:rgba(255,255,255,.18);color:#fff}
+.pl-cards .pl-card:nth-child(3) b{font-size:56px}
+
+/* комитеты: шапка панели состава — синяя полоса с названием комитета */
+.cm-panel{padding:0;overflow:hidden}
+.cm-panel .cap{display:block;padding:28px 32px 0;margin:0;color:#BFE0F6;background:var(--nav)}
+.cm-panel h2{padding:6px 32px 26px;margin:0;color:#fff;background:var(--nav)}
+.cm-members{padding:0 32px}
+.cm-ask{margin:auto 32px 28px}
+.quick-grid .quick:nth-child(1),.quick-grid .quick:nth-child(2){padding:24px 28px 58px;gap:8px}
+.quick-grid .quick:nth-child(1)::after,.quick-grid .quick:nth-child(2)::after{left:28px;bottom:18px}
+.quick-grid .quick:nth-child(1) b,.quick-grid .quick:nth-child(2) b{margin-top:4px}
+.cm-panel{gap:0}
+.cm-members{padding-top:12px}
+/* строки таблиц: цветная полоса слева по статусу — видно этап, не читая метку */
+.rq-body .rq-row{position:relative;overflow:hidden}
+.rq-body .rq-row.row-review::before,.rq-body .rq-row.row-step::before,.rq-body .rq-row.row-done::before,.rq-body .rq-row.row-off::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px}
+.rq-row.row-review::before{background:#2B8FCB}.rq-row.row-step::before{background:#E0A43A}.rq-row.row-done::before{background:#2E9B6B}.rq-row.row-off::before{background:#B8C4D6}
+.rq-row.row-off .t{color:#6B7891}
+.cm-members .cm-m:first-child{border-top:0}
+/* hero fills the top: big welcome title */
+body .hero{max-width:calc(100% - 190px)}
+body .hero>div{max-width:none;gap:10px}
+body .hero h2{font-size:86px;line-height:1.02;letter-spacing:-1.6px;margin:0 0 8px}
+body .hero p{font-size:26px}
+body .quick-grid{height:360px}
+body .quick-grid .quick:nth-child(1),body .quick-grid .quick:nth-child(2){padding:24px 28px;justify-content:center}
+body .quick-grid .quick:nth-child(1)::after,body .quick-grid .quick:nth-child(2)::after{left:auto;right:26px;top:24px;bottom:auto}
+/* status colour legend under list titles */
+.st-legend{display:flex;flex-wrap:wrap;gap:10px 26px;margin-top:14px}
+.st-legend .lg{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;color:#3E4C63}
+.st-legend .lg i{display:block;width:8px;height:24px;border-radius:4px}
+.st-legend .lg-review i{background:#2B8FCB}.st-legend .lg-step i{background:#E0A43A}.st-legend .lg-done i{background:#2E9B6B}.st-legend .lg-off i{background:#B8C4D6}
+
+/* ===== v3 (2026-11-07): глубина и контраст =====
+   Шрифт Manrope (плотнее и живее), тёмный читаемый текст, фон-градиент с мягкими пятнами света
+   (карточки «ближе», фон «дальше»), тоньше и легче плитки. Без красного. */
+@font-face{font-family:'Manrope';font-style:normal;font-weight:400 800;font-display:swap;src:url(fonts/Manrope-cyrillic-ext.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}
+@font-face{font-family:'Manrope';font-style:normal;font-weight:400 800;font-display:swap;src:url(fonts/Manrope-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Manrope';font-style:normal;font-weight:400 800;font-display:swap;src:url(fonts/Manrope-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Manrope';font-style:normal;font-weight:400 800;font-display:swap;src:url(fonts/Manrope-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+:root{--ink:#0E1B34;--muted:#3B4A66;--muted2:#46556F;--accent:#1F86C9;--accent-ink:#156BA6;
+  --card-shadow:0 1px 2px rgba(14,27,52,.06),0 22px 44px -18px rgba(22,58,112,.32);
+  --card-shadow-hi:0 2px 4px rgba(14,27,52,.08),0 30px 60px -20px rgba(22,58,112,.42)}
+body{font-family:'Manrope','Golos Text','Inter',system-ui,sans-serif;letter-spacing:0}
+
+/* фон: свет сверху справа, глубина снизу слева; карта — далеко и бледно */
+main{background:
+  radial-gradient(1000px 640px at 92% -8%,rgba(96,182,240,.42),rgba(96,182,240,0) 62%),
+  radial-gradient(900px 760px at 4% 108%,rgba(38,84,168,.30),rgba(38,84,168,0) 62%),
+  radial-gradient(700px 520px at 55% 60%,rgba(255,255,255,.55),rgba(255,255,255,0) 70%),
+  linear-gradient(158deg,#EDF5FC 0%,#DDE8F4 52%,#C8D7EA 100%)}
+.bg-map{opacity:.45}
+
+/* заголовки: крупные, плотные; подписи — тёмные, не бледные */
+.pg-head h1,.rb-head h1{font-size:54px;line-height:1.04;font-weight:800;letter-spacing:-1.4px;color:var(--ink)}
+.pg-head span{font-size:20px;line-height:1.45;font-weight:500;color:var(--muted)}
+body .hero h2{font-size:92px;line-height:.98;letter-spacing:-2.6px;font-weight:800;color:var(--ink)}
+body .hero p{font-size:26px;font-weight:500;color:var(--muted)}
+
+/* поле вопроса — «парит» над фоном */
+.askbox{background:rgba(255,255,255,.96);box-shadow:var(--card-shadow-hi);border:1px solid rgba(255,255,255,.9);padding:10px}
+.askbox input{font-size:24px;font-weight:500;min-height:60px}
+.askbox input::placeholder{color:#5D6B84}
+
+/* плитки главной: тоньше, текст плотнее */
+.quick,.today,.cm-card,.pl-card,.rq-row:not(.rq-th),.cm-panel,.status-panel,.settings-panel,.robot-panel{box-shadow:var(--card-shadow)}
+body .quick-grid{height:330px;gap:20px}
+.quick b{font-size:26px;line-height:1.15;font-weight:800;letter-spacing:-.3px}
+.quick small{font-size:18px;line-height:1.4;font-weight:500;color:var(--muted)}
+.qicon{border-radius:14px}
+body .quick-grid .quick:nth-child(1),body .quick-grid .quick:nth-child(2){padding:22px 26px;gap:6px}
+body .quick-grid .quick:nth-child(1) b,body .quick-grid .quick:nth-child(2) b{font-size:25px}
+.quick-grid .quick:nth-child(1){background:rgba(255,255,255,.55);border:2px solid var(--accent)}
+.quick-grid .quick:nth-child(2){background:linear-gradient(150deg,#E2F1FC 0%,#CFE6F7 100%)}
+.quick-grid .quick:nth-child(4){padding:22px 32px;background:#fff}
+/* главная плитка: насыщенный градиент + мягкие круги света */
+.quick-grid .quick:nth-child(3){padding:36px 38px;
+  background:radial-gradient(360px 360px at 100% 0%,rgba(255,255,255,.22),rgba(255,255,255,0) 70%),
+             radial-gradient(300px 300px at 0% 100%,rgba(10,40,100,.35),rgba(10,40,100,0) 70%),
+             linear-gradient(145deg,#2C9BDD 0%,#1D6FB6 55%,#17508F 100%);
+  box-shadow:0 2px 4px rgba(14,27,52,.10),0 34px 60px -22px rgba(23,80,143,.65)}
+.quick-grid .quick:nth-child(3) b{font-size:44px;line-height:1.05;letter-spacing:-1px}
+.quick-grid .quick:nth-child(3) small{font-size:21px;color:rgba(255,255,255,.9)}
+
+/* «Сегодня» — узкая тёмная полоса */
+.today{padding:18px 32px;background:linear-gradient(100deg,#13264A 0%,#1C3866 100%);box-shadow:0 2px 4px rgba(14,27,52,.10),0 26px 50px -20px rgba(14,27,52,.55)}
+.today h3{font-size:24px;font-weight:800}
+.today-date{font-size:26px;font-weight:800}
+.today-plan b{font-weight:700}
+
+/* таблицы: строки ниже и чётче */
+.rq-th span{font-size:14px;font-weight:800;letter-spacing:1.4px;color:#4A5872}
+.rq-body .rq-row{min-height:66px;padding:14px 28px;background:rgba(255,255,255,.94);border:0}
+.rq-row b{font-weight:800}
+.rq-row .t{font-size:21px;font-weight:600;color:var(--ink);line-height:1.3}
+.rq-row .a{font-weight:500;color:var(--muted)}
+.rq-row .n{font-weight:700}
+.rq-count{background:linear-gradient(145deg,#2C9BDD 0%,#1D6FB6 100%);box-shadow:0 26px 44px -18px rgba(29,111,182,.6)}
+.st-legend .lg{color:var(--ink);font-weight:700}
+
+/* комитеты, пленарное, робот — тот же контраст */
+.cm-card b,.cm-card strong{font-weight:800;color:var(--ink)}
+.cm-card span,.cm-card small{color:var(--muted);font-weight:500}
+.cm-m b{font-weight:800;color:var(--ink)}
+.cm-m span{color:var(--muted);font-weight:500}
+.pl-card span{font-weight:800;color:var(--ink)}
+.pl-card p{color:var(--muted);font-weight:500;line-height:1.45}
+.pl-cards .pl-card:nth-child(1){background:rgba(255,255,255,.55)}
+.pl-cards .pl-card:nth-child(3){background:radial-gradient(320px 320px at 100% 0%,rgba(255,255,255,.22),rgba(255,255,255,0) 70%),linear-gradient(145deg,#2C9BDD 0%,#1D6FB6 55%,#17508F 100%);box-shadow:0 34px 60px -22px rgba(23,80,143,.65)}
+.pl-ask span{font-weight:700;color:var(--ink)}
+.pl-ask button{font-weight:700;background:rgba(255,255,255,.7);box-shadow:var(--card-shadow)}
+.pl-h{font-size:26px;font-weight:800;letter-spacing:-.3px}
+body .hero h2{font-size:82px;letter-spacing:-2.2px}
+.cm-card{padding:22px 26px;gap:10px}
+.cm-card b,.cm-card strong{font-size:22px;line-height:1.2}
+.cm-card span,.cm-card small{font-size:17px;line-height:1.35}
+.cm-m{padding:18px 0;gap:18px}
+.cm-m i{width:52px;height:52px;font-size:20px}
+.cm-m b{font-size:21px}
+.cm-m span{font-size:16px}
+.cm-panel h2{font-size:32px;font-weight:800;letter-spacing:-.5px}
+body .quick-grid{height:400px}
+
+/* без тёмных баннеров: «Сегодня», шапка комитета и синие плитки — светлые */
+.today{background:rgba(255,255,255,.92);color:var(--ink);box-shadow:var(--card-shadow)}
+.today h3,.today-plan b{color:var(--ink)}
+.today>div:first-child p,.today-plan span{color:var(--muted)}
+.today-date{color:var(--accent)}
+.today-sep{background:#D5DEEA}
+.cm-panel .cap{background:#E2F1FC;color:var(--accent-ink)}
+.cm-panel h2{background:#E2F1FC;color:var(--ink)}
+.quick-grid .quick:nth-child(3){background:radial-gradient(360px 360px at 100% 0%,rgba(255,255,255,.28),rgba(255,255,255,0) 70%),linear-gradient(145deg,#4DB2EC 0%,#2E95D6 55%,#2384C6 100%);box-shadow:0 2px 4px rgba(14,27,52,.08),0 30px 56px -22px rgba(35,132,198,.6)}
+.pl-cards .pl-card:nth-child(3){background:radial-gradient(320px 320px at 100% 0%,rgba(255,255,255,.28),rgba(255,255,255,0) 70%),linear-gradient(145deg,#4DB2EC 0%,#2E95D6 55%,#2384C6 100%);box-shadow:0 30px 56px -22px rgba(35,132,198,.6)}
+.rq-count{background:linear-gradient(145deg,#4DB2EC 0%,#2E95D6 100%)}
+/* фон: белый с голубым градиентом; карта Казахстана снова видна — голубая «земля» с контуром */
+main{background:
+  radial-gradient(1100px 700px at 100% 0%,rgba(120,195,245,.38),rgba(120,195,245,0) 65%),
+  radial-gradient(1000px 700px at 0% 100%,rgba(120,180,235,.30),rgba(120,180,235,0) 65%),
+  linear-gradient(160deg,#FFFFFF 0%,#F6FAFE 45%,#E6F1FB 100%)}
+.bg-map{opacity:1}
+.bg-map svg{opacity:1}
+.bg-map svg g[fill="#E4E7EC"]{fill:#E4EFF9;stroke:#E4EFF9}
+.bg-map svg g[stroke="#B7BEC8"]{stroke:#A8C7E6}
+.bg-map svg g[fill="#8FBFE6"],.bg-map svg g[mask] path{fill:#B9DAF3}
+.bg-map svg circle{fill:#7FA6CC}
+
+/* стрелка только на «Законопроекты этой недели» — крупная, в белом круге */
+body .quick-grid .quick:nth-child(1)::after,body .quick-grid .quick:nth-child(2)::after,body .quick-grid .quick:nth-child(4)::after{content:none;display:none}
+body .quick-grid .quick:nth-child(3)::after{content:'→';left:auto;right:36px;bottom:36px;top:auto;transform:none;width:96px;height:96px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:60px;line-height:1;font-weight:700;color:#2384C6;background:#fff;box-shadow:0 14px 30px -10px rgba(14,60,110,.45)}
+
+/* стрелка — рисунком, а не символом шрифта (символ «→» в разных браузерах выходил тонким и кривым) */
+body .quick-grid .quick:nth-child(3)::after{content:'';font-size:0;width:88px;height:88px;right:34px;bottom:34px;
+  background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232384C6' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6'/%3E%3C/svg%3E") center/56px 56px no-repeat;
+  box-shadow:0 12px 26px -10px rgba(14,60,110,.5)}
+
+/* главная: блоки идут плотно друг за другом, без растягивания по высоте окна */
+body #home.active{justify-content:flex-start;gap:26px}
+body #home .hero h2{margin-bottom:4px}
+body #home .quick-grid{flex:1 1 auto;height:auto;min-height:400px;max-height:620px}
+
+/* малые плитки главной: значки крупнее, текст занимает больше места */
+body .quick-grid .quick:nth-child(1) .qicon,body .quick-grid .quick:nth-child(2) .qicon,body .quick-grid .quick:nth-child(4) .qicon{width:76px;height:76px;border-radius:20px;font-size:44px;font-weight:800}
+body .quick-grid .quick .qicon svg{width:40px;height:40px}
+body .quick-grid .quick:nth-child(3) .qicon svg{width:34px;height:34px}
+body .quick-grid .quick:nth-child(1),body .quick-grid .quick:nth-child(2){padding:26px 30px;gap:10px}
+body .quick-grid .quick:nth-child(1) b,body .quick-grid .quick:nth-child(2) b{font-size:34px;line-height:1.1;letter-spacing:-.6px;margin-top:6px}
+body .quick-grid .quick:nth-child(1) small,body .quick-grid .quick:nth-child(2) small{font-size:22px;line-height:1.3}
+body .quick-grid .quick:nth-child(4){column-gap:28px;padding:26px 36px}
+body .quick-grid .quick:nth-child(4) b{font-size:40px;line-height:1.1;letter-spacing:-.8px}
+body .quick-grid .quick:nth-child(4) small{font-size:24px;line-height:1.3}
+body .quick-grid .quick:nth-child(4) .qicon{width:96px;height:96px;border-radius:24px}
+body .quick-grid .quick:nth-child(4) .qicon svg{width:48px;height:48px}
+body .quick-grid .quick:nth-child(1) .qicon,body .quick-grid .quick:nth-child(2) .qicon{width:68px;height:68px;font-size:40px}
+body .quick-grid .quick:nth-child(1) .qicon svg,body .quick-grid .quick:nth-child(2) .qicon svg{width:36px;height:36px}
+body .quick-grid .quick:nth-child(1),body .quick-grid .quick:nth-child(2){padding:22px 28px;gap:8px}
+body .quick-grid .quick:nth-child(1) b,body .quick-grid .quick:nth-child(2) b{font-size:31px;margin-top:4px}
+body .quick-grid .quick:nth-child(1) small,body .quick-grid .quick:nth-child(2) small{font-size:20px}
+body #home .quick-grid{min-height:350px}
+body #home .quick-grid{flex:1 1 0;min-height:380px}
+body #home.active{height:100%;min-height:0}
+
+/* × на одной линии с ҚАЗ|РУС; приветствие начинается ниже них */
+.exit-x{top:44px}
+body #home .hero{margin-top:64px}
+/* плитки — исходной высоты, просто стоят плотно под строкой вопроса */
+body #home .quick-grid{flex:0 0 auto;height:400px;min-height:0;max-height:none}
+body #home.active{height:auto;min-height:100%}
+/* «Что такое Курултай» и «Состав комитетов» — одинаковые: голубая подложка, без тёмной рамки */
+body .quick-grid .quick:nth-child(1){border:0;background:linear-gradient(150deg,#E2F1FC 0%,#CFE6F7 100%)}
+
+/* все блоки на всех страницах — тонкая чёрная обводка */
+body .askbox,body .quick,body .quick-grid .quick,body .today,body .cm-card,body .cm-panel,body .pl-card,body .pl-cards .pl-card,
+body .rq-body .rq-row,body .rq-count,body .lang-switch,body #lang,body .pl-ask button,body .status-panel,body .settings-panel,
+body .robot-panel,body .result-card,body .plan-last,body .rb-grid>*,body #answer .answer-card{border:1px solid #111A2B!important}
+body .settings-panel input:not([type=checkbox]),body .settings-panel select,body .robot-panel input:not([type=checkbox]),body .robot-panel select{border:1px solid #111A2B!important}
+
+/* полупрозрачные блоки: сквозь них виден фон и карта; «Как подать обращение» — бледно-голубой, как соседние */
+body .quick-grid .quick:nth-child(1),body .quick-grid .quick:nth-child(2),body .quick-grid .quick:nth-child(4){background:rgba(206,230,248,.55)}
+body .quick-grid .quick:nth-child(3){background:linear-gradient(145deg,rgba(77,178,236,.82) 0%,rgba(46,149,214,.82) 55%,rgba(35,132,198,.85) 100%)}
+body .askbox,body .today,body .rq-body .rq-row,body .cm-card,body .cm-panel,body .pl-card,body .pl-cards .pl-card:nth-child(1),body .pl-cards .pl-card:nth-child(2),
+body .pl-ask button,body .status-panel,body .settings-panel,body .robot-panel,body .plan-last,body .lang-switch{background:rgba(255,255,255,.55)}
+body .pl-cards .pl-card:nth-child(2),body .cm-panel .cap,body .cm-panel h2{background:rgba(206,230,248,.55)}
+body .pl-cards .pl-card:nth-child(3),body .rq-count{background:linear-gradient(145deg,rgba(77,178,236,.82) 0%,rgba(35,132,198,.85) 100%)}
+body .quick,body .askbox,body .today,body .rq-body .rq-row,body .cm-card,body .cm-panel,body .pl-card,body .status-panel,body .settings-panel,body .robot-panel{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+
+/* все блоки на всех страницах — обводка ещё тоньше и легче */
+body .askbox,body .quick,body .quick-grid .quick,body .today,body .cm-card,body .cm-panel,body .pl-card,body .pl-cards .pl-card,
+body .rq-body .rq-row,body .rq-count,body .lang-switch,body #lang,body .pl-ask button,body .status-panel,body .settings-panel,
+body .robot-panel,body .result-card,body .plan-last,body .rb-grid>*,body #answer .answer-card{border:.6px solid rgba(17,26,43,.55)!important}
+body .settings-panel input:not([type=checkbox]),body .settings-panel select,body .robot-panel input:not([type=checkbox]),body .robot-panel select{border:.6px solid rgba(17,26,43,.55)!important}
+
+/* шрифт Onest: в нём есть все казахские буквы (в Manrope их не было — Қ, ң, ғ, ұ подставлялись из другого шрифта) */
+@font-face{font-family:'Onest';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/Onest-cyrillic-ext.woff2) format('woff2');unicode-range:U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F}
+@font-face{font-family:'Onest';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/Onest-cyrillic.woff2) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116}
+@font-face{font-family:'Onest';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/Onest-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Onest';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/Onest-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+body{font-family:'Onest','Golos Text','Inter',system-ui,sans-serif}
+body .quick .qicon{flex-shrink:0}
+
+/* субтитры в нижней полосе: фраза робота — до трёх строк, не обрезается в одну */
+body #orbHint{white-space:normal;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-height:1.35;text-overflow:clip}
+body #orbCaption{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+body #voiceBanner .vb-text{min-width:0}
+body .vb-text{right:330px}
+body #orbHint{-webkit-line-clamp:2}

@@ -2,8 +2,8 @@
  * После верного PIN вкладка открыта 5 минут; ушли на лицо — снова закрыта. */
 ;(function () {
   if (typeof show !== 'function') return;
-  const TXT = { ru: { title: 'Робот и настройки', sub: 'Введите PIN', wrong: 'Неверный PIN', cancel: 'Отмена' },
-    kk: { title: 'Робот және баптаулар', sub: 'PIN енгізіңіз', wrong: 'PIN қате', cancel: 'Болдырмау' } };
+  const TXT = { ru: { title: 'Робот и настройки', exitTitle: 'Закрыть приложение', sub: 'Введите PIN', wrong: 'Неверный PIN', cancel: 'Отмена' },
+    kk: { title: 'Робот және баптаулар', exitTitle: 'Қосымшаны жабу', sub: 'PIN енгізіңіз', wrong: 'PIN қате', cancel: 'Болдырмау' } };
   const t = k => TXT[(typeof language !== 'undefined' && language === 'kk') ? 'kk' : 'ru'][k];
   const need = () => !!(window.Robot && Robot.adminPinRequired && Robot.adminPinRequired());
   let unlockedUntil = 0;
@@ -17,11 +17,11 @@
     + '#pinPad .keys button:active{background:#dbeaf6}#pinPad .cancel{margin-top:14px;background:none;border:none;color:#268fc8;font-size:19px;min-height:44px}';
   document.head.appendChild(css);
 
-  function ask(onOk, onCancel) {
+  function ask(onOk, onCancel, titleKey) {
     let pin = '';
     const pad = document.createElement('div');
     pad.id = 'pinPad';
-    pad.innerHTML = '<div class="card"><h3>' + t('title') + '</h3><p>' + t('sub') + '</p><div class="dots"></div><div class="err"></div>'
+    pad.innerHTML = '<div class="card"><h3>' + t(titleKey || 'title') + '</h3><p>' + t('sub') + '</p><div class="dots"></div><div class="err"></div>'
       + '<div class="keys">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, 'OK'].map(k => '<button type="button" data-k="' + k + '">' + k + '</button>').join('') + '</div>'
       + '<button type="button" class="cancel">' + t('cancel') + '</button></div>';
     document.body.appendChild(pad);
@@ -52,6 +52,18 @@
     }
     return guarded.apply(this, arguments);
   };
+  // «×» (mynbay, 2026-11-07) закрывает всё приложение — на роботе в зале это может сделать любой посетитель.
+  // Закрыть — только по PIN; «Отмена» — к лицу робота (под ним главная). Без PIN в сборке — как задумано в app.js.
+  // Перехват на фазе захвата: обработчик exitBtn.onclick в app.js не вызывается.
+  document.addEventListener('click', e => {
+    const btn = e.target && e.target.closest ? e.target.closest('#exitBtn') : null;
+    if (!btn || !need()) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    const toFace = () => { if (typeof go === 'function') go('home'); if (window.showFace) window.showFace(); };
+    ask(() => { if (window.Robot && Robot.exitApp) Robot.exitApp(); else toFace(); }, toFace, 'exitTitle');
+  }, true);
+
   // Лицо показано любым путём (минута без касаний, свайп, «‹ лицо», сон) — PIN снова нужен, а недовведённое окно PIN
   // не остаётся поверх лица (раньше оно перекрывало лицо: z-index 9500 > 9000).
   document.addEventListener('kurultai-face-shown', () => {

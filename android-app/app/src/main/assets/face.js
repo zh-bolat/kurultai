@@ -44,9 +44,11 @@
   root.innerHTML = '<div class="face-eyes"><svg viewBox="0 0 200 100" aria-hidden="true"></svg></div>'
     + '<div class="face-status" id="faceStatusLine"></div><div class="face-heard" id="faceHeardLine"></div>'
     + '<p class="face-sub" id="faceSubLine" aria-live="polite"></p>'
-    + '<div class="swipe-hint" aria-hidden="true"><span class="chev"><i>‹</i><i>‹</i><i>‹</i></span><b id="faceMenuLabel"></b><small id="faceMenuSub"></small></div>'
+    + '<div class="swipe-hint" aria-hidden="true"><svg viewBox="0 0 24 48"><path d="M17 6 L7 24 L17 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg><b id="faceMenuLabel"></b></div>'
     + '<div class="face-sleep-hint" id="faceSleepHint"></div>'
-    + '<div class="face-lang" id="faceLang"><button type="button" data-l="kk">ҚАЗ</button><button type="button" data-l="ru">РУС</button></div>';
+    + '<div class="face-lang" id="faceLang"><button type="button" data-l="kk">ҚАЗ</button><i></i><button type="button" data-l="ru">РУС</button></div>';
+  // 2026-11-07: надпись «сплю» не показываем; подсказка внизу сама чередуется қазақша ↔ по-русски каждые 6 секунд;
+  // переключатель ҚАЗ|РУС — внизу по центру, тонким текстом без рамки.
   document.body.appendChild(root);
   const toFace = document.createElement('button');
   toFace.id = 'toFace';
@@ -56,6 +58,13 @@
   const svg = root.querySelector('svg'), statusLine = root.querySelector('#faceStatusLine'),
     heardLine = root.querySelector('#faceHeardLine'), subLine = root.querySelector('#faceSubLine');
 
+  let hintLang = 'kk';
+  setInterval(() => {  // подсказка сна и «Мәзір / Меню» чередуют язык вместе
+    const fading = root.querySelectorAll('#faceSleepHint, #faceMenuLabel');
+    fading.forEach(e => e.classList.add('fade'));
+    setTimeout(() => { hintLang = hintLang === 'kk' ? 'ru' : 'kk'; render(); fading.forEach(e => e.classList.remove('fade')); }, 400);
+  }, 6000);
+
   let state = 'sleep', mood = null, moodTimer = null, shownExpr = '', level = 0, lastTouch = Date.now(), subTimer = null;
 
   function render() {
@@ -63,10 +72,9 @@
     const x = mood || STATE_EXPR[state] || 'neutral';
     if (x !== shownExpr) { svg.innerHTML = EXPR[x](); shownExpr = x; }
     root.classList.toggle('asleep', state === 'sleep');
-    statusLine.textContent = t(state) || '';
-    root.querySelector('#faceSleepHint').textContent = state === 'sleep' ? t('wakeHint') : '';
-    root.querySelector('#faceMenuLabel').textContent = t('menu');
-    root.querySelector('#faceMenuSub').textContent = t('menuSub');
+    statusLine.textContent = state === 'sleep' ? '' : (t(state) || '');
+    root.querySelector('#faceSleepHint').textContent = state === 'sleep' ? TXT[hintLang].wakeHint : '';
+    root.querySelector('#faceMenuLabel').textContent = TXT[hintLang].menu;
     toFace.innerHTML = '›<small>' + t('face') + '</small>';
   }
 
@@ -108,12 +116,13 @@
     render();
   };
   window.onFacePhrase = text => {
-    return; // субтитры на лице убраны
+    if (window.vbSubtitle) window.vbSubtitle('say', text);  // субтитры — в нижней полосе страницы
+    return; // на самом лице субтитров нет
     subLine.textContent = String(text || '');
     clearTimeout(subTimer);
     subTimer = setTimeout(() => { if (state !== 'speaking') subLine.textContent = ''; }, 6000);
   };
-  window.onFaceHeard = () => {}; // «услышанное» на лице убрано
+  window.onFaceHeard = text => { if (window.vbSubtitle) window.vbSubtitle('heard', text); }; // вопрос — в нижней полосе, не на лице
   window.onFaceEmotion = name => {
     const x = EMOTION[name];
     clearTimeout(moodTimer);
@@ -152,7 +161,8 @@
     }
     const skip = () => HAS_TOUCH && Date.now() - lastTouchEndAt < 800;
     if (HAS_POINTER) {
-      el.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; if (!skip()) onStart(pointFrom(e), e); });
+      el.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; try { el.setPointerCapture(e.pointerId); } catch (_) {} if (!skip()) onStart(pointFrom(e), e); });
+      el.addEventListener('pointercancel', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; onCancel(e); });
       el.addEventListener('pointermove', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; onMove(pointFrom(e), e); });
       el.addEventListener('pointerup', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; if (!skip()) onEnd(pointFrom(e), e); });
     } else {
@@ -164,7 +174,7 @@
 
   /* жесты на лице: свайп влево — меню (палец ведёт экран, хватает короткого быстрого взмаха);
      тап — спит: проснуться и поздороваться; двойной тап — уснуть */
-  let x0 = 0, y0 = 0, lastX = 0, lastT = 0, vx = 0, dragging = false, moved = false, lastTap = 0, tapTimer = null;
+  let x0 = 0, y0 = 0, lastX = 0, lastT = 0, vx = 0, k = 1, dragging = false, moved = false, lastTap = 0, tapTimer = null;
   const SWIPE_DIST = () => window.innerWidth * 0.08, FLICK_V = 0.35; // px/мс
   function onTap() {
     const now = Date.now();
@@ -180,14 +190,16 @@
     }, 380);
   }
   bind(root, p => {
-    x0 = lastX = p.x; y0 = p.y; lastT = Date.now(); vx = 0; dragging = true; moved = false; root.classList.add('dragging');
+    x0 = lastX = p.x; y0 = p.y; lastT = Date.now(); vx = 0; dragging = true;
+    k = root.offsetWidth ? (root.getBoundingClientRect().width / root.offsetWidth) || 1 : 1; // страница масштабирована — экран идёт ровно за пальцем
+    moved = false; root.classList.add('dragging');
   }, p => {
     if (!dragging) return;
     const now = Date.now(), dx = p.x - x0, dy = p.y - y0;
     if (now > lastT) vx = 0.7 * vx + 0.3 * ((p.x - lastX) / (now - lastT));
     lastX = p.x; lastT = now;
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
-    if (dx < 0 && Math.abs(dx) > Math.abs(dy) * 0.6) root.style.transform = 'translate3d(' + dx + 'px,0,0)';
+    if (dx < 0 && Math.abs(dx) > Math.abs(dy) * 0.6) root.style.transform = 'translate3d(' + (dx / k) + 'px,0,0)';
   }, p => {
     if (!dragging) return;
     dragging = false;
