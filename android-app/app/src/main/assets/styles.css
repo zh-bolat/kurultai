@@ -522,3 +522,4 @@ main>header{top:48px!important}
 .rq-body .rq-row.row-review::before,.rq-body .rq-row.row-step::before,.rq-body .rq-row.row-done::before,.rq-body .rq-row.row-off::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px}
 .rq-row.row-review::before{background:#2B8FCB}.rq-row.row-step::before{background:#E0A43A}.rq-row.row-done::before{background:#2E9B6B}.rq-row.row-off::before{background:#B8C4D6}
 .rq-row.row-off .t{color:#6B7891}
+.cm-members .cm-m:first-child{border-top:0}
