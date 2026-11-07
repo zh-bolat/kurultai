@@ -270,12 +270,68 @@ public class MainActivity extends Activity {
         }
     };
 
+    // ---------- диагностика робота → наш сервер (POST /v1/robot/diag, журнал robot_diag) ----------
+    // ADB на роботе закрыт: чтобы видеть, почему не двигается голова (видит ли лица, доходят ли команды и что
+    // отвечает RobotOS), робот раз в 20 с шлёт счётчики. Без текстов разговоров и без картинок.
+    private volatile int diagPolls, diagPollSkipped, diagFacesPolls, diagFacesMax, diagHeadSent, diagMotionResults;
+    private volatile String diagLastFace = "", diagLastMotion = "", diagPersonError = "";
+    private final Runnable diagRunnable = new Runnable() {
+        @Override public void run() {
+            if (!activityVisible || webView == null) return;
+            sendDiag();
+            webView.postDelayed(this, 20_000L);
+        }
+    };
+
+    private void sendDiag() {
+        if (!liveConfigured()) return;
+        final JSONObject d = new JSONObject();
+        try {
+            d.put("version", BuildConfig.VERSION_NAME).put("api_ready", robotApiReady())
+                .put("person_listener", personListenerRegistered).put("welcome", welcomeMode).put("asleep", asleep)
+                .put("person_present", personPresent).put("following", followingPerson).put("speaking", speakingNow)
+                .put("polls", diagPolls).put("polls_skipped", diagPollSkipped).put("polls_with_faces", diagFacesPolls)
+                .put("faces_max", diagFacesMax).put("last_face", diagLastFace).put("person_error", diagPersonError)
+                .put("head_sent", diagHeadSent).put("motion_results", diagMotionResults)
+                .put("last_motion", diagLastMotion.length() > 300 ? diagLastMotion.substring(0, 300) : diagLastMotion)
+                .put("look_h", lastLookH).put("look_v", lastLookV);
+        } catch (Exception ignored) { return; }
+        diagPolls = diagPollSkipped = diagFacesPolls = diagFacesMax = diagHeadSent = diagMotionResults = 0;
+        diagPersonError = "";
+        new Thread(() -> {
+            HttpURLConnection c = null;
+            try {
+                String base = BuildConfig.BACKEND_URL.endsWith("/") ? BuildConfig.BACKEND_URL : BuildConfig.BACKEND_URL + "/";
+                c = (HttpURLConnection) new URL(base + "robot/diag").openConnection();
+                c.setConnectTimeout(8000); c.setReadTimeout(8000);
+                c.setRequestMethod("POST");
+                c.setDoOutput(true);
+                c.setRequestProperty("Authorization", "Bearer " + BuildConfig.LIVE_TOKEN);
+                c.setRequestProperty("Content-Type", "application/json");
+                try (OutputStream out = c.getOutputStream()) { out.write(d.toString().getBytes(StandardCharsets.UTF_8)); }
+                c.getResponseCode();
+            } catch (Exception ignored) {
+                // диагностика не должна мешать работе
+            } finally {
+                if (c != null) c.disconnect();
+            }
+        }, "robot-diag").start();
+    }
+
     private void inspectVisiblePeople() {
-        if (!activityVisible || !welcomeMode || !robotApiReady()) return;
+        diagPolls++;
+        if (!activityVisible || !welcomeMode || !robotApiReady()) { diagPollSkipped++; return; }
         try {
             // Greeting is camera/face driven only. Do not use sound direction or
             // generic body detections: they can trigger from people farther away.
             java.util.List<Person> people = PersonApi.getInstance().getCompleteFaceList();
+            int faces = people == null ? 0 : people.size();
+            if (faces > 0) { diagFacesPolls++; diagFacesMax = Math.max(diagFacesMax, faces); }
+            if (faces > 0 && people.get(0) != null) {
+                diagLastFace = String.format(Locale.ROOT, "d=%.2f a=%d inView=%.1f fx=%d fy=%d",
+                    people.get(0).getDistance(), people.get(0).getAngle(), people.get(0).getAngleInView(),
+                    people.get(0).getFaceX(), people.get(0).getFaceY());
+            }
             if (people == null || people.isEmpty()) {
                 if (followingPerson) {
                     runOnUiThread(() -> setHandsFreeStatus("Следую за вами · ищу в кадре"));
@@ -339,6 +395,7 @@ public class MainActivity extends Activity {
             });
         } catch (Throwable error) {
             android.util.Log.w("KurultaiHandsFree", "PersonApi poll failed", error);
+            diagPersonError = error.getClass().getSimpleName() + ": " + error.getMessage();
             runOnUiThread(() -> setHandsFreeStatus("PersonApi: " + error.getClass().getSimpleName()));
         }
     }
@@ -493,6 +550,8 @@ public class MainActivity extends Activity {
             webView.post(meetingCheckRunnable);
             webView.removeCallbacks(idleGlanceRunnable);
             webView.postDelayed(idleGlanceRunnable, 5000L);
+            webView.removeCallbacks(diagRunnable);
+            webView.postDelayed(diagRunnable, 10_000L);
         }
         checkLiveProfileAsync();
         maybeAutoStartLive();
@@ -510,6 +569,7 @@ public class MainActivity extends Activity {
             webView.removeCallbacks(meetingCheckRunnable);
             webView.removeCallbacks(idleGlanceRunnable);
             webView.removeCallbacks(profileRetry);
+            webView.removeCallbacks(diagRunnable);
         }
         unregisterPersonDetection();
         pauseListeningInternal();
@@ -742,6 +802,8 @@ public class MainActivity extends Activity {
     private CommandListener motionListener(final String action) {
         return new CommandListener() {
             @Override public void onResult(int result, String message) {
+                diagMotionResults++;
+                diagLastMotion = action + " → " + result + " " + (message == null ? "" : message);
                 uiJs("window.onMotionStatus && window.onMotionStatus(" + JSONObject.quote(action + ": " + message) + ")");
             }
         };
@@ -853,12 +915,14 @@ public class MainActivity extends Activity {
         if (!robotApiReady()) return;
         lastLookH = Math.max(-55, Math.min(55, horizontal));
         lastLookV = Math.max(22, Math.min(48, vertical));
+        diagHeadSent++;
         try {
             RobotApi.getInstance().moveHead(nextRobotRequestId(), "absolute", "absolute",
                 lastLookH, lastLookV,
                 motionListener("Взгляд на посетителя"));
         } catch (Throwable error) {
             android.util.Log.w("KurultaiHandsFree", "Head movement failed", error);
+            diagLastMotion = "moveHead exception " + error.getClass().getSimpleName() + ": " + error.getMessage();
         }
     }
 
