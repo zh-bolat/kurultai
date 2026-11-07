@@ -709,3 +709,9 @@ body .pl-ask button,body .status-panel,body .settings-panel,body .robot-panel,bo
 body .pl-cards .pl-card:nth-child(2),body .cm-panel .cap,body .cm-panel h2{background:rgba(206,230,248,.55)}
 body .pl-cards .pl-card:nth-child(3),body .rq-count{background:linear-gradient(145deg,rgba(77,178,236,.82) 0%,rgba(35,132,198,.85) 100%)}
 body .quick,body .askbox,body .today,body .rq-body .rq-row,body .cm-card,body .cm-panel,body .pl-card,body .status-panel,body .settings-panel,body .robot-panel{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+
+/* все блоки на всех страницах — обводка ещё тоньше и легче */
+body .askbox,body .quick,body .quick-grid .quick,body .today,body .cm-card,body .cm-panel,body .pl-card,body .pl-cards .pl-card,
+body .rq-body .rq-row,body .rq-count,body .lang-switch,body #lang,body .pl-ask button,body .status-panel,body .settings-panel,
+body .robot-panel,body .result-card,body .plan-last,body .rb-grid>*,body #answer .answer-card{border:.6px solid rgba(17,26,43,.55)!important}
+body .settings-panel input:not([type=checkbox]),body .settings-panel select,body .robot-panel input:not([type=checkbox]),body .robot-panel select{border:.6px solid rgba(17,26,43,.55)!important}
