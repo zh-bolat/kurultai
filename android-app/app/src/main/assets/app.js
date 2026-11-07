@@ -55,7 +55,7 @@ window.onQuryltaiData=(data,fresh)=>{quryltaiOfficial=data||null;if(!data)return
 $('#speak').onclick=()=>{if(window.Robot)Robot.speak(lastSpeech,lastSpeechLanguage);else toast('Озвучивание доступно на роботе')};
 window.onSpeechStarted=()=>{$('#speak').textContent='■ Остановить';setVoiceDock('speaking',lastSpeech);$('#speak').onclick=()=>{Robot.stopSpeaking();window.onSpeechFinished()}};
 window.onSpeechFinished=()=>{$('#speak').textContent='🔊 Озвучить';setVoiceDock(continuousVoice?'active':'paused',continuousVoice?'Готов слушать следующий вопрос':'Нажмите «Спросить голосом» и задайте вопрос');$('#speak').onclick=()=>{if(window.Robot)Robot.speak(lastSpeech,lastSpeechLanguage)}};
-function showLoading(q){answer('Готовлю ответ',q,`<article class="result-card wide"><h3>Анализирую вопрос…</h3><p>Ответ появится на экране и будет озвучен.</p></article>`,'')}
+function showLoading(q){if(window.vbSubtitle)window.vbSubtitle('heard',q);answer('Готовлю ответ',q,`<article class="result-card wide"><h3>Анализирую вопрос…</h3><p>Ответ появится на экране и будет озвучен.</p></article>`,'')}
 window.onBackendResult=(ok,body)=>{let resultLanguage=answerLanguage==='auto'?questionLanguage:answerLanguage;let responseText=body;if(ok){try{let j=JSON.parse(body);responseText=j.answer||j.message||body;resultLanguage=j.language||resultLanguage}catch(e){}}let kk=resultLanguage==='kk';if(!ok){answer(kk?'Қызметпен байланыс жоқ':'Нет связи с сервисом',lastPrompt,`<article class="result-card wide error-card"><h3>${kk?'Сұрау орындалмады':'Запрос не выполнен'}</h3><p>${escapeHtml(body)}</p><button id="retryRequest" class="retry">${kk?'Қайталау':'Повторить запрос'}</button></article>`,'');setTimeout(()=>{let b=$('#retryRequest');if(b)b.onclick=submit},0);voiceRequest=false;return}responseText=String(responseText).replace(/\*\*/g,'').replace(/^#{1,6}\s*/gm,'').replace(/`/g,'').replace(/^\s*(вывод|қорытынды|ответ|жауап|gpt)\s*[:：-]\s*/i,'').trim();lastSpeechLanguage=resultLanguage;answer(kk?'Көмекшінің жауабы':'Ответ помощника',lastPrompt,`<article class="result-card wide"><p>${escapeHtml(responseText).replace(/\n/g,'<br>')}</p></article>`,responseText);if(responseText&&window.Robot)Robot.speak(responseText,resultLanguage);voiceRequest=false};
 function escapeHtml(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 $('#lang').onclick=e=>{const s=e&&e.target&&e.target.closest&&e.target.closest('[data-l]');if(s&&s.dataset.l===language)return;language=language==='ru'?'kk':'ru';questionLanguage=language;localStorage.language=language;applyUiLanguage();if(window.Robot&&Robot.setUiLanguage)Robot.setUiLanguage(language);if(continuousVoice&&window.Robot)Robot.setContinuousListening(true,language);toast(language==='ru'?'Русский язык':'Қазақ тілі')};
@@ -170,16 +170,18 @@ let talkTimer=null,toggleTalk=null;
 const TXT={ru:{idle:['Говорите — я слушаю','Просто начните говорить. Чтобы остановить меня, скажите «стоп»','СЛУШАЮ'],listening:['Слушаю…','Говорите, я пойму, когда вы закончите','РОБОТ СЛУШАЕТ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Чтобы остановить, скажите «стоп»','РОБОТ ГОВОРИТ']},
 kk:{idle:['Сөйлей беріңіз — тыңдап тұрмын','Жай ғана сөйлей бастаңыз. Тоқтату үшін «тоқта» деңіз','ТЫҢДАП ТҰРМЫН'],listening:['Тыңдап тұрмын…','Сөйлеңіз, сөзіңіз біткенін өзім түсінемін','ТЫҢДАП ТҰР'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін «тоқта» деңіз','РОБОТ СӨЙЛЕП ТҰР']}};
 const SHORT={ru:'Удерживайте круг, пока говорите',kk:'Сөйлеп тұрғанда шеңберді басып тұрыңыз'};
-let state='idle',live='',guard=null,pressAt=0,shortTap=false,flash=null;
+let state='idle',live='',subQ='',subA='',guard=null,pressAt=0,shortTap=false,flash=null;
 const norm=s=>(s==='listening'||s==='thinking'||s==='speaking')?s:'idle';
 const L=()=>language==='kk'?TXT.kk:TXT.ru;
 function render(){const t=L()[state];const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
- set('orbCaption',t[0]);set('orbHint',(state==='listening'&&live)?live.slice(0,140):t[1]);set('vbStatus',t[2]);
+ const q=subQ?'«'+subQ+'»':'';  // субтитры: вопрос посетителя и то, что робот говорит сейчас
+ set('orbCaption',(state==='speaking'||state==='thinking')&&q?q:t[0]);
+ set('orbHint',(state==='listening'&&(live||subQ))?(live||subQ).slice(-160):(state==='speaking'&&subA)?subA:(state==='thinking'&&q)?t[0]:t[1]);set('vbStatus',t[2]);
  set('vbFabLabel',flash?SHORT[language==='kk'?'kk':'ru']:L().idle[0]);
  const b=document.getElementById('voiceBanner');if(b){b.classList.toggle('listening',state==='listening');b.setAttribute('aria-label',t[0])}
  const o=document.getElementById('orbBtn');if(o){o.classList.toggle('listening',state==='listening');o.classList.toggle('thinking',state==='thinking');o.classList.toggle('speaking',state==='speaking')}
  const d=document.getElementById('voiceDock');if(d)d.className='voice-dock '+(state==='idle'?'active':state)}
-setVoiceDock=function(s){const n=norm(s);if(n!==state){state=n;live=''}
+setVoiceDock=function(s){const n=norm(s);if(n!==state){state=n;live='';if(n==='idle'){subQ='';subA=''}}
  clearTimeout(guard);
  // Safety nets so the bar can never stay stuck if a "finished" event is lost.
  if(n==='speaking')guard=setTimeout(()=>{if(state==='speaking')setVoiceDock('idle')},Math.min(120000,10000+String(typeof lastSpeech==='string'?lastSpeech:'').length*90));
@@ -199,6 +201,7 @@ function release(e){if(e&&e.preventDefault)e.preventDefault();if(!holdActive)ret
 toggleTalk=press;
 // A short recording is rejected by the robot; show our hint instead of its error.
 const verr=window.onVoiceError;window.onVoiceError=t=>{if(shortTap){shortTap=false;holdActive=false;setVoiceDock('idle');return}if(verr)verr(t)};
+window.vbSubtitle=(kind,t)=>{t=String(t||'').replace(/\s+/g,' ').trim();if(!t)return;if(kind==='heard'){subQ=t;subA=''}else subA=t;render()};
 const part=window.onVoicePartial;window.onVoicePartial=t=>{if(part)part(t);if(state==='listening'){live=String(t||'');render()}};
 const err=window.onVoiceServiceError;window.onVoiceServiceError=t=>{holdActive=false;clearTimeout(talkTimer);if(err)err(t);setVoiceDock('idle')};
 const vb=document.getElementById('voiceBanner');

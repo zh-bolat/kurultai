@@ -723,3 +723,10 @@ body .settings-panel input:not([type=checkbox]),body .settings-panel select,body
 @font-face{font-family:'Onest';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/Onest-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
 body{font-family:'Onest','Golos Text','Inter',system-ui,sans-serif}
 body .quick .qicon{flex-shrink:0}
+
+/* субтитры в нижней полосе: фраза робота — до трёх строк, не обрезается в одну */
+body #orbHint{white-space:normal;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-height:1.35;text-overflow:clip}
+body #orbCaption{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+body #voiceBanner .vb-text{min-width:0}
+body .vb-text{right:330px}
+body #orbHint{-webkit-line-clamp:2}

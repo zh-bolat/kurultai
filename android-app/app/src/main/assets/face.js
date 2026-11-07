@@ -116,12 +116,13 @@
     render();
   };
   window.onFacePhrase = text => {
-    return; // субтитры на лице убраны
+    if (window.vbSubtitle) window.vbSubtitle('say', text);  // субтитры — в нижней полосе страницы
+    return; // на самом лице субтитров нет
     subLine.textContent = String(text || '');
     clearTimeout(subTimer);
     subTimer = setTimeout(() => { if (state !== 'speaking') subLine.textContent = ''; }, 6000);
   };
-  window.onFaceHeard = () => {}; // «услышанное» на лице убрано
+  window.onFaceHeard = text => { if (window.vbSubtitle) window.vbSubtitle('heard', text); }; // вопрос — в нижней полосе, не на лице
   window.onFaceEmotion = name => {
     const x = EMOTION[name];
     clearTimeout(moodTimer);
