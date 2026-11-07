@@ -649,3 +649,8 @@ main{background:
 .bg-map svg g[stroke="#B7BEC8"]{stroke:#A8C7E6}
 .bg-map svg g[fill="#8FBFE6"],.bg-map svg g[mask] path{fill:#B9DAF3}
 .bg-map svg circle{fill:#7FA6CC}
+
+/* стрелка только на «Законопроекты этой недели» — крупная, в белом круге */
+body .quick-grid .quick:nth-child(1)::after,body .quick-grid .quick:nth-child(2)::after,body .quick-grid .quick:nth-child(4)::after{content:none;display:none}
+body .quick-grid .quick:nth-child(3)::after{content:'→';left:auto;right:36px;bottom:36px;top:auto;transform:none;width:96px;height:96px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:60px;line-height:1;font-weight:700;color:#2384C6;background:#fff;box-shadow:0 14px 30px -10px rgba(14,60,110,.45)}
