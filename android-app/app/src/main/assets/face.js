@@ -160,7 +160,8 @@
     }
     const skip = () => HAS_TOUCH && Date.now() - lastTouchEndAt < 800;
     if (HAS_POINTER) {
-      el.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; if (!skip()) onStart(pointFrom(e), e); });
+      el.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; try { el.setPointerCapture(e.pointerId); } catch (_) {} if (!skip()) onStart(pointFrom(e), e); });
+      el.addEventListener('pointercancel', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; onCancel(e); });
       el.addEventListener('pointermove', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; onMove(pointFrom(e), e); });
       el.addEventListener('pointerup', e => { if (e.pointerType === 'touch' && HAS_TOUCH) return; if (!skip()) onEnd(pointFrom(e), e); });
     } else {
@@ -172,7 +173,7 @@
 
   /* жесты на лице: свайп влево — меню (палец ведёт экран, хватает короткого быстрого взмаха);
      тап — спит: проснуться и поздороваться; двойной тап — уснуть */
-  let x0 = 0, y0 = 0, lastX = 0, lastT = 0, vx = 0, dragging = false, moved = false, lastTap = 0, tapTimer = null;
+  let x0 = 0, y0 = 0, lastX = 0, lastT = 0, vx = 0, k = 1, dragging = false, moved = false, lastTap = 0, tapTimer = null;
   const SWIPE_DIST = () => window.innerWidth * 0.08, FLICK_V = 0.35; // px/мс
   function onTap() {
     const now = Date.now();
@@ -188,14 +189,16 @@
     }, 380);
   }
   bind(root, p => {
-    x0 = lastX = p.x; y0 = p.y; lastT = Date.now(); vx = 0; dragging = true; moved = false; root.classList.add('dragging');
+    x0 = lastX = p.x; y0 = p.y; lastT = Date.now(); vx = 0; dragging = true;
+    k = root.offsetWidth ? (root.getBoundingClientRect().width / root.offsetWidth) || 1 : 1; // страница масштабирована — экран идёт ровно за пальцем
+    moved = false; root.classList.add('dragging');
   }, p => {
     if (!dragging) return;
     const now = Date.now(), dx = p.x - x0, dy = p.y - y0;
     if (now > lastT) vx = 0.7 * vx + 0.3 * ((p.x - lastX) / (now - lastT));
     lastX = p.x; lastT = now;
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
-    if (dx < 0 && Math.abs(dx) > Math.abs(dy) * 0.6) root.style.transform = 'translate3d(' + dx + 'px,0,0)';
+    if (dx < 0 && Math.abs(dx) > Math.abs(dy) * 0.6) root.style.transform = 'translate3d(' + (dx / k) + 'px,0,0)';
   }, p => {
     if (!dragging) return;
     dragging = false;
