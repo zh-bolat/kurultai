@@ -531,3 +531,8 @@ body .hero p{font-size:26px}
 body .quick-grid{height:360px}
 body .quick-grid .quick:nth-child(1),body .quick-grid .quick:nth-child(2){padding:24px 28px;justify-content:center}
 body .quick-grid .quick:nth-child(1)::after,body .quick-grid .quick:nth-child(2)::after{left:auto;right:26px;top:24px;bottom:auto}
+/* status colour legend under list titles */
+.st-legend{display:flex;flex-wrap:wrap;gap:10px 26px;margin-top:14px}
+.st-legend .lg{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;color:#3E4C63}
+.st-legend .lg i{display:block;width:8px;height:24px;border-radius:4px}
+.st-legend .lg-review i{background:#2B8FCB}.st-legend .lg-step i{background:#E0A43A}.st-legend .lg-done i{background:#2E9B6B}.st-legend .lg-off i{background:#B8C4D6}
