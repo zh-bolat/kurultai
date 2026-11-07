@@ -730,3 +730,27 @@ body #orbCaption{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-w
 body #voiceBanner .vb-text{min-width:0}
 body .vb-text{right:330px}
 body #orbHint{-webkit-line-clamp:2}
+
+/* голосовая полоса во время ответа: внизу во всю ширину, не поверх карточек; страница поднимается над ней */
+body .voice-dock:not(.active){left:340px;right:44px;width:auto;height:128px;bottom:14px}
+body .voice-dock:not(.active) .voice-banner{width:100%}
+body .voice-dock:not(.active) .vb-text{right:330px}
+
+/* списки: строки не сжимаются и не обрезают текст; длинные списки прокручиваются целиком */
+body .rq-body{display:flex;flex-direction:column;gap:12px;-webkit-mask-image:none;mask-image:none;padding:2px 6px 16px 2px}
+body .rq-body .rq-row{flex:0 0 auto;height:auto;min-height:76px;padding:16px 26px;background:rgba(255,255,255,.88)}
+body .rq-row .t{font-size:20px;line-height:1.3}
+body .rq-row .a{font-size:15px;line-height:1.35}
+body .rq-count{background:#2384C6;box-shadow:none}
+body .rq-count b,body .rq-count span{color:#fff}
+/* длинный список прокручивается внутри себя, а не обрезается; полоска прокрутки скрыта */
+body .rq-table{min-height:0}
+body .rq-body{min-height:0;overflow-y:auto;scrollbar-width:none}
+body .rq-body::-webkit-scrollbar{display:none}
+
+/* полоса голоса внизу: не тёмная, светлая полупрозрачная с тонкой линией, как остальные блоки */
+body .voice-dock:not(.active) .voice-banner{background:rgba(255,255,255,.72);color:#111A2B;border:.6px solid rgba(17,26,43,.55);box-shadow:none;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+body .voice-dock:not(.active) .vb-text b{color:#111A2B}
+body .voice-dock:not(.active) .vb-text small{color:#3B4A63}
+body .voice-dock:not(.active) .vb-status{color:#1F6FA8}
+body .voice-dock:not(.active) .vb-status::before{background:#2E95D6}

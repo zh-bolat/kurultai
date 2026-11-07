@@ -173,6 +173,9 @@ const SHORT={ru:'Удерживайте круг, пока говорите',kk:
 let state='idle',live='',subQ='',subA='',guard=null,pressAt=0,shortTap=false,flash=null;
 const norm=s=>(s==='listening'||s==='thinking'||s==='speaking')?s:'idle';
 const L=()=>language==='kk'?TXT.kk:TXT.ru;
+var vbBusyPrev=false;
+// голосовая полоса занята (робот говорит / думает / слушает): страница плавно поднимается, чтобы карточки не прятались под ней
+function vbFit(){const busy=state!=='idle';if(busy===vbBusyPrev)return;vbBusyPrev=busy;const m=document.querySelector('main'),dock=document.querySelector('.voice-dock');if(!m||!dock)return;if(!busy){m.scrollTo({top:0,behavior:'smooth'});return}const barTop=dock.getBoundingClientRect().top;const pb=parseFloat(getComputedStyle(m).paddingBottom)||0;const want=Math.max(0,Math.ceil(m.scrollHeight-pb-(barTop-24)));m.scrollTo({top:want,behavior:'smooth'})}
 function render(){const t=L()[state];const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
  const q=subQ?'«'+subQ+'»':'';  // субтитры: вопрос посетителя и то, что робот говорит сейчас
  set('orbCaption',(state==='speaking'||state==='thinking')&&q?q:t[0]);
@@ -180,7 +183,7 @@ function render(){const t=L()[state];const set=(id,v)=>{const e=document.getElem
  set('vbFabLabel',flash?SHORT[language==='kk'?'kk':'ru']:L().idle[0]);
  const b=document.getElementById('voiceBanner');if(b){b.classList.toggle('listening',state==='listening');b.setAttribute('aria-label',t[0])}
  const o=document.getElementById('orbBtn');if(o){o.classList.toggle('listening',state==='listening');o.classList.toggle('thinking',state==='thinking');o.classList.toggle('speaking',state==='speaking')}
- const d=document.getElementById('voiceDock');if(d)d.className='voice-dock '+(state==='idle'?'active':state)}
+ const d=document.getElementById('voiceDock');if(d)d.className='voice-dock '+(state==='idle'?'active':state);document.documentElement.classList.toggle('voice-busy',state!=='idle');vbFit()}
 setVoiceDock=function(s){const n=norm(s);if(n!==state){state=n;live='';if(n==='idle'){subQ='';subA=''}}
  clearTimeout(guard);
  // Safety nets so the bar can never stay stuck if a "finished" event is lost.
@@ -188,6 +191,8 @@ setVoiceDock=function(s){const n=norm(s);if(n!==state){state=n;live='';if(n==='i
  if(n==='thinking')guard=setTimeout(()=>{if(state==='thinking')setVoiceDock('idle')},60000);
  if(n!=='listening')clearTimeout(talkTimer);
  render()};
+// ответ робота на лице (говорит/думает) — та же полоса внизу; тишина — полоса уходит
+window.vbFromFace=s=>{if(s==='speaking')setVoiceDock('speaking');else if(s==='thinking')setVoiceDock('thinking');else if(state==='speaking'||state==='thinking')setVoiceDock('idle')};
 function showShortHint(){clearTimeout(flash);flash=setTimeout(()=>{flash=null;render()},2500);render()}
 function press(e){if(e&&e.preventDefault)e.preventDefault();if(!window.Robot)return toast('Голосовой ввод доступен на роботе');
  if(state==='speaking'){Robot.stopSpeaking();if(window.onSpeechFinished)window.onSpeechFinished();return}
