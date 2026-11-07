@@ -316,3 +316,88 @@ html body #toFace small{color:#8aa6c0}
 .pl-ask>div{display:flex;gap:12px;flex-wrap:wrap}
 .pl-ask button{display:flex;align-items:center;min-height:54px;padding:0 22px;border-radius:28px;background:var(--glass);border:1.5px solid var(--line);font-size:18px;color:var(--ink)}
 .pl-h{margin:4px 0 0;font-size:22px;font-weight:700;color:var(--ink)}
+
+/* ===== 2026-11-07: «дружелюбный киоск» — та же раскладка и цвета Курултая, но мягче и проще для касаний =====
+   Меньше рамок и линеек «как на госсайте»: карточки на мягкой тени, крупные скругления, явные подсказки «можно нажать»,
+   отклик на касание, статусы законопроектов цветными метками (без красного). Только оформление, логика не тронута. */
+:root{--line:#D3DCE8;--line2:#EDF1F6;--soft:#EEF4FA;--r-lg:26px;--r-md:20px;
+  --shadow:0 2px 6px rgba(23,37,64,.04),0 14px 34px rgba(23,37,64,.07);--shadow-up:0 4px 10px rgba(23,37,64,.06),0 20px 40px rgba(23,37,64,.10)}
+body{background:linear-gradient(180deg,#F3F7FC 0%,#EEF3F9 100%)}
+html,body{background:#F1F5FA}
+
+/* касание: всё нажимаемое чуть «проседает» */
+button:active,.quick:active,.cm-card:active,.nav:active{transform:scale(.98)}
+button,.quick,.cm-card,.nav{transition:transform .12s ease,background .2s ease,box-shadow .2s ease,color .2s ease}
+
+/* боковое меню: мягкие «таблетки», иконка в кружке, без жёсткой полосы под гербом */
+.brand{border-bottom:0;box-shadow:none;background:transparent;padding-bottom:10px}
+.brand-in{border-left:0;padding-left:0;gap:8px}
+.brand b{font-size:28px;letter-spacing:3px}
+.brand span{font-size:14px;letter-spacing:.3px;color:#AFC2DD}
+.sidebar{background:linear-gradient(180deg,#22345A 0%,#1B2A4A 100%);gap:22px}
+.sidebar nav{gap:8px}
+.nav{min-height:64px;border-radius:18px;padding:0 14px;gap:14px;color:#D2DCEC;font-size:19px}
+.nav svg{width:40px;height:40px;padding:9px;border-radius:12px;background:rgba(255,255,255,.07);box-sizing:border-box}
+.nav.active{background:#fff;color:var(--nav);font-weight:700;box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.nav.active svg{background:var(--accent);color:#fff}
+.privacy{border-top:1px solid rgba(255,255,255,.10)}
+
+/* заголовки разделов: спокойнее, подпись — обычным текстом */
+.pg-head h1,.rb-head h1{font-size:38px;letter-spacing:-.3px}
+.pg-head span{font-size:18px;line-height:1.45;max-width:1100px}
+.cap{letter-spacing:.6px;text-transform:none;font-size:15px}
+
+/* кнопка «назад» — круглая таблетка со стрелкой */
+.back{min-height:56px;border-radius:28px;padding:0 24px 0 18px;border:0;background:#fff;box-shadow:var(--shadow)}
+
+/* главная: карточки-плитки с подсказкой «→», без рамок */
+.askbox{border:0;border-radius:var(--r-lg);box-shadow:var(--shadow-up);background:#fff}
+.send{border-radius:18px;padding:0 40px}
+.quick{border:0;border-radius:var(--r-lg);box-shadow:var(--shadow);background:#fff;position:relative;padding:30px 30px 64px}
+.quick::after{content:'→';position:absolute;left:30px;bottom:24px;font-size:24px;font-weight:700;color:var(--accent)}
+.quick b{font-size:25px}
+.q4{background:#EEEAFB;color:#5B4BB7}   /* было розово-красным — без красного */
+.today{border:0;border-radius:var(--r-lg);box-shadow:var(--shadow);background:#fff}
+.lang-switch,#lang{border:0;box-shadow:var(--shadow);border-radius:18px}
+.lang-switch span{border-radius:14px}
+
+/* таблицы: строки — отдельные мягкие полоски, шапка без заливки */
+.rq-table{border:0;background:transparent;border-radius:0;overflow:visible;gap:10px}
+.rq-th{background:transparent;padding:4px 28px 0;font-size:14px;letter-spacing:.6px;color:#8592A8}
+.rq-body{display:flex;flex-direction:column;gap:10px}
+.rq-body .rq-row{border-top:0;background:#fff;border-radius:var(--r-md);box-shadow:0 1px 3px rgba(23,37,64,.05),0 6px 16px rgba(23,37,64,.05)}
+.rq-row b{font-size:18px;color:var(--accent-ink)}
+.rq-row .t{font-size:20px}
+.rq-row .n{border-radius:999px;padding:9px 16px}
+.rq-row .n.st-review{background:#E4F1FA;color:#1F6FA3}
+.rq-row .n.st-step{background:#FBF1DF;color:#8A5A12}
+.rq-row .n.st-done{background:#E3F3EC;color:#1E7553}
+.rq-row .n.st-off{background:#EEF1F5;color:#5C6B84}
+.rq-empty{border-top:0;background:#fff;border-radius:var(--r-md)}
+.rq-count{border:0;box-shadow:var(--shadow);background:#fff;border-radius:var(--r-md)}
+.plan-last{border-radius:var(--r-md)}
+
+/* комитеты: выбранный — с голубой полосой слева, состав — с цветными инициалами */
+.cm-card{border:0;background:#fff;border-radius:var(--r-md);box-shadow:0 1px 3px rgba(23,37,64,.05),0 6px 16px rgba(23,37,64,.05);position:relative;overflow:hidden}
+.cm-card.on{border:0;background:#F2F8FD;box-shadow:var(--shadow-up)}
+.cm-card.on::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:5px;border-radius:0 5px 5px 0;background:var(--accent)}
+.cm-panel{border:0;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.cm-m{border-top:1px solid var(--line2)}
+.cm-m i{background:#EEF4FA;color:#3E5878}
+.cm-m.chair i{background:var(--accent);color:#fff}
+.cm-ask{border-radius:18px}
+
+/* пленарное заседание и ответ */
+.pl-card{border:0;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.pl-ask button,#fuList button{border:0;background:#fff;box-shadow:0 1px 3px rgba(23,37,64,.06),0 6px 14px rgba(23,37,64,.06);color:var(--accent-ink);font-weight:600}
+.answer-head{border:0;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.answer-body .result-card,.answer-body article{border:0;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+#speak{border:0;background:#EEF4FA;border-radius:18px}
+
+/* робот и настройки */
+.status-panel,.settings-panel,.robot-panel{border:0;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.status-grid div{background:#F4F7FB;border-radius:16px}
+.settings-panel input,.settings-panel select,.robot-panel input{border-radius:14px}
+.rq-th{border:0!important;box-shadow:none}
+.system-actions button,.head-controls button,.motion-pad button,.navigation-control button,.settings-actions button{border:0;background:#EEF4FA;border-radius:14px;color:var(--ink)}
+.motion-pad button.stop,#motionStop{background:var(--nav);color:#fff}
