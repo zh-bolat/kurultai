@@ -274,6 +274,7 @@ public class MainActivity extends Activity {
     // ADB на роботе закрыт: чтобы видеть, почему не двигается голова (видит ли лица, доходят ли команды и что
     // отвечает RobotOS), робот раз в 20 с шлёт счётчики. Без текстов разговоров и без картинок.
     private volatile int diagPolls, diagPollSkipped, diagFacesPolls, diagFacesMax, diagHeadSent, diagMotionResults;
+    private volatile int diagFaceListPolls, diagPersonsPolls, diagLastHeadRc = Integer.MIN_VALUE;
     private volatile String diagLastFace = "", diagLastMotion = "", diagPersonError = "";
     private final Runnable diagRunnable = new Runnable() {
         @Override public void run() {
@@ -294,9 +295,14 @@ public class MainActivity extends Activity {
                 .put("faces_max", diagFacesMax).put("last_face", diagLastFace).put("person_error", diagPersonError)
                 .put("head_sent", diagHeadSent).put("motion_results", diagMotionResults)
                 .put("last_motion", diagLastMotion.length() > 300 ? diagLastMotion.substring(0, 300) : diagLastMotion)
-                .put("look_h", lastLookH).put("look_v", lastLookV);
+                .put("look_h", lastLookH).put("look_v", lastLookV)
+                .put("polls_face_list", diagFaceListPolls).put("polls_bodies_only", diagPersonsPolls)
+                .put("head_rc", diagLastHeadRc == Integer.MIN_VALUE ? JSONObject.NULL : (Object) diagLastHeadRc)
+                .put("control", KurultaiApplication.controlAvailable).put("suspends", KurultaiApplication.suspendCount)
+                .put("hw", KurultaiApplication.lastHwReport);
         } catch (Exception ignored) { return; }
         diagPolls = diagPollSkipped = diagFacesPolls = diagFacesMax = diagHeadSent = diagMotionResults = 0;
+        diagFaceListPolls = diagPersonsPolls = 0;
         diagPersonError = "";
         new Thread(() -> {
             HttpURLConnection c = null;
@@ -324,7 +330,15 @@ public class MainActivity extends Activity {
         try {
             // Greeting is camera/face driven only. Do not use sound direction or
             // generic body detections: they can trigger from people farther away.
-            java.util.List<Person> people = PersonApi.getInstance().getCompleteFaceList();
+            // Все лица в 2,5 м (getAllFaceList). getCompleteFaceList — только лица «с полной информацией»,
+            // на роботе он был пуст всегда (диагностика 07.11: faces 0 при людях перед роботом). Нет лица — тело.
+            java.util.List<Person> people = PersonApi.getInstance().getAllFaceList(2.5);
+            int facesAll = people == null ? 0 : people.size();
+            if (facesAll > 0) diagFaceListPolls++;
+            if (people == null || people.isEmpty()) {
+                java.util.List<Person> bodies = PersonApi.getInstance().getAllPersons(2.5);
+                if (bodies != null && !bodies.isEmpty()) { diagPersonsPolls++; people = bodies; }
+            }
             int faces = people == null ? 0 : people.size();
             if (faces > 0) { diagFacesPolls++; diagFacesMax = Math.max(diagFacesMax, faces); }
             if (faces > 0 && people.get(0) != null) {
@@ -801,6 +815,17 @@ public class MainActivity extends Activity {
 
     private CommandListener motionListener(final String action) {
         return new CommandListener() {
+            // RobotOS отвечает и трёхаргументным onResult, и onStatusUpdate — ловим все (раньше только устаревший)
+            @Override public void onResult(int result, String message, String extraData) {
+                onResult(result, message);
+            }
+            @Override public void onStatusUpdate(int status, String data) {
+                diagMotionResults++;
+                diagLastMotion = action + " · status " + status + " " + (data == null ? "" : data);
+            }
+            @Override public void onStatusUpdate(int status, String data, String extraData) {
+                onStatusUpdate(status, data);
+            }
             @Override public void onResult(int result, String message) {
                 diagMotionResults++;
                 diagLastMotion = action + " → " + result + " " + (message == null ? "" : message);
@@ -917,7 +942,7 @@ public class MainActivity extends Activity {
         lastLookV = Math.max(22, Math.min(48, vertical));
         diagHeadSent++;
         try {
-            RobotApi.getInstance().moveHead(nextRobotRequestId(), "absolute", "absolute",
+            diagLastHeadRc = RobotApi.getInstance().moveHead(nextRobotRequestId(), "absolute", "absolute",
                 lastLookH, lastLookV,
                 motionListener("Взгляд на посетителя"));
         } catch (Throwable error) {

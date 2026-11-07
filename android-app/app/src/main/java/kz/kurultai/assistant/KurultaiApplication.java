@@ -1,5 +1,7 @@
 package kz.kurultai.assistant;
 
+import android.os.HandlerThread;
+import com.ainirobot.coreservice.client.module.ModuleCallbackApi;
 import android.app.Application;
 import android.util.Log;
 
@@ -56,6 +58,7 @@ public final class KurultaiApplication extends Application {
                 @Override public void handleApiConnected() {
                     robotConnecting = false;
                     update("RobotApi connected", false);
+                    registerModuleCallback();
                     connectSpeech();
                 }
                 @Override public void handleApiDisconnected() { robotConnecting = false; update("RobotApi disconnected", false); }
@@ -66,6 +69,46 @@ public final class KurultaiApplication extends Application {
             String message = error.getMessage();
             update("RobotOS error: " + error.getClass().getSimpleName() +
                 (message == null || message.trim().isEmpty() ? "" : " — " + message), false);
+        }
+    }
+
+    // Управление роботом (голова, корпус, зрение) RobotOS отдаёт приложению, зарегистрировавшему ModuleCallbackApi;
+    // ответы на команды приходят на setResponseThread. Без этого (до 2026-11-07) RobotOS не отвечала ни на одну
+    // команду головы и не отдавала лица — диагностика с робота: head_sent > 0, motion_results 0, faces 0.
+    // Так же сделано у Astana Hub на этом роботе (FlavorGateways.kt).
+    static volatile boolean controlAvailable = true;
+    static volatile int suspendCount;
+    static volatile String lastHwReport = "";
+    private HandlerThread callbackThread;
+
+    private void registerModuleCallback() {
+        try {
+            if (callbackThread == null) {
+                callbackThread = new HandlerThread("RobotApiCallbacks");
+                callbackThread.start();
+            }
+            RobotApi.getInstance().setCallback(new ModuleCallbackApi() {
+                @Override public boolean onSendRequest(int reqId, String reqType, String reqText, String reqParam) {
+                    return true;  // запрос обработан приложением: системный помощник RobotOS не отвечает за нас
+                }
+                @Override public void onHWReport(int function, String type, String message) {
+                    lastHwReport = function + " " + type + " " + message;
+                    Log.w(TAG, "onHWReport " + lastHwReport);
+                }
+                @Override public void onSuspend() {
+                    controlAvailable = false;
+                    suspendCount++;
+                    Log.w(TAG, "RobotOS забрала управление (onSuspend)");
+                }
+                @Override public void onRecovery() {
+                    controlAvailable = true;
+                    Log.i(TAG, "RobotOS вернула управление (onRecovery)");
+                }
+            });
+            RobotApi.getInstance().setResponseThread(callbackThread);
+        } catch (Throwable error) {
+            Log.w(TAG, "ModuleCallback registration failed", error);
+            lastHwReport = "setCallback: " + error.getClass().getSimpleName();
         }
     }
 
