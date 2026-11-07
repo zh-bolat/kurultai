@@ -111,6 +111,7 @@
   /* --- вход от робота --- */
   window.onFaceState = s => {
     state = STATE_EXPR[s] ? s : 'idle';
+    if (window.vbFromFace) window.vbFromFace(s);
     if (state === 'sleep') { subLine.textContent = ''; heardLine.textContent = ''; showFace(); }
     if (state === 'listening') heardLine.textContent = '';
     render();
