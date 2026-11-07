@@ -626,3 +626,26 @@ body .hero h2{font-size:82px;letter-spacing:-2.2px}
 .cm-m span{font-size:16px}
 .cm-panel h2{font-size:32px;font-weight:800;letter-spacing:-.5px}
 body .quick-grid{height:400px}
+
+/* без тёмных баннеров: «Сегодня», шапка комитета и синие плитки — светлые */
+.today{background:rgba(255,255,255,.92);color:var(--ink);box-shadow:var(--card-shadow)}
+.today h3,.today-plan b{color:var(--ink)}
+.today>div:first-child p,.today-plan span{color:var(--muted)}
+.today-date{color:var(--accent)}
+.today-sep{background:#D5DEEA}
+.cm-panel .cap{background:#E2F1FC;color:var(--accent-ink)}
+.cm-panel h2{background:#E2F1FC;color:var(--ink)}
+.quick-grid .quick:nth-child(3){background:radial-gradient(360px 360px at 100% 0%,rgba(255,255,255,.28),rgba(255,255,255,0) 70%),linear-gradient(145deg,#4DB2EC 0%,#2E95D6 55%,#2384C6 100%);box-shadow:0 2px 4px rgba(14,27,52,.08),0 30px 56px -22px rgba(35,132,198,.6)}
+.pl-cards .pl-card:nth-child(3){background:radial-gradient(320px 320px at 100% 0%,rgba(255,255,255,.28),rgba(255,255,255,0) 70%),linear-gradient(145deg,#4DB2EC 0%,#2E95D6 55%,#2384C6 100%);box-shadow:0 30px 56px -22px rgba(35,132,198,.6)}
+.rq-count{background:linear-gradient(145deg,#4DB2EC 0%,#2E95D6 100%)}
+/* фон: белый с голубым градиентом; карта Казахстана снова видна — голубая «земля» с контуром */
+main{background:
+  radial-gradient(1100px 700px at 100% 0%,rgba(120,195,245,.38),rgba(120,195,245,0) 65%),
+  radial-gradient(1000px 700px at 0% 100%,rgba(120,180,235,.30),rgba(120,180,235,0) 65%),
+  linear-gradient(160deg,#FFFFFF 0%,#F6FAFE 45%,#E6F1FB 100%)}
+.bg-map{opacity:1}
+.bg-map svg{opacity:1}
+.bg-map svg g[fill="#E4E7EC"]{fill:#E4EFF9;stroke:#E4EFF9}
+.bg-map svg g[stroke="#B7BEC8"]{stroke:#A8C7E6}
+.bg-map svg g[fill="#8FBFE6"],.bg-map svg g[mask] path{fill:#B9DAF3}
+.bg-map svg circle{fill:#7FA6CC}
