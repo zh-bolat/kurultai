@@ -694,3 +694,9 @@ body #home .quick-grid{flex:0 0 auto;height:400px;min-height:0;max-height:none}
 body #home.active{height:auto;min-height:100%}
 /* «Что такое Курултай» и «Состав комитетов» — одинаковые: голубая подложка, без тёмной рамки */
 body .quick-grid .quick:nth-child(1){border:0;background:linear-gradient(150deg,#E2F1FC 0%,#CFE6F7 100%)}
+
+/* все блоки на всех страницах — тонкая чёрная обводка */
+body .askbox,body .quick,body .quick-grid .quick,body .today,body .cm-card,body .cm-panel,body .pl-card,body .pl-cards .pl-card,
+body .rq-body .rq-row,body .rq-count,body .lang-switch,body #lang,body .pl-ask button,body .status-panel,body .settings-panel,
+body .robot-panel,body .result-card,body .plan-last,body .rb-grid>*,body #answer .answer-card{border:1px solid #111A2B!important}
+body .settings-panel input:not([type=checkbox]),body .settings-panel select,body .robot-panel input:not([type=checkbox]),body .robot-panel select{border:1px solid #111A2B!important}
