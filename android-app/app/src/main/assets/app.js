@@ -301,7 +301,10 @@ function renderList(kind){const t=T(),d=data();let html='';
   const last=rows[0]?'<div class="plan-last"><b>'+esc(t.lastPlan)+'</b> '+esc(rows[0][1])+'</div>':'';
   html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.planTitle)+'</h1><span>'+esc(t.planSub)+'</span></div></div>'+last+tableHtml(t.planH,rows,'cols3')}
  const c=el('listContent');if(c){c.innerHTML=html;c.querySelectorAll('.pl-ask button').forEach(b=>b.onclick=()=>askNow(b.textContent));
-  if(kind!=='session'){const grp={5:'review',6:'step',12:'step',7:'done',8:'done',9:'done',10:'off',13:'off',11:'off'};const name={};[5,6,12,7,8,9,10,13,11].forEach(k=>{name[stName(k)]=grp[k]});c.querySelectorAll('.rq-body .rq-row .n').forEach(n=>{const g=name[n.textContent];if(g){n.classList.add('st-'+g);n.parentNode.classList.add('row-'+g)}})}}}
+  if(kind!=='session'){const grp={5:'review',6:'step',12:'step',7:'done',8:'done',9:'done',10:'off',13:'off',11:'off'};const name={};[5,6,12,7,8,9,10,13,11].forEach(k=>{name[stName(k)]=grp[k]});c.querySelectorAll('.rq-body .rq-row .n').forEach(n=>{const g=name[n.textContent];if(g){n.classList.add('st-'+g);n.parentNode.classList.add('row-'+g)}});addLegend(c)}}}
+function addLegend(c){const kk=language==='kk';const lab={review:kk?'Қаралуда':'На рассмотрении',step:kk?'Оқылымда, жұмыс жалғасуда':'В работе, идут чтения',done:kk?'Қабылданды немесе қол қойылды':'Принят или подписан',off:kk?'Кері қайтарылды немесе қабылданбады':'Отозван или отклонён'};
+ const have=['review','step','done','off'].filter(g=>c.querySelector('.rq-row.row-'+g));const h=c.querySelector('.pg-head');if(!have.length||!h)return;
+ const L=document.createElement('div');L.className='st-legend';L.innerHTML=have.map(g=>'<span class="lg lg-'+g+'"><i></i>'+esc(lab[g])+'</span>').join('');h.appendChild(L)}
 function renderRequests(){const t=T(),d=data();setT('rqCount',d?String(d.deputy_request_count||0):'—');
  const rows=d&&d.deputy_requests?d.deputy_requests.slice(0,30).map(r=>[r.date,r.title,r.authors,r.number]):[];
  const box=el('rqRows');if(box)box.innerHTML=rows.length?rows.map(r=>'<div class="rq-row"><b>'+esc(r[0])+'</b><span class="t">'+esc(r[1])+'</span><span class="a">'+esc(r[2])+'</span><span class="n">'+esc(r[3])+'</span></div>').join(''):'<div class="rq-empty">'+esc(t.noData)+'</div>'}
