@@ -220,7 +220,7 @@ document.body.classList.toggle('on-home',!!document.querySelector('#home.active'
 // filled from quryltai.kz data, the "Today" row, follow-up questions, and scaling to the real window.
 ;(function(){
 const UI={
- ru:{brand:'ИИ-помощник Курултая',nav:['Главная','Законопроекты','План недели','Комитеты и депутаты','Депутатские запросы','Робот и настройки'],src:'Официальные данные',upd:'обновлено',
+ ru:{brand:'ИИ-помощник Курултая',nav:['Главная','Законопроекты','План недели','Пленарное заседание','Комитеты и депутаты','Депутатские запросы','Робот и настройки'],src:'Официальные данные',upd:'обновлено',
   hero:'Добро пожаловать в Курултай Республики Казахстан',heroSub:'Просто начните говорить — или напишите вопрос в строке ниже',query:'Задайте вопрос о Курултае…',ask:'Спросить',
   quick:[['Что такое Курултай','Кратко об органе и его полномочиях'],['Состав комитетов','Какие комитеты и кто их возглавляет'],['Законопроекты этой недели','Что сейчас рассматривает Курултай'],['Как подать обращение','Куда и как обратиться гражданину']],
   today:'Сегодня',todaySub:'По плану Курултая',planT:'Последний опубликованный план',back:'На главную',askLabel:'ВЫ СПРОСИЛИ',fuTitle:'Можно спросить дальше',
@@ -228,8 +228,9 @@ const UI={
   cmTitle:'Комитеты и депутаты',cmSub:n=>'В Курултае '+n+' постоянных комитетов. Выберите комитет, чтобы увидеть председателя и депутатов',cmCap:'СОСТАВ КОМИТЕТА',chairL:'Председатель комитета',chairP:'Председатель: ',member:'Член комитета',cmAsk:'Спросить помощника об этом комитете',cmQ:n=>'Расскажи о комитете Курултая: '+n,
   rqTitle:'Депутатские запросы',rqSub:'Официальные запросы депутатов в министерства и государственные органы — самые свежие сверху',rqCountL:'запросов всего',rqH:['ДАТА','ТЕМА','АВТОРЫ','НОМЕР'],
   billsT:'Законопроекты',billsCount:'законопроектов всего',billsSub:'Законопроекты, которые сейчас рассматривает Курултай, и на каком они этапе. Данные с quryltai.kz',billsH:['НОМЕР','НАЗВАНИЕ','СТАТУС'],planTitle:'План недели',planSub:'Заседания, встречи и мероприятия Курултая по неделям. Данные с quryltai.kz',planH:['ПЛАН','НАЗВАНИЕ','ИСТОЧНИК'],planRow:'План',lastPlan:'Последний опубликованный план:',
+  plTitle:'Пленарное заседание',plSub:'Заседание, на котором собираются все депутаты Курултая: здесь обсуждают и принимают законопроекты',plWhatT:'Как проходит',plWhat:'Депутаты вместе рассматривают законопроекты в чтениях и голосуют. Итог каждого чтения — новый статус законопроекта',plWhenT:'Когда',plWhenNo:'Дата есть в плане недели Курултая',plDoneT:'Решения',plDone:'законопроектов одобрено или принято',plTableT:'Законопроекты с решениями пленарных заседаний',plH:['НОМЕР','НАЗВАНИЕ','РЕШЕНИЕ'],plAskT:'Спросите Ақылтая',plQ:['Когда ближайшее пленарное заседание?','Что рассматривали на последнем пленарном заседании?','Какие законопроекты вынесут на пленарное заседание?'],plEmpty:'Пока нет законопроектов с решениями',
   noData:'Данные ещё не загружены — нужно подключение к интернету',rbTitle:'Робот и настройки',review:'На рассмотрении',statusX:'Статус '},
- kk:{brand:'Құрылтайдың ЖИ-көмекшісі',nav:['Басты бет','Заң жобалары','Апта жоспары','Комитеттер мен депутаттар','Депутаттық сауалдар','Робот және баптаулар'],src:'Ресми деректер',upd:'жаңартылды',
+ kk:{brand:'Құрылтайдың ЖИ-көмекшісі',nav:['Басты бет','Заң жобалары','Апта жоспары','Пленарлық отырыс','Комитеттер мен депутаттар','Депутаттық сауалдар','Робот және баптаулар'],src:'Ресми деректер',upd:'жаңартылды',
   hero:'Қазақстан Республикасының Құрылтайына қош келдіңіз',heroSub:'Жай ғана сөйлей бастаңыз — немесе сұрағыңызды төмендегі жолға жазыңыз',query:'Құрылтай туралы сұрақ қойыңыз…',ask:'Сұрау',
   quick:[['Құрылтай деген не','Орган және оның өкілеттіктері туралы қысқаша'],['Комитеттер құрамы','Қандай комитеттер бар және оларды кім басқарады'],['Осы аптадағы заң жобалары','Құрылтай қазір не қарап жатыр'],['Өтініш қалай беріледі','Азаматқа қайда және қалай жүгінуге болады']],
   today:'Бүгін',todaySub:'Құрылтай жоспары бойынша',planT:'Соңғы жарияланған жоспар',back:'Басты бетке',askLabel:'СІЗ СҰРАДЫҢЫЗ',fuTitle:'Тағы сұрауға болады',
@@ -237,6 +238,7 @@ const UI={
   cmTitle:'Комитеттер мен депутаттар',cmSub:n=>'Құрылтайда '+n+' тұрақты комитет бар. Төрағасы мен депутаттарын көру үшін комитетті таңдаңыз',cmCap:'КОМИТЕТ ҚҰРАМЫ',chairL:'Комитет төрағасы',chairP:'Төраға: ',member:'Комитет мүшесі',cmAsk:'Осы комитет туралы көмекшіден сұрау',cmQ:n=>'Құрылтай комитеті туралы айтып бер: '+n,
   rqTitle:'Депутаттық сауалдар',rqSub:'Депутаттардың министрліктер мен мемлекеттік органдарға ресми сауалдары — ең жаңалары жоғарыда',rqCountL:'сауал барлығы',rqH:['КҮНІ','ТАҚЫРЫБЫ','АВТОРЛАРЫ','НӨМІРІ'],
   billsT:'Заң жобалары',billsCount:'заң жобасы барлығы',billsSub:'Құрылтай қазір қарап жатқан заң жобалары және олардың кезеңі. Деректер quryltai.kz сайтынан',billsH:['НӨМІРІ','АТАУЫ','МӘРТЕБЕСІ'],planTitle:'Апта жоспары',planSub:'Құрылтайдың апталық отырыстары, кездесулері мен іс-шаралары. Деректер quryltai.kz сайтынан',planH:['ЖОСПАР','АТАУЫ','ДЕРЕККӨЗ'],planRow:'Жоспар',lastPlan:'Соңғы жарияланған жоспар:',
+  plTitle:'Пленарлық отырыс',plSub:'Құрылтайдың барлық депутаттары жиналатын отырыс: мұнда заң жобалары талқыланып, қабылданады',plWhatT:'Қалай өтеді',plWhat:'Депутаттар заң жобаларын оқылымдарда бірге қарап, дауыс береді. Әр оқылымның қорытындысы — заң жобасының жаңа мәртебесі',plWhenT:'Қашан',plWhenNo:'Күні Құрылтайдың апта жоспарында көрсетілген',plDoneT:'Шешімдер',plDone:'заң жобасы мақұлданды немесе қабылданды',plTableT:'Пленарлық отырыс шешім қабылдаған заң жобалары',plH:['НӨМІРІ','АТАУЫ','ШЕШІМ'],plAskT:'Ақылтайдан сұраңыз',plQ:['Жақын пленарлық отырыс қашан болады?','Соңғы пленарлық отырыста не қаралды?','Пленарлық отырысқа қандай заң жобалары шығарылады?'],plEmpty:'Әзірге шешім қабылданған заң жобалары жоқ',
   noData:'Деректер әлі жүктелмеді — интернет қажет',rbTitle:'Робот және баптаулар',review:'Қаралуда',statusX:'Мәртебе '}};
 const T=()=>language==='kk'?UI.kk:UI.ru;
 const el=id=>document.getElementById(id);
@@ -258,7 +260,7 @@ function setActive(p){document.querySelectorAll('.nav').forEach(n=>n.classList.t
 
 function applyTexts(){const t=T();
  const bs=document.querySelector('.brand b');if(bs)bs.textContent='Құрылтай';const bsp=document.querySelector('.brand span');if(bsp)bsp.textContent=t.brand;
- const order=['home','bills','session','committees','requests','robot'];
+ const order=['home','bills','session','plenary','committees','requests','robot'];
  order.forEach((p,i)=>{const n=document.querySelector('.nav[data-page="'+p+'"] span');if(n)n.textContent=t.nav[i]});
  setT('sbSrcT',t.src);
  const hh=document.querySelector('.hero h2');if(hh)hh.textContent=t.hero;const hp=document.querySelector('.hero p');if(hp)hp.textContent=t.heroSub;
@@ -271,7 +273,7 @@ function applyTexts(){const t=T();
  setT('rqTitle',t.rqTitle);setT('rqSub',t.rqSub);setT('rqCountL',t.rqCountL);t.rqH.forEach((v,i)=>setT('rqH'+(i+1),v));
  setT('rbTitle',t.rbTitle);
  renderSidebarSource();renderToday();renderFollowups();
- if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if(page==='bills'||page==='session')renderList(page)}
+ if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if(page==='bills'||page==='session'||page==='plenary')renderList(page)}
 
 function renderSidebarSource(){const d=data();const t=T();setT('sbSrc','quryltai.kz · '+t.upd+' '+(d&&d.updated_at?fmtDay(new Date(Number(d.updated_at))):'—'))}
 function renderToday(){setT('todayDate',fmtDay(new Date()));const d=data();const p=d&&d.weekly_plans&&d.weekly_plans[0];setT('todayPlan',p?String(p.title||'').replace(/\s+/g,' ').trim():'—')}
@@ -284,10 +286,21 @@ function tableHtml(head,rows,cls){return '<div class="rq-table '+(cls||'')+'"><d
 function renderList(kind){const t=T(),d=data();let html='';
  if(kind==='bills'){const rows=d&&d.bills?d.bills.slice(0,20).map(b=>['№ '+b.id,b.title,stName(b.status)]):[];
   html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.billsT)+'</h1><span>'+esc(t.billsSub)+'</span></div>'+(d?'<div class="rq-count"><b>'+esc(d.bill_count||0)+'</b><span>'+esc(t.billsCount)+'</span></div>':'')+'</div>'+tableHtml(t.billsH,rows,'cols3')}
+ else if(kind==='plenary'){const done=d&&d.bills?d.bills.filter(b=>[6,12,7,8,9].indexOf(Number(b.status))>=0):[];
+  const rows=done.slice(0,20).map(b=>['№ '+b.id,b.title,stName(b.status)]);
+  const plan=d&&d.weekly_plans&&d.weekly_plans[0]?String(d.weekly_plans[0].title||'').replace(/\s+/g,' ').trim():'';
+  const card=(icon,title,body,big)=>'<div class="pl-card"><i>'+icon+'</i><span>'+esc(title)+'</span>'+(big!=null?'<b>'+esc(big)+'</b>':'')+'<p>'+esc(body)+'</p></div>';
+  const ic=p=>'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'+p+'</svg>';
+  html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.plTitle)+'</h1><span>'+esc(t.plSub)+'</span></div></div>'+
+   '<div class="pl-cards">'+card(ic('<path d="M3 21h18M5 21v-9M12 21v-9M19 21v-9M3 12h18L12 4z"/>'),t.plWhatT,t.plWhat)+
+   card(ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),t.plWhenT,plan?t.lastPlan+' '+plan:t.plWhenNo)+
+   card(ic('<path d="M5 12l5 5 9-10"/>'),t.plDoneT,t.plDone,d?done.length:'—')+'</div>'+
+   '<div class="pl-ask"><span>'+esc(t.plAskT)+'</span><div>'+t.plQ.map(q=>'<button type="button">'+esc(q)+'</button>').join('')+'</div></div>'+
+   '<h2 class="pl-h">'+esc(t.plTableT)+'</h2>'+(d&&!rows.length?'<div class="rq-empty">'+esc(t.plEmpty)+'</div>':tableHtml(t.plH,rows,'cols3'))}
  else{const rows=d&&d.weekly_plans?d.weekly_plans.map(p=>[t.planRow,String(p.title||'').replace(/\s+/g,' ').trim(),'quryltai.kz']):[];
   const last=rows[0]?'<div class="plan-last"><b>'+esc(t.lastPlan)+'</b> '+esc(rows[0][1])+'</div>':'';
   html='<div class="rq-head"><div class="pg-head"><h1>'+esc(t.planTitle)+'</h1><span>'+esc(t.planSub)+'</span></div></div>'+last+tableHtml(t.planH,rows,'cols3')}
- const c=el('listContent');if(c)c.innerHTML=html}
+ const c=el('listContent');if(c){c.innerHTML=html;c.querySelectorAll('.pl-ask button').forEach(b=>b.onclick=()=>askNow(b.textContent))}}
 function renderRequests(){const t=T(),d=data();setT('rqCount',d?String(d.deputy_request_count||0):'—');
  const rows=d&&d.deputy_requests?d.deputy_requests.slice(0,30).map(r=>[r.date,r.title,r.authors,r.number]):[];
  const box=el('rqRows');if(box)box.innerHTML=rows.length?rows.map(r=>'<div class="rq-row"><b>'+esc(r[0])+'</b><span class="t">'+esc(r[1])+'</span><span class="a">'+esc(r[2])+'</span><span class="n">'+esc(r[3])+'</span></div>').join(''):'<div class="rq-empty">'+esc(t.noData)+'</div>'}
@@ -308,7 +321,7 @@ const sh=show;show=function(id){const r=sh.apply(this,arguments);page=id==='list
 document.body.dataset.page='home';document.body.classList.add('on-home');
 function go(p){setActive(p);page=p;
  if(p==='home'){goHome();return}
- if(p==='bills'||p==='session'){renderList(p);show('listPage');page=p;return}
+ if(p==='bills'||p==='session'||p==='plenary'){renderList(p);show('listPage');page=p;return}
  if(p==='committees'){renderCommittees();show('committees');return}
  if(p==='requests'){renderRequests();show('requests');return}}
 document.querySelectorAll('.nav').forEach(n=>{if(n.dataset.page==='robot')return;n.onclick=()=>go(n.dataset.page)});
@@ -324,7 +337,7 @@ const ans=answer;answer=function(title,prompt,html,speech){const r=ans.apply(thi
 const badge=el('connectionBadge'),slot=el('rbBadgeSlot');if(badge&&slot)slot.appendChild(badge);
 
 // Re-render when fresh data from quryltai.kz arrives and when the language changes
-const qd=window.onQuryltaiData;window.onQuryltaiData=function(){const r=qd?qd.apply(this,arguments):undefined;renderSidebarSource();renderToday();if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if((page==='bills'||page==='session')&&document.body.dataset.page==='listPage')renderList(page);return r};
+const qd=window.onQuryltaiData;window.onQuryltaiData=function(){const r=qd?qd.apply(this,arguments):undefined;renderSidebarSource();renderToday();if(page==='committees')renderCommittees();if(page==='requests')renderRequests();if((page==='bills'||page==='session'||page==='plenary')&&document.body.dataset.page==='listPage')renderList(page);return r};
 const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);applyTexts();return r};
 applyTexts();
 })();

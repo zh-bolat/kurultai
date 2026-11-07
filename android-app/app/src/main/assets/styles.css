@@ -301,3 +301,16 @@ html body #faceScreen.asleep .swipe-hint{opacity:.4}
 /* «‹ лицо» on the page: no plate, border or glow; muted like the «Меню» hint on the face; tap area stays large */
 html body #toFace{background:transparent;box-shadow:none;color:#7fb4d8;opacity:.75;min-width:64px;min-height:64px;padding:18px 14px}
 html body #toFace small{color:#8aa6c0}
+
+/* 2026-11-07: раздел «Пленарное заседание» — три карточки, вопросы к помощнику, таблица решений */
+.pl-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.pl-card{display:flex;flex-direction:column;gap:10px;background:var(--glass);border:1.5px solid var(--line);border-radius:16px;padding:24px 28px;box-shadow:var(--shadow)}
+.pl-card i{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:#E4F1FA;color:var(--accent-ink)}
+.pl-card span{font-size:22px;font-weight:700;color:var(--ink)}
+.pl-card b{font-size:40px;line-height:1;font-weight:800;color:var(--accent-ink)}
+.pl-card p{margin:0;font-size:17px;line-height:1.45;color:var(--muted)}
+.pl-ask{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.pl-ask>span{font-size:18px;color:var(--muted);font-weight:600}
+.pl-ask>div{display:flex;gap:12px;flex-wrap:wrap}
+.pl-ask button{display:flex;align-items:center;min-height:54px;padding:0 22px;border-radius:28px;background:var(--glass);border:1.5px solid var(--line);font-size:18px;color:var(--ink)}
+.pl-h{margin:4px 0 0;font-size:22px;font-weight:700;color:var(--ink)}
