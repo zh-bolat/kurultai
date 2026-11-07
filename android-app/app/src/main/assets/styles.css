@@ -409,3 +409,5 @@ button,.quick,.cm-card,.nav{transition:transform .12s ease,background .2s ease,b
 .exit-x:active{background:rgba(23,37,64,.06);color:var(--muted);opacity:1}
 main{padding-right:84px}
 main>header{right:84px}
+/* 2026-11-07: в шапке меню — имя робота «Ақылтай», как пишется, без капслока */
+.brand b{text-transform:none;letter-spacing:.5px;font-size:32px}

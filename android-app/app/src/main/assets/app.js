@@ -259,7 +259,7 @@ function data(){return (typeof quryltaiOfficial!=='undefined'&&quryltaiOfficial)
 function setActive(p){document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.page===p))}
 
 function applyTexts(){const t=T();
- const bs=document.querySelector('.brand b');if(bs)bs.textContent='Құрылтай';const bsp=document.querySelector('.brand span');if(bsp)bsp.textContent=t.brand;
+ const bs=document.querySelector('.brand b');if(bs)bs.textContent='Ақылтай';const bsp=document.querySelector('.brand span');if(bsp)bsp.textContent=t.brand;
  const order=['home','bills','session','plenary','committees','requests','robot'];
  order.forEach((p,i)=>{const n=document.querySelector('.nav[data-page="'+p+'"] span');if(n)n.textContent=t.nav[i]});
  setT('sbSrcT',t.src);
