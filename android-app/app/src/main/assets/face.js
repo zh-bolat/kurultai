@@ -44,9 +44,10 @@
   root.innerHTML = '<div class="face-eyes"><svg viewBox="0 0 200 100" aria-hidden="true"></svg></div>'
     + '<div class="face-status" id="faceStatusLine"></div><div class="face-heard" id="faceHeardLine"></div>'
     + '<p class="face-sub" id="faceSubLine" aria-live="polite"></p>'
-    + '<div class="swipe-hint" aria-hidden="true"><span class="chev"><i>‹</i><i>‹</i><i>‹</i></span><b id="faceMenuLabel"></b><small id="faceMenuSub"></small></div>'
-    + '<div class="face-sleep-hint" id="faceSleepHint"></div>'
-    + '<div class="face-lang" id="faceLang"><button type="button" data-l="kk">ҚАЗ</button><button type="button" data-l="ru">РУС</button></div>';
+    + '<div class="swipe-hint" aria-hidden="true"><svg viewBox="0 0 24 48"><path d="M17 6 L7 24 L17 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg><b id="faceMenuLabel"></b></div>'
+    + '<div class="face-sleep-hint" id="faceSleepHint"></div>';
+  // 2026-11-07: переключатель ҚАЗ|РУС с лица убран (язык меняется на основной странице); надпись «сплю» не показываем,
+  // подсказка внизу сама чередуется: қазақша ↔ по-русски каждые 6 секунд.
   document.body.appendChild(root);
   const toFace = document.createElement('button');
   toFace.id = 'toFace';
@@ -56,17 +57,22 @@
   const svg = root.querySelector('svg'), statusLine = root.querySelector('#faceStatusLine'),
     heardLine = root.querySelector('#faceHeardLine'), subLine = root.querySelector('#faceSubLine');
 
+  let hintLang = 'kk';
+  setInterval(() => {  // подсказка сна и «Мәзір / Меню» чередуют язык вместе
+    const fading = root.querySelectorAll('#faceSleepHint, #faceMenuLabel');
+    fading.forEach(e => e.classList.add('fade'));
+    setTimeout(() => { hintLang = hintLang === 'kk' ? 'ru' : 'kk'; render(); fading.forEach(e => e.classList.remove('fade')); }, 400);
+  }, 6000);
+
   let state = 'sleep', mood = null, moodTimer = null, shownExpr = '', level = 0, lastTouch = Date.now(), subTimer = null;
 
   function render() {
-    root.querySelectorAll('#faceLang button').forEach(b => b.classList.toggle('on', b.getAttribute('data-l') === lang()));
     const x = mood || STATE_EXPR[state] || 'neutral';
     if (x !== shownExpr) { svg.innerHTML = EXPR[x](); shownExpr = x; }
     root.classList.toggle('asleep', state === 'sleep');
-    statusLine.textContent = t(state) || '';
-    root.querySelector('#faceSleepHint').textContent = state === 'sleep' ? t('wakeHint') : '';
-    root.querySelector('#faceMenuLabel').textContent = t('menu');
-    root.querySelector('#faceMenuSub').textContent = t('menuSub');
+    statusLine.textContent = state === 'sleep' ? '' : (t(state) || '');
+    root.querySelector('#faceSleepHint').textContent = state === 'sleep' ? TXT[hintLang].wakeHint : '';
+    root.querySelector('#faceMenuLabel').textContent = TXT[hintLang].menu;
     toFace.innerHTML = '›<small>' + t('face') + '</small>';
   }
 
@@ -238,16 +244,6 @@
     render();
     if (!fromRobot && window.Robot && Robot.setUiLanguage) Robot.setUiLanguage(l);
   };
-  /* переключатель на лице: свои касания гасит, чтобы лицо не приняло их за тап (разбудить) или свайп */
-  const langBox = root.querySelector('#faceLang');
-  ['touchstart', 'touchmove', 'touchend', 'pointerdown', 'pointerup', 'mousedown', 'mouseup'].forEach(type =>
-    langBox.addEventListener(type, e => e.stopPropagation(), { passive: true }));
-  langBox.addEventListener('click', e => {
-    e.stopPropagation();
-    const b = e.target && e.target.closest ? e.target.closest('button[data-l]') : null;
-    if (b) window.setUiLanguage(b.getAttribute('data-l'));
-  });
-
   const ul = typeof applyUiLanguage === 'function' ? applyUiLanguage : null;
   if (ul) applyUiLanguage = function () { const r = ul.apply(this, arguments); render(); return r; };
   render();

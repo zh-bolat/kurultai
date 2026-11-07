@@ -47,10 +47,16 @@
    фон под страницей чёрный. inset не используем — его нет в старом WebView робота. */
 #faceScreen{inset:auto;top:-6px;left:-6px;width:calc(100% + 12px);height:calc(100% + 12px)}
 html.face-on,html.face-on body{background:#000!important}
-/* Переключатель языка на лице (ҚАЗ|РУС): робот отвечает на языке экрана; касания не будят и не листают */
-#faceScreen .face-lang{position:absolute;top:28px;right:32px;z-index:2;border:2px solid rgba(58,168,245,.55);border-radius:999px;
-  overflow:hidden;white-space:nowrap;box-shadow:0 0 18px rgba(58,168,245,.25);background:rgba(58,168,245,.06)}
-#faceScreen .face-lang button{display:inline-block;margin:0;border:none;background:transparent;color:#7cc6f7;min-width:92px;min-height:56px;
-  padding:0 20px;font:700 22px/56px "Golos Text","Inter",system-ui,sans-serif;letter-spacing:.08em;vertical-align:top}
-#faceScreen .face-lang button.on{background:rgba(58,168,245,.85);color:#fff}
-#faceScreen.asleep .face-lang{opacity:.6}
+/* 2026-11-07: подсказка «коснитесь, чтобы разбудить» чередует қазақша ↔ по-русски (face.js), смена — плавно */
+#faceScreen .face-sleep-hint{transition:opacity .4s ease}
+#faceScreen .face-sleep-hint.fade{opacity:0}
+/* 2026-11-07: подсказка свайпа в стиле глаз — одна тонкая светящаяся стрелка и тихая подпись, без плашки и рамки */
+#faceScreen .swipe-hint{position:absolute;right:44px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;
+  gap:14px;padding:0;border:none;border-radius:0;background:none;box-shadow:none;animation:none;color:#3AA8F5}
+#faceScreen .swipe-hint svg{width:36px;height:72px;overflow:visible;filter:drop-shadow(0 0 8px rgba(58,168,245,.6));
+  animation:swipe-nudge 2.6s ease-in-out infinite}
+#faceScreen .swipe-hint b{font:600 18px/1 "Golos Text","Inter",system-ui,sans-serif;letter-spacing:.22em;text-transform:uppercase;
+  color:#6f8aa3;transition:opacity .4s ease}
+#faceScreen .swipe-hint b.fade{opacity:0}
+@keyframes swipe-nudge{0%,60%,100%{transform:translateX(0);opacity:.7}30%{transform:translateX(-10px);opacity:1}}
+#faceScreen.asleep .swipe-hint{opacity:.85}
