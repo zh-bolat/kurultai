@@ -1,0 +1,10 @@
+[Unit]
+Description=Раз в день забирать бэкапы базы робота Курултая (после 03:30 на сервере)
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+Persistent=true
+RandomizedDelaySec=15min
+
+[Install]
+WantedBy=timers.target

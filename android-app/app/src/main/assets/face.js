@@ -125,7 +125,11 @@
   window.onVoiceLevel = (lvl, robot) => { if (prevLevel) prevLevel(lvl, robot); level = Math.max(level, Number(lvl) || 0); };
 
   /* --- лицо ↔ страница --- */
-  function showFace() { root.classList.remove('hidden', 'dragging'); root.style.transform = ''; toFace.hidden = true; document.documentElement.classList.add('face-on'); }
+  function showFace() {
+    root.classList.remove('hidden', 'dragging'); root.style.transform = ''; toFace.hidden = true; document.documentElement.classList.add('face-on');
+    // лицо показано (таймер, свайп, кнопка, сон) — окно PIN и открытая вкладка настроек закрываются (pin.js)
+    try { const ev = document.createEvent('Event'); ev.initEvent('kurultai-face-shown', false, false); document.dispatchEvent(ev); } catch (e) { /* старый WebView */ }
+  }
   function showMenu() { root.classList.remove('dragging'); root.style.transform = ''; root.classList.add('hidden'); toFace.hidden = false; lastTouch = Date.now(); document.documentElement.classList.remove('face-on'); }
   window.showFace = showFace;
   document.documentElement.classList.add('face-on');

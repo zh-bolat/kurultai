@@ -52,6 +52,11 @@
     }
     return guarded.apply(this, arguments);
   };
-  const sf = window.showFace;
-  if (typeof sf === 'function') window.showFace = function () { unlockedUntil = 0; return sf.apply(this, arguments); };
+  // Лицо показано любым путём (минута без касаний, свайп, «‹ лицо», сон) — PIN снова нужен, а недовведённое окно PIN
+  // не остаётся поверх лица (раньше оно перекрывало лицо: z-index 9500 > 9000).
+  document.addEventListener('kurultai-face-shown', () => {
+    unlockedUntil = 0;
+    const pad = document.getElementById('pinPad');
+    if (pad) pad.remove();
+  });
 })();

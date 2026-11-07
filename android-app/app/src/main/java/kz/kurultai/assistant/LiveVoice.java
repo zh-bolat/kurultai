@@ -104,6 +104,10 @@ final class LiveVoice {
     private volatile long playedBytes;
     private volatile boolean playing;
     private volatile boolean needPrebuffer = true;
+    // Номер сброса звука («стоп», interrupted): кусок, который playLoop начал писать до сброса, после сброса не
+    // дописывается и не учитывается в playedBytes — иначе после «стоп» звучал хвост, а счётчик уходил вперёд
+    // головки трека, и следующий ход ждал конца воспроизведения до 120 с (watchPlaybackDone).
+    private volatile int flushGen;
 
     LiveVoice(Context context, String baseUrl, String token, Listener listener) {
         this.context = context.getApplicationContext();
@@ -435,15 +439,19 @@ final class LiveVoice {
                 continue;
             }
             AudioTrack t;
-            synchronized (playLock) { t = track; }
+            final int gen;
+            synchronized (playLock) { t = track; gen = flushGen; }
             if (t == null) return;
             int off = 0;
-            while (off < pcm.length && active) {
+            while (off < pcm.length && active && gen == flushGen) {
                 int n = t.write(pcm, off, pcm.length - off);
                 if (n < 0) { Log.w(TAG, "AudioTrack write " + n); break; }
                 off += n;
             }
-            playedBytes += pcm.length;
+            synchronized (playLock) {
+                if (gen != flushGen) continue;  // сброшено во время записи: ни хвоста, ни учёта
+                playedBytes += pcm.length;
+            }
             long now = System.currentTimeMillis();
             if (now - lastRobotLevelAt > 70) { lastRobotLevelAt = now; listener.onLevel(level(pcm, pcm.length), true); }
         }
@@ -475,6 +483,7 @@ final class LiveVoice {
     private void flushPlayback() {
         playQueue.clear();
         synchronized (playLock) {
+            flushGen++;
             if (track != null) {
                 try { track.pause(); track.flush(); track.play(); } catch (Throwable ignored) { }
                 // После flush головка не всегда сбрасывается — считаем записанным то, что уже «сыграно».
@@ -490,6 +499,7 @@ final class LiveVoice {
     private void stopPlayback() {
         playQueue.clear();
         synchronized (playLock) {
+            flushGen++;
             if (track != null) { try { track.pause(); track.flush(); track.release(); } catch (Throwable ignored) { } }
             track = null;
         }

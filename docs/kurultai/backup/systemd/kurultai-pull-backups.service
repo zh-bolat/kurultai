@@ -1,0 +1,8 @@
+[Unit]
+Description=Копия бэкапов базы робота Курултая с сервера на этот компьютер
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/kurultai/docs/kurultai/backup/pull-backups.sh

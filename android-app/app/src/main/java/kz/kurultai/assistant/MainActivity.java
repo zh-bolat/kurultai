@@ -217,7 +217,56 @@ public class MainActivity extends Activity {
         @Override public void run() {
             if (!activityVisible || webView == null) return;
             inspectVisiblePeople();
-            webView.postDelayed(this, 1000L);
+            webView.postDelayed(this, FACE_POLL_MS);
+        }
+    };
+
+    // ---------- голова: слежение за лицом и «живые» взгляды ----------
+    private static final long FACE_POLL_MS = 400L;     // было 1000 мс — голова опаздывала за человеком
+    private static final long HEAD_MIN_INTERVAL_MS = 250L;
+    private static final long HEAD_REFRESH_MS = 1500L; // повтор той же цели — если команду перебила система
+    private static final int HEAD_STEP_DEG = 3;        // сдвиг меньше — голову не дёргаем
+    private volatile int lastLookH = 0, lastLookV = 30;
+    private final java.util.Random headRandom = new java.util.Random();
+
+    /** Наклон головы к лицу по расстоянию: ближе — выше (лица выше камеры робота). 22…48 — пределы lookAtVisitor. */
+    private static int lookVerticalFor(double distance) {
+        if (distance > 0 && distance < 0.8) return 41;
+        if (distance > 0 && distance < 1.3) return 37;
+        return 34;
+    }
+
+    /** Взгляд на лицо в кадре: чаще и мягче, чем раньше (каждые 0,25–1,5 с, при сдвиге от 3°). */
+    private void trackFace(int horizontal, int vertical) {
+        long now = System.currentTimeMillis();
+        if (now - lastFriendlyLookAt < HEAD_MIN_INTERVAL_MS) return;
+        boolean moved = Math.abs(horizontal - lastLookH) >= HEAD_STEP_DEG || Math.abs(vertical - lastLookV) >= 2;
+        if (!moved && now - lastFriendlyLookAt < HEAD_REFRESH_MS) return;
+        lastFriendlyLookAt = now;
+        runOnUiThread(() -> {
+            lookAtVisitor(horizontal, vertical);
+            alignBodyToFace(horizontal);
+        });
+    }
+
+    /** Никого рядом — изредка смотрит по сторонам и возвращается (во сне реже и спокойнее). Только голова. */
+    private final Runnable idleGlanceRunnable = new Runnable() {
+        @Override public void run() {
+            if (!activityVisible || webView == null) return;
+            long now = System.currentTimeMillis();
+            boolean nobody = !personPresent && now - lastFaceSeenAt > 5000L;
+            if (nobody && !followingPerson && !speakingNow && robotApiReady() && now - lastFriendlyLookAt > 3000L) {
+                int side = headRandom.nextBoolean() ? 1 : -1;
+                int h = side * (asleep ? 15 + headRandom.nextInt(10) : 20 + headRandom.nextInt(25));
+                int v = asleep ? 26 : 30 + headRandom.nextInt(5);
+                lastFriendlyLookAt = now;
+                lookAtVisitor(h, v);
+                webView.postDelayed(() -> {
+                    if (!personPresent && !followingPerson) lookAtVisitor(0, asleep ? 26 : 30);
+                }, 1400L + headRandom.nextInt(900));
+            }
+            long next = asleep ? 15_000L + headRandom.nextInt(10_000) : 6_000L + headRandom.nextInt(6_000);
+            webView.postDelayed(this, next);
         }
     };
 
@@ -268,15 +317,7 @@ public class MainActivity extends Activity {
                 // Body Follow owns head, vision tracking and chassis control.
                 // Sending moveHead/turn commands here resets its target (status 1032).
                 if (followingPerson) return;
-                long now = System.currentTimeMillis();
-                if (now - lastFriendlyLookAt > 700L) {
-                    lastFriendlyLookAt = now;
-                    int lookAngle = Math.max(-45, Math.min(45, nearest.getAngle()));
-                    runOnUiThread(() -> {
-                        lookAtVisitor(lookAngle, 34);
-                        alignBodyToFace(lookAngle);
-                    });
-                }
+                trackFace(Math.max(-55, Math.min(55, nearest.getAngle())), lookVerticalFor(nearest.getDistance()));
                 return;
             }
             long now = System.currentTimeMillis();
@@ -450,6 +491,8 @@ public class MainActivity extends Activity {
             webView.post(personPollRunnable);
             webView.removeCallbacks(meetingCheckRunnable);
             webView.post(meetingCheckRunnable);
+            webView.removeCallbacks(idleGlanceRunnable);
+            webView.postDelayed(idleGlanceRunnable, 5000L);
         }
         checkLiveProfileAsync();
         maybeAutoStartLive();
@@ -465,6 +508,8 @@ public class MainActivity extends Activity {
         if (webView != null) {
             webView.removeCallbacks(personPollRunnable);
             webView.removeCallbacks(meetingCheckRunnable);
+            webView.removeCallbacks(idleGlanceRunnable);
+            webView.removeCallbacks(profileRetry);
         }
         unregisterPersonDetection();
         pauseListeningInternal();
@@ -784,8 +829,9 @@ public class MainActivity extends Activity {
     }
 
     private void greetVisitor(int angle) {
-        // Как у Astana Hub: разговор начинается только с пробуждения (тап по лицу), а не с камеры.
-        if (asleep || liveEnabled()) return;
+        // Как у Astana Hub: разговор начинается только с пробуждения (тап по лицу), а не с камеры. Но к подошедшему
+        // робот поворачивается (голова, при большом угле — корпус на месте): с 30.10 ранний return убирал и движение.
+        if (asleep || liveEnabled()) { if (activityVisible && !followingPerson) playFriendlyGreetingMotion(angle); return; }
         if (!activityVisible || speakingNow || holdRecording) return;
         if (liveEnabled()) {
             playFriendlyGreetingMotion(angle);
@@ -805,9 +851,11 @@ public class MainActivity extends Activity {
 
     private void lookAtVisitor(int horizontal, int vertical) {
         if (!robotApiReady()) return;
+        lastLookH = Math.max(-55, Math.min(55, horizontal));
+        lastLookV = Math.max(22, Math.min(48, vertical));
         try {
             RobotApi.getInstance().moveHead(nextRobotRequestId(), "absolute", "absolute",
-                Math.max(-55, Math.min(55, horizontal)), Math.max(22, Math.min(48, vertical)),
+                lastLookH, lastLookV,
                 motionListener("Взгляд на посетителя"));
         } catch (Throwable error) {
             android.util.Log.w("KurultaiHandsFree", "Head movement failed", error);
@@ -1641,19 +1689,34 @@ public class MainActivity extends Activity {
 
     private String liveUnavailableReason() {
         if (!liveConfigured()) return "нет токена профиля Курултая";
-        if (liveProfileOk == null) return "проверяю сервер";
+        if (liveProfileOk == null) return profileNetError ? "нет связи с сервером, повторяю" : "проверяю сервер";
         if (!liveProfileOk) return "сервер без профиля Курултая";
         return "переподключаюсь";
     }
 
+    // Проверка профиля: сеть после перезагрузки робота поднимается не сразу. Сетевая ошибка — не «чужой сервер»:
+    // повтор через 3, 6, 12… с (до 30 с), а тап, пришедший без связи, запоминается и будит робота, как только
+    // сервер ответит (раньше первый тап давал «сервер без профиля», повтор — только через минуту и ещё один тап).
+    private volatile boolean profileNetError;
+    private volatile boolean profileCheckRunning;
+    private volatile boolean wakePending;
+    private int profileNetRetries;
+    private final Runnable profileRetry = () -> checkLiveProfileAsync(true);
+
+    private void checkLiveProfileAsync() { checkLiveProfileAsync(false); }
+
     /** Проверка, что сервер отвечает профилем kurultai (иначе live говорил бы персоной Astana Hub). */
-    private void checkLiveProfileAsync() {
+    private void checkLiveProfileAsync(boolean force) {
         if (!liveConfigured()) { liveProfileOk = false; return; }
         long now = System.currentTimeMillis();
-        if (Boolean.TRUE.equals(liveProfileOk) || now - liveProfileCheckedAt < 60_000L) return;
+        if (Boolean.TRUE.equals(liveProfileOk) || profileCheckRunning) return;
+        // «нет» от сервера (чужой профиль, токен) перепроверяем не чаще раза в минуту; после сетевой ошибки — сразу
+        if (!force && !profileNetError && now - liveProfileCheckedAt < 60_000L) return;
         liveProfileCheckedAt = now;
+        profileCheckRunning = true;
         new Thread(() -> {
             HttpURLConnection c = null;
+            boolean netError = false;
             try {
                 String base = BuildConfig.BACKEND_URL.endsWith("/") ? BuildConfig.BACKEND_URL : BuildConfig.BACKEND_URL + "/";
                 c = (HttpURLConnection) new URL(base + "profile").openConnection();
@@ -1661,15 +1724,37 @@ public class MainActivity extends Activity {
                 c.setRequestProperty("Authorization", "Bearer " + BuildConfig.LIVE_TOKEN);
                 int code = c.getResponseCode();
                 String body = readBody(c, code);
-                liveProfileOk = code == 200 && "kurultai".equals(jsonText(new JSONObject(body), "profile"));
+                if (code >= 500) {
+                    netError = true;  // сервер перезапускается — как нет связи
+                } else {
+                    liveProfileOk = code == 200 && "kurultai".equals(jsonText(new JSONObject(body), "profile"));
+                }
             } catch (Exception e) {
-                liveProfileOk = false;
+                netError = true;  // нет сети / DNS / таймаут — повторим, а не «сервер без профиля»
             } finally {
                 if (c != null) c.disconnect();
             }
-            android.util.Log.i("KurultaiLive", "profile check: " + liveProfileOk);
+            final boolean retry = netError;
+            profileNetError = netError;
+            if (netError) liveProfileOk = null;
+            profileCheckRunning = false;
+            android.util.Log.i("KurultaiLive", "profile check: " + liveProfileOk + (netError ? " (нет связи, повторю)" : ""));
             pushAiStatus("Готово");
-            runOnUiThread(() -> maybeAutoStartLive());
+            runOnUiThread(() -> {
+                if (retry) {
+                    if (!activityVisible) return;  // свёрнуто — проверим в onResume
+                    long delay = Math.min(30_000L, 3_000L << Math.min(4, profileNetRetries++));
+                    if (webView != null) { webView.removeCallbacks(profileRetry); webView.postDelayed(profileRetry, delay); }
+                    return;
+                }
+                profileNetRetries = 0;
+                if (wakePending) {
+                    wakePending = false;
+                    if (liveEnabled()) { wakeUpRobot(true); return; }
+                    uiJs("window.onFaceNotice && window.onFaceNotice(" + JSONObject.quote("Сервер голоса недоступен: " + liveUnavailableReason()) + ")");
+                }
+                maybeAutoStartLive();
+            });
         }).start();
     }
 
@@ -1699,6 +1784,7 @@ public class MainActivity extends Activity {
     private void goToSleep(String reason) {
         android.util.Log.i("KurultaiLive", "sleep: " + reason);
         asleep = true;
+        wakePending = false;
         LiveVoice l = live;
         if (l != null && l.isActive()) l.interrupt();
         stopLive();
@@ -1712,6 +1798,14 @@ public class MainActivity extends Activity {
         asleep = false;
         uiJs("window.showFace && window.showFace(); window.onFaceState && window.onFaceState('listening')");
         if (liveEnabled()) { startLive(greet); return; }
+        asleep = true;
+        if (liveConfigured() && !Boolean.FALSE.equals(liveProfileOk)) {
+            // связи с сервером ещё нет (после перезагрузки) — тап запомнен: проснётся сам, как только сервер ответит
+            wakePending = true;
+            uiJs("window.onFaceState && window.onFaceState('sleep'); window.onFaceNotice && window.onFaceNotice(" + JSONObject.quote("Подключаюсь к серверу…") + ")");
+            checkLiveProfileAsync(true);
+            return;
+        }
         String why = "Сервер голоса недоступен: " + liveUnavailableReason();
         uiJs("window.onFaceNotice && window.onFaceNotice(" + JSONObject.quote(why) + "); window.toast && window.toast(" + JSONObject.quote(why) + ")");
         checkLiveProfileAsync();
