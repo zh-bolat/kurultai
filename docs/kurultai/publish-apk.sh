@@ -29,7 +29,7 @@ SDK="$(sed -n 's/^sdk.dir=//p' "$ROOT/android-app/local.properties" 2>/dev/null 
 SDK="${SDK:-${ANDROID_HOME:-$HOME/Android/Sdk}}"
 BT="$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)"
 
-badging="$("$BT/aapt2" dump badging "$APK" | head -1)"
+badging="$("$BT/aapt2" dump badging "$APK" | sed -n 1p)"  # не head: SIGPIPE при pipefail молча обрывал скрипт
 pkg="$(sed -n "s/.*package: name='\([^']*\)'.*/\1/p" <<<"$badging")"
 ver="$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" <<<"$badging")"
 cert="$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
