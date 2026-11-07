@@ -685,3 +685,12 @@ body .quick-grid .quick:nth-child(1) small,body .quick-grid .quick:nth-child(2) 
 body #home .quick-grid{min-height:350px}
 body #home .quick-grid{flex:1 1 0;min-height:380px}
 body #home.active{height:100%;min-height:0}
+
+/* × на одной линии с ҚАЗ|РУС; приветствие начинается ниже них */
+.exit-x{top:44px}
+body #home .hero{margin-top:64px}
+/* плитки — исходной высоты, просто стоят плотно под строкой вопроса */
+body #home .quick-grid{flex:0 0 auto;height:400px;min-height:0;max-height:none}
+body #home.active{height:auto;min-height:100%}
+/* «Что такое Курултай» и «Состав комитетов» — одинаковые: голубая подложка, без тёмной рамки */
+body .quick-grid .quick:nth-child(1){border:0;background:linear-gradient(150deg,#E2F1FC 0%,#CFE6F7 100%)}
