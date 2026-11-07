@@ -330,7 +330,7 @@ function go(p){setActive(p);page=p;
  if(p==='requests'){renderRequests();show('requests');return}}
 document.querySelectorAll('.nav').forEach(n=>{if(n.dataset.page==='robot')return;n.onclick=()=>go(n.dataset.page)});
 // 2026-11-07: «×» в правом верхнем углу — закрыть страницы и вернуться к лицу робота (под лицом — главная)
-const ex=el('exitBtn');if(ex)ex.onclick=()=>{go('home');if(window.showFace)window.showFace()};
+const ex=el('exitBtn');if(ex)ex.onclick=()=>{if(window.Robot&&window.Robot.exitApp){window.Robot.exitApp();return}go('home');if(window.showFace)window.showFace()};
 document.querySelectorAll('.quick').forEach(c=>c.onclick=()=>{const a=c.dataset.act;if(a==='committees')return go('committees');if(a==='bills')return go('bills');askNow(language==='kk'?c.dataset.qKk:c.dataset.qRu)});
 
 // Answer screen: question as the heading, date chip under the answer, follow-up questions

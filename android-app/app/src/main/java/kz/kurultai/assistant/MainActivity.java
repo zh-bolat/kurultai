@@ -672,6 +672,9 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public void wakeUp() { runOnUiThread(() -> wakeUpRobot(true)); }
 
+        // × in the corner: close the whole app (onPause/onDestroy stop voice, motion and TTS)
+        @JavascriptInterface public void exitApp() { runOnUiThread(() -> finishAndRemoveTask()); }
+
         @JavascriptInterface public void saveOpenRouterKey(String apiKey) {
             new Thread(() -> {
                 try {
