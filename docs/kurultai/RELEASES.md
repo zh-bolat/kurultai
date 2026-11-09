@@ -24,3 +24,22 @@ APK в git не хранятся (`*.apk` в `.gitignore`): в них вшит �
 
 Пересобрать то же самое: `git checkout stable-2026-10-30`, в `android-app/` должны быть `release.keystore` и
 `secrets.properties`, затем `./gradlew assembleRelease`.
+
+## Резервная точка перед OpenAI Realtime: 2026-11-09
+Рабочая схема до перехода на «голос в голос»: распознавание Gemini Flash Lite → ответ `openai/gpt-6-luna`
+(OpenRouter) → голос ElevenLabs Dmitry. Робот отвечает на «Ақылтай / робот / бот», язык с экрана, голова работает.
+
+| что | где |
+|---|---|
+| сервер, код | тег `kurultai-pipeline-2026-11-09` = `5e7f8ad` в `zh-bolat/astana-hub-robot` (ветка `feature/kurultai-profile`) |
+| сервер, образ | `kurultai-robot-api:pipeline-5e7f8ad` на VPS (тот же образ, что работал 7–9.11) |
+| сервер, настройки | `~/kurultai-robot/infra/.env.backup-pipeline-2026-11-09` (права 600) |
+| приложение | тег `app-2026-11-09` = `52280ee`, APK `5.50-52280ee-20261107` на `/app` и в `apk-archive/`; с Realtime приложение не меняется |
+
+**Откат, если Realtime не подошёл** (по порядку, от быстрого к полному):
+1. Переключатель (после выкатки Realtime): в `.env` `KURULTAI_LIVE_ENGINE=pipeline`, затем
+   `cd ~/kurultai-robot/infra && docker compose -f docker-compose.kurultai.yml up -d kurultai-api` — 1 минута.
+2. Старый образ без пересборки: `docker tag kurultai-robot-api:pipeline-5e7f8ad kurultai-robot-api:local`,
+   `cp .env.backup-pipeline-2026-11-09 .env`, затем тот же `up -d kurultai-api` (без `--build`).
+3. Код: `git push ssh://bolat@89.144.34.185/home/bolat/kurultai-robot kurultai-pipeline-2026-11-09:main` (с ноутбука,
+   `GIT_SSH_COMMAND` как в README) и `up -d --build kurultai-api`.
