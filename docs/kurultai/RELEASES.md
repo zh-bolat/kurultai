@@ -43,3 +43,14 @@ APK в git не хранятся (`*.apk` в `.gitignore`): в них вшит �
    `cp .env.backup-pipeline-2026-11-09 .env`, затем тот же `up -d kurultai-api` (без `--build`).
 3. Код: `git push ssh://bolat@89.144.34.185/home/bolat/kurultai-robot kurultai-pipeline-2026-11-09:main` (с ноутбука,
    `GIT_SSH_COMMAND` как в README) и `up -d --build kurultai-api`.
+
+**После выкатки поиска (2026-11-10, миграция `0006_kurultai_chunks`)** для шагов 2 и 3 нужна ещё одна строка:
+старый образ не знает ревизию 0006 и упадёт на `alembic upgrade head`. Поэтому перед `up -d` допишите в `.env`
+`DB_AUTO_MIGRATE=false` (старому коду новая таблица `kurultai_chunks` не мешает) — либо, если хотите вернуть схему,
+из нового образа выполните `docker compose -f docker-compose.kurultai.yml exec kurultai-api alembic downgrade
+0005_kurultai_materials` (удаляет только `kurultai_chunks`, материалы и журнал не трогает).
+Шаг 1 (переключатель `KURULTAI_LIVE_ENGINE=pipeline`) по-прежнему без оговорок: старая цепочка живёт в том же образе
+и покрыта теми же тестами; поиск и Realtime при этом просто не используются.
+Промежуточная точка: образ `kurultai-robot-api:realtime-eff4c03` на VPS — Realtime-гибрид без поиска (работал
+9.11, миграций после 0005 не знает → тоже с `DB_AUTO_MIGRATE=false`).
+Перед любым откатом — свежая копия базы: `~/kurultai-backup/kurultai-backup.sh` (см. `backup/README.md`).
