@@ -1,6 +1,6 @@
 # Ақылтай «голос в голос»: OpenAI Realtime вместо цепочки STT → модель → TTS
 
-Статус: **план** (2026-11-09). Решение владельца: перейти на OpenAI Realtime ради скорости ответа.
+Статус: **план** (2026-11-09). Решение владельца: перейти на OpenAI Realtime ради скорости ответа; Gemini Live рассмотрен — выбран OpenAI («качественнее», решение владельца 09.11).
 Сервер — профиль `kurultai`, worktree `~/astana-hub-robot-wt/kurultai-realtime`, ветка `feature/kurultai-realtime`
 от `feature/kurultai-profile`. Astana Hub не меняется.
 
@@ -55,3 +55,10 @@ Realtime тарифицируется токенами: аудио на вход
 ## Нужно от вас
 - Ключ OpenAI с оплатой (platform.openai.com → API keys), лимит расходов на проекте. Вписать в
   `~/kurultai-robot/infra/.env` строкой `KURULTAI_OPENAI_API_KEY=…` (в чат не присылать).
+
+## Ход работ
+- 2026-11-09: резервная точка старой схемы — `RELEASES.md` («Резервная точка перед OpenAI Realtime»).
+- 2026-11-09: пробник `backend/scripts/realtime_probe.py` — ждёт ключ OpenAI.
+- 2026-11-09: движок за переключателем (`feature/kurultai-realtime`, `app/kurultai/realtime/`), тесты на поддельном
+  Realtime проходят. **Осталось:** запись ответов в журнал вопросов БД (пока — в лог `live_answered`); прогон
+  пробника; выкатка с `KURULTAI_LIVE_ENGINE=realtime` и замер на роботе.
