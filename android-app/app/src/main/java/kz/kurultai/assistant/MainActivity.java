@@ -280,6 +280,10 @@ public class MainActivity extends Activity {
     private static final long OBSTACLE_PHRASE_INTERVAL_MS = 10_000L;
     private static final long GUIDE_WAIT_PLAYBACK_MS = 8_000L;   // guide_to пришёл, пока робот договаривает — ждём не дольше
     private static final long RETURN_HOME_IDLE_MS = 180_000L;    // 3 мин без разговора после поездки → сам едет на пост
+    // Скорость поездок: максимум RobotAPI (0,1–0,85 м/с; было 0,20 — посетитель обгонял робота). Угловая — по формуле
+    // OrionStar angular = 0.4 + (linear − 0.1) / 3 · 4 → 1,4 рад/с (максимум). Объезд и остановка у препятствий — те же.
+    private static final double NAV_LINEAR_SPEED = 0.85;
+    private static final double NAV_ANGULAR_SPEED = 1.4;
     private static final long RETURN_HOME_BUSY_RETRY_MS = 30_000L;
     private static final int RETURN_HOME_MAX_FAILURES = 2;        // два неудачных авто-возврата подряд — ждём следующей поездки
     private static final String HOME_PLACE_ID = "home";
@@ -388,7 +392,7 @@ public class MainActivity extends Activity {
         int rc;
         try {
             // Те же параметры, что у ручной навигации (navigateRobotTo): допуск 0,35 м, объезд до 15 с, 0,20 м/с, 0,53 рад/с
-            rc = RobotApi.getInstance().startNavigation(nextRobotRequestId(), mapName, 0.35, 15000L, 0.20, 0.53, navListener(gen));
+            rc = RobotApi.getInstance().startNavigation(nextRobotRequestId(), mapName, 0.35, 15000L, NAV_LINEAR_SPEED, NAV_ANGULAR_SPEED, navListener(gen));
         } catch (Throwable e) {
             navLog("startNavigation exception " + e.getClass().getSimpleName() + " " + e.getMessage());
             rc = Integer.MIN_VALUE;
@@ -1231,7 +1235,7 @@ public class MainActivity extends Activity {
         if (!robotApiReady()) { uiJs("window.onMotionError && window.onMotionError('RobotOS недоступен')"); return; }
         stopGuidedNavigation("manual");  // ручная навигация из настроек перебивает поездку «проводить»
         try {
-            RobotApi.getInstance().startNavigation(nextRobotRequestId(), destination, 0.35, 15000L, 0.20, 0.53, new ActionListener() {
+            RobotApi.getInstance().startNavigation(nextRobotRequestId(), destination, 0.35, 15000L, NAV_LINEAR_SPEED, NAV_ANGULAR_SPEED, new ActionListener() {
                 @Override public void onResult(int status, String response) { uiJs("window.onMotionStatus && window.onMotionStatus(" + JSONObject.quote("Навигация: " + response) + ")"); }
                 @Override public void onError(int status, String message) { uiJs("window.onMotionError && window.onMotionError(" + JSONObject.quote("Навигация: " + message) + ")"); }
             });
