@@ -330,3 +330,31 @@
   `places` (точки карты), `last_trip` {place_id, result, reason, code, seconds, auto, at}.
 - Не проверено на роботе (ADB закрыт): навигация, статусы RobotAPI, баннер на реальном WebView — см. отчёт в
   `orchestration-log`/задаче; `hello.places` и `state` требуют серверной части контракта.
+
+## 2026-11-10: вкладка «Робот и настройки» по контракту `robot-settings.md` (приложение)
+- **Убрано**: «Ключ OpenRouter», «Модель ответа», «Распознавание речи», «Озвучивание», весь блок «Настройки помощника»
+  (модели, собственный шлюз, «Проверить»/«Сохранить шлюз», встреча) и мёртвые обработчики (`loadSettingsPanel`, `testSettings`,
+  `saveSettings`, `onLlmSettings`, `onLocalMeeting`, `onBackendTestResult`, селекты `voiceMode`/`answerLanguage`). Адрес сервера —
+  только из сборки (`BACKEND_URL`). `window.onAiStatus` — заглушка (флаг «ответы доступны» для текстового вопроса); Java-методы
+  моста (`saveLlmSettings`, `saveOpenRouterKey`, `saveLocalMeeting`, `testBackend` …) оставлены, из JS больше не зовутся.
+- **Состояние** (3 колонки): сервер (онлайн · версия/git или «недоступен: причина»), движок OpenAI/OpenRouter (при
+  `effective ≠ selected` — «OpenRouter (запасной)» и строка «OpenAI недоступен: <причина>, работает OpenRouter, повтор через N мин»),
+  режим, голос «ElevenLabs: 14 400 кредитов» (красным при < 20 000), данные quryltai.kz, версия, экран, RobotAPI, Wi‑Fi.
+  Источник — `Robot.refreshSettings()` → `GET /v1/robot/settings` (HttpURLConnection, токен робота как у diag) →
+  `window.onRobotSettings(json)`; ошибка → `{"error": "…"}` → вкладка показывает «Сервер недоступен», не падает. Опрос раз в 60 с
+  пока вкладка открыта и при открытии.
+- **Переключатели** «Движок: OpenAI | OpenRouter», «Режим: Обычный | Шумный день» — нажатие → окно PIN (`pin.js`,
+  `window.askAdminPin`; без `ADMIN_PIN` в сборке — без запроса) → `Robot.setRobotSetting(key, value)` → `POST /v1/robot/settings` →
+  `onRobotSettings`; пока запрос идёт — кнопки заблокированы; ошибка — тост с текстом сервера (`detail`). Подписи по контракту.
+- **Робот**: батарея · зарядка · карта · число точек · «Обновить» · «На зарядку» · **«На пост»** (`Robot.returnToPost()` →
+  `startGuidedNavigation("home", "Пункт приема", auto=false)`) · «Поехать к точке» — выпадающий список имён точек карты
+  (без зарядных: «заряд»/«пополнен»/«charg») · разблокировка, стрелки, голова · строка «Последняя поездка: Музей Курултая —
+  приехал, 42 с · 14:05» из `last_trip`. Данные — `Robot.getRobotSystemStatus()` → `window.onRobotInfo(json)` (вместо
+  `onRobotSystemStatus`), Java шлёт его и после каждой смены поездки. Переводы ru/kk в `T{}` блока.
+- **Присутствие человека**: `setPersonPresent()` — единственная точка смены `personPresent` в `MainActivity`; live получает
+  `{"type":"state","person_present":…}` при смене (не чаще раза в 1 с, без повторов) и поле `person_present` в `hello`
+  (досылается после `ready`, если успело измениться). В `/v1/robot/diag` — `settings_seen` {engine_selected, engine_effective,
+  noise_mode, credits, at}.
+- Не проверено на роботе: реальный ответ сервера `/v1/robot/settings` (серверная часть делается параллельно), PIN-окно на
+  тач-экране робота, «На пост» и список точек (RobotAPI), `person_present` в шумном режиме — камера на роботе иногда не видит
+  лица (диагностика 07.11): если `person_present=false` при стоящем человеке, в режиме «шумный день» робот не ответит.

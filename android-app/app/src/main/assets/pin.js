@@ -2,8 +2,8 @@
  * После верного PIN вкладка открыта 5 минут; ушли на лицо — снова закрыта. */
 ;(function () {
   if (typeof show !== 'function') return;
-  const TXT = { ru: { title: 'Робот и настройки', exitTitle: 'Закрыть приложение', sub: 'Введите PIN', wrong: 'Неверный PIN', cancel: 'Отмена' },
-    kk: { title: 'Робот және баптаулар', exitTitle: 'Қосымшаны жабу', sub: 'PIN енгізіңіз', wrong: 'PIN қате', cancel: 'Болдырмау' } };
+  const TXT = { ru: { title: 'Робот и настройки', exitTitle: 'Закрыть приложение', settingTitle: 'Изменить настройку', sub: 'Введите PIN', wrong: 'Неверный PIN', cancel: 'Отмена' },
+    kk: { title: 'Робот және баптаулар', exitTitle: 'Қосымшаны жабу', settingTitle: 'Баптауды өзгерту', sub: 'PIN енгізіңіз', wrong: 'PIN қате', cancel: 'Болдырмау' } };
   const t = k => TXT[(typeof language !== 'undefined' && language === 'kk') ? 'kk' : 'ru'][k];
   const need = () => !!(window.Robot && Robot.adminPinRequired && Robot.adminPinRequired());
   let unlockedUntil = 0;
@@ -42,6 +42,13 @@
     pad.querySelector('.cancel').onclick = () => { close(); if (onCancel) onCancel(); };
     draw();
   }
+
+  // Переключатели вкладки (движок, режим — docs/kurultai/robot-settings.md): app.js зовёт window.askAdminPin(onOk, onCancel)
+  // перед Robot.setRobotSetting. Без PIN в сборке (adminPinRequired() == false) — сразу onOk.
+  window.askAdminPin = function (onOk, onCancel) {
+    if (!need()) { onOk(); return; }
+    ask(onOk, onCancel, 'settingTitle');
+  };
 
   const guarded = show;
   show = function (id) {

@@ -560,6 +560,7 @@ public class MainActivity extends Activity {
             if (!navigating) j.put("result", lastTripResult).put("reason", lastTripReason);
         } catch (Exception ignored) { }
         uiJs("window.onNavigation && window.onNavigation(" + j + ")");
+        runOnUiThread(this::pushRobotSystemStatus);  // вкладка «Робот»: строка «Последняя поездка»
     }
 
     // --- авто-возврат на пост (решение владельца 10.11): 3 мин без разговора после поездки → молча на HOME ---
@@ -620,10 +621,9 @@ public class MainActivity extends Activity {
                 .put("nav_last_status", navLastStatus).put("nav_log", diagLastNav)
                 .put("away_from_home", awayFromHome)
                 .put("places", new JSONArray(mapPlaces))
-                .put("last_trip", lastTripAt == 0 ? JSONObject.NULL : new JSONObject()
-                    .put("place_id", lastTripPlace).put("result", lastTripResult).put("reason", lastTripReason)
-                    .put("code", lastTripCode).put("seconds", lastTripSeconds).put("auto", lastTripAuto)
-                    .put("at", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ROOT).format(new Date(lastTripAt))));
+                .put("last_trip", lastTripJson())
+                // что показывала вкладка «Робот и настройки» (docs/kurultai/robot-settings.md): движок, режим, остаток голоса
+                .put("settings_seen", settingsSeen == null ? JSONObject.NULL : settingsSeen);
         } catch (Exception ignored) { return; }
         refreshMapPlacesAsync();  // список точек к следующему отчёту и для hello.places
         diagPolls = diagPollSkipped = diagFacesPolls = diagFacesMax = diagHeadSent = diagMotionResults = 0;
@@ -686,7 +686,7 @@ public class MainActivity extends Activity {
                     if (!navigating) { stopRobotMotion(); lookAtVisitor(0, 34); }
                     uiJs("window.onGreetingMotion && window.onGreetingMotion(false)");
                 });
-                personPresent = false;
+                setPersonPresent(false);
                 continuousListening = false;
                 previousUserQuestion = "";
                 previousAssistantAnswer = "";
@@ -700,7 +700,7 @@ public class MainActivity extends Activity {
             }
             if (nearest == null) {
                 if (personPresent && System.currentTimeMillis() - lastFaceSeenAt >= 4000L) {
-                    personPresent = false;
+                    setPersonPresent(false);
                     continuousListening = false;
                     runOnUiThread(() -> cancelAutomaticRecording());
                 }
@@ -717,7 +717,7 @@ public class MainActivity extends Activity {
             }
             long now = System.currentTimeMillis();
             if (speakingNow || holdRecording) return;
-            personPresent = true;
+            setPersonPresent(true);
             continuousListening = automaticVoiceMode;
             boolean sameRecentlyGreetedFace = nearest.getId() == lastGreetedPersonId && now - lastGreetingAt < 180000L;
             boolean greetingTooSoon = now - lastGreetingAt < 12000L;
@@ -1135,9 +1135,21 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void moveHead(int horizontal, int vertical) { runOnUiThread(() -> moveRobotHead(horizontal, vertical)); }
         @JavascriptInterface public void getRobotSystemStatus() { runOnUiThread(() -> pushRobotSystemStatus()); }
         @JavascriptInterface public void returnToCharge() { runOnUiThread(() -> returnRobotToCharge()); }
+        /** «На пост» (docs/kurultai/robot-settings.md): поездка на home через startGuidedNavigation без auto. */
+        @JavascriptInterface public void returnToPost() { runOnUiThread(() -> returnRobotToPost()); }
+        /** Настройки робота на сервере: GET /v1/robot/settings → window.onRobotSettings(json), при ошибке {"error": "…"}. */
+        @JavascriptInterface public void refreshSettings() { fetchRobotSettings(null); }
+        /** Переключатель (PIN проверен в JS): POST {key: value} → тот же JSON, что GET → onRobotSettings. */
+        @JavascriptInterface public void setRobotSetting(String key, String value) {
+            if (key == null || value == null || !("live_engine".equals(key) || "noise_mode".equals(key))) {
+                pushRobotSettingsError("неизвестная настройка");
+                return;
+            }
+            try { fetchRobotSettings(new JSONObject().put(key, value.trim()).toString()); } catch (Exception e) { pushRobotSettingsError("не удалось собрать запрос"); }
+        }
         @JavascriptInterface public void setWelcomeMode(boolean enabled) {
             welcomeMode = enabled;
-            personPresent = false;
+            setPersonPresent(false);
             uiJs("window.onWelcomeMode && window.onWelcomeMode(" + enabled + ")");
         }
     }
@@ -1210,16 +1222,134 @@ public class MainActivity extends Activity {
         catch (Throwable ignored) { uiJs("window.onMotionError && window.onMotionError('Привод головы недоступен')"); }
     }
 
+    /**
+     * Вкладка «Робот и настройки» → window.onRobotInfo(json): {online, battery, charging, map, places:[имена точек карты],
+     * api_ready, navigating, last_trip, error}. Имена точек — для выпадающего списка «Поехать к точке» (JS скрывает зарядные).
+     */
     private void pushRobotSystemStatus() {
-        if (!robotApiReady()) { uiJs("window.onRobotSystemStatus && window.onRobotSystemStatus(false,'—','—','—','RobotOS недоступен')"); return; }
+        JSONObject j = new JSONObject();
         try {
-            int battery = RobotApi.getInstance().getBatteryLevel();
-            boolean charging = RobotApi.getInstance().getChargeStatus();
-            String map = RobotApi.getInstance().getMapName();
-            java.util.List<com.ainirobot.coreservice.client.actionbean.Pose> places = RobotApi.getInstance().getPlaceList();
-            int placeCount = places == null ? 0 : places.size();
-            uiJs("window.onRobotSystemStatus && window.onRobotSystemStatus(true," + battery + "," + charging + "," + JSONObject.quote(map == null ? "—" : map) + "," + JSONObject.quote(placeCount + " точек") + ")");
-        } catch (Throwable error) { uiJs("window.onRobotSystemStatus && window.onRobotSystemStatus(false,'—','—','—','Статус недоступен')"); }
+            j.put("api_ready", robotApiReady()).put("navigating", navigating).put("last_trip", lastTripJson());
+            if (!robotApiReady()) {
+                j.put("online", false).put("error", "RobotOS недоступен");
+            } else {
+                try {
+                    j.put("online", true).put("battery", RobotApi.getInstance().getBatteryLevel())
+                        .put("charging", RobotApi.getInstance().getChargeStatus());
+                    String map = RobotApi.getInstance().getMapName();
+                    j.put("map", map == null ? "" : map);
+                    java.util.List<String> places = fetchMapPlaces();
+                    if (!places.isEmpty()) { mapPlaces = places; LiveVoice l = live; if (l != null) l.setPlaces(places); }
+                    j.put("places", new JSONArray(places.isEmpty() ? mapPlaces : places));
+                } catch (Throwable error) { j.put("online", false).put("error", "Статус недоступен"); }
+            }
+        } catch (Exception ignored) { return; }
+        uiJs("window.onRobotInfo && window.onRobotInfo(" + j + ")");
+    }
+
+    /** last_trip для диагностики и вкладки: {place_id, result, reason, code, seconds, auto, at} или null. */
+    private Object lastTripJson() throws org.json.JSONException {
+        if (lastTripAt == 0) return JSONObject.NULL;
+        return new JSONObject()
+            .put("place_id", lastTripPlace).put("result", lastTripResult).put("reason", lastTripReason)
+            .put("code", lastTripCode).put("seconds", lastTripSeconds).put("auto", lastTripAuto)
+            .put("at", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ROOT).format(new Date(lastTripAt)));
+    }
+
+    /** Кнопка «На пост»: та же поездка, что авто-возврат, но по команде оператора (state без auto, сервер скажет итог). */
+    private void returnRobotToPost() {
+        if (!robotApiReady()) { uiJs("window.onMotionError && window.onMotionError('RobotOS недоступен')"); return; }
+        if (navigating && HOME_PLACE_ID.equals(navPlaceId) && !navAuto) { uiJs("window.onMotionStatus && window.onMotionStatus('Уже еду на пост')"); return; }
+        uiJs("window.onMotionStatus && window.onMotionStatus(" + JSONObject.quote("Еду на пост («" + HOME_MAP_NAME + "»)") + ")");
+        startGuidedNavigation(HOME_PLACE_ID, HOME_MAP_NAME, false);
+    }
+
+    // ---------- настройки робота на сервере (docs/kurultai/robot-settings.md): GET/POST /v1/robot/settings ----------
+    // Тот же токен робота, что у /v1/robot/diag. Ответ целиком уходит в window.onRobotSettings(json); краткая выжимка —
+    // в диагностику (settings_seen), чтобы в журнале было видно, что показывала вкладка.
+    private volatile JSONObject settingsSeen;
+
+    private void fetchRobotSettings(final String postBody) {
+        if (!liveConfigured()) { pushRobotSettingsError("в сборке нет адреса сервера или токена робота"); return; }
+        new Thread(() -> {
+            HttpURLConnection c = null;
+            try {
+                String base = BuildConfig.BACKEND_URL.endsWith("/") ? BuildConfig.BACKEND_URL : BuildConfig.BACKEND_URL + "/";
+                c = (HttpURLConnection) new URL(base + "robot/settings").openConnection();
+                c.setConnectTimeout(8000); c.setReadTimeout(8000);
+                c.setRequestProperty("Authorization", "Bearer " + BuildConfig.LIVE_TOKEN);
+                c.setRequestProperty("Accept", "application/json");
+                if (postBody != null) {
+                    c.setRequestMethod("POST");
+                    c.setDoOutput(true);
+                    c.setRequestProperty("Content-Type", "application/json");
+                    try (OutputStream out = c.getOutputStream()) { out.write(postBody.getBytes(StandardCharsets.UTF_8)); }
+                } else c.setRequestMethod("GET");
+                int code = c.getResponseCode();
+                String body = readBody(c, code);
+                if (code < 200 || code >= 300) { pushRobotSettingsError(settingsErrorText(code, body)); return; }
+                JSONObject json = new JSONObject(body);
+                rememberSettings(json);
+                uiJs("window.onRobotSettings && window.onRobotSettings(" + json + ")");
+            } catch (Exception e) {
+                pushRobotSettingsError("нет связи с сервером: " + describeError(e));
+            } finally {
+                if (c != null) c.disconnect();
+            }
+        }, "robot-settings").start();
+    }
+
+    private void pushRobotSettingsError(String text) {
+        JSONObject j = new JSONObject();
+        try { j.put("error", text == null ? "?" : text); } catch (Exception ignored) { }
+        uiJs("window.onRobotSettings && window.onRobotSettings(" + j + ")");
+    }
+
+    private static String settingsErrorText(int code, String body) {
+        String detail = "";
+        try {
+            JSONObject e = new JSONObject(body);
+            detail = e.optString("detail", e.optString("error", e.optString("message", "")));
+        } catch (Exception ignored) { }
+        if (code == 401 || code == 403) return "нет доступа (токен робота)";
+        if (code == 404) return "на сервере нет /robot/settings (старая версия сервера)";
+        if (!detail.isEmpty()) return detail;
+        return "сервер вернул код " + code;
+    }
+
+    private void rememberSettings(JSONObject json) {
+        try {
+            JSONObject engine = json.optJSONObject("engine");
+            JSONObject voice = json.optJSONObject("voice");
+            settingsSeen = new JSONObject()
+                .put("engine_selected", engine == null ? "" : engine.optString("selected", ""))
+                .put("engine_effective", engine == null ? "" : engine.optString("effective", ""))
+                .put("noise_mode", json.optString("noise_mode", ""))
+                .put("credits", voice == null || voice.isNull("credits") ? JSONObject.NULL : (Object) voice.opt("credits"))
+                .put("at", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ROOT).format(new Date()));
+        } catch (Exception ignored) { }
+    }
+
+    // ---------- человек перед роботом → live (docs/kurultai/robot-settings.md): state person_present, не чаще раза в 1 с ----------
+    private static final long PRESENCE_MIN_INTERVAL_MS = 1000L;
+    private long presenceSentAt;
+    private final Runnable presenceRunnable = this::pushPresence;
+
+    /** Единственная точка смены personPresent: слежение за лицом, сон, снятие слушателя. Вызов из любого потока. */
+    private void setPersonPresent(boolean present) {
+        if (personPresent == present) return;
+        personPresent = present;
+        runOnUiThread(this::pushPresence);
+    }
+
+    private void pushPresence() {
+        if (webView == null) return;
+        webView.removeCallbacks(presenceRunnable);
+        long wait = PRESENCE_MIN_INTERVAL_MS - (System.currentTimeMillis() - presenceSentAt);
+        if (wait > 0) { webView.postDelayed(presenceRunnable, wait); return; }
+        presenceSentAt = System.currentTimeMillis();
+        LiveVoice l = live;
+        if (l != null) l.setPersonPresent(personPresent);
     }
 
     private void returnRobotToCharge() {
@@ -1249,7 +1379,7 @@ public class MainActivity extends Activity {
         if (!personListenerRegistered) return;
         try { PersonApi.getInstance().unregisterPersonListener(personListener); } catch (Throwable ignored) { }
         personListenerRegistered = false;
-        personPresent = false;
+        setPersonPresent(false);
     }
 
     private void greetVisitor(int angle) {
@@ -2255,6 +2385,7 @@ public class MainActivity extends Activity {
         try { wavRecorder.cancel(); } catch (Throwable ignored) { }
         if (live == null) live = new LiveVoice(this, BuildConfig.BACKEND_URL, BuildConfig.LIVE_TOKEN, liveListener);
         live.setPlaces(mapPlaces);  // в первый hello — точки карты (если RobotAPI их уже отдал)
+        live.setPersonPresent(personPresent);  // и person_present (docs/kurultai/robot-settings.md)
         live.start(effectiveAnswerLanguage(listeningLanguage), greet);
     }
 

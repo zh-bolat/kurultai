@@ -139,7 +139,6 @@ body[data-page=robot] main{padding-top:32px}
 .status-grid span{font-size:14px;color:var(--muted2)}
 .status-grid b{font-size:17px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rb-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:20px;align-items:start}
-.settings-panel .modal-card{display:flex;flex-direction:column;gap:14px}
 .settings-panel h3{margin:8px 0 0;font-size:18px}
 .settings-panel p{margin:0;font-size:15px;color:var(--muted2);line-height:1.45}
 .settings-panel label,.robot-panel label{display:block;font-size:15px;color:var(--muted2);margin:4px 0 6px}
@@ -150,11 +149,6 @@ body[data-page=robot] main{padding-top:32px}
 .settings-actions,.system-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
 .settings-actions .save{flex:1}
 .mode{display:flex;justify-content:space-between;align-items:center;min-height:52px;padding:0 16px;border-radius:12px;background:#F3F6FA;font-size:17px}
-.connection-test{font-size:15px;color:var(--muted2)}
-.connection-test.success{color:#1E7553}.connection-test.failure{color:#8A5A12}
-.advanced{border-top:1px solid var(--line2);padding-top:12px}
-.advanced summary{font-size:16px;color:var(--accent-ink);cursor:pointer}
-.llm-settings,.assistant-preferences,.meeting-settings{display:flex;flex-direction:column;gap:8px;padding:6px 0 14px;border-bottom:1px solid var(--line2)}
 .robot-panel{display:flex;flex-direction:column;gap:14px}
 .robot-system{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:14px;color:var(--muted2)}
 .robot-system b{display:block;font-size:20px;color:var(--ink)}
@@ -754,3 +748,24 @@ body .voice-dock:not(.active) .vb-text b{color:#111A2B}
 body .voice-dock:not(.active) .vb-text small{color:#3B4A63}
 body .voice-dock:not(.active) .vb-status{color:#1F6FA8}
 body .voice-dock:not(.active) .vb-status::before{background:#2E95D6}
+
+/* «Робот и настройки» 2026-11-10 (docs/kurultai/robot-settings.md): состояние в 3 колонки, переключатели-сегменты под PIN,
+   выпадающий список точек, строка последней поездки. Красное — остаток ElevenLabs < 20 000, сервер/движок недоступен. */
+.status-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.status-grid b.warn,.motion-status.warn,.sw-status.warn{color:#B8404B}
+.st-note{margin:14px 0 0;font-size:16px;line-height:1.4;color:#8A5A12}
+.settings-panel{display:flex;flex-direction:column;gap:18px}
+.sw-group{display:flex;flex-direction:column;gap:10px}
+.sw-group>b{font-size:18px;color:var(--ink)}
+.sw-group p{margin:0;font-size:15px;line-height:1.45;color:var(--muted2)}
+.seg{display:flex;gap:10px}
+.seg button{flex:1;min-height:60px;font-size:19px;font-weight:700;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:16px}
+.seg button.on{background:var(--nav);color:#fff;border-color:transparent}
+.seg button:disabled{opacity:.55}
+.seg.busy button{pointer-events:none}
+.sw-status{margin:0;min-height:22px;font-size:15px;color:var(--muted2)}
+.robot-system span{display:flex;flex-direction:column;gap:4px}
+.robot-system i{font-style:normal}
+.navigation-control select{flex:1;width:auto;min-width:0}
+.navigation-control button{white-space:nowrap}
+#lastTrip[hidden]{display:none}

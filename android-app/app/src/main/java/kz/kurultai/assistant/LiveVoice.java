@@ -84,6 +84,9 @@ final class LiveVoice {
     private volatile long lastActivityAt;
     // Имена точек карты робота (getPlaceList) для hello.places: сервер предлагает и возит только туда, где точка есть.
     private volatile java.util.List<String> places = java.util.Collections.emptyList();
+    // Человек перед роботом (docs/kurultai/robot-settings.md): в hello и кадром state при смене. Без сведений сервер считает, что есть.
+    private volatile boolean personPresent = true;
+    private volatile Boolean presenceSent;   // последнее отправленное в этой сессии значение
 
     private AudioRecord record;
     private AcousticEchoCanceler echo;
@@ -138,6 +141,7 @@ final class LiveVoice {
         if (active) { if (greet) visitorArrived(); return; }
         active = true;
         ready = false;
+        presenceSent = null;
         greetPending = greet;
         dropping = false;
         currentTurn = null;
@@ -202,11 +206,13 @@ final class LiveVoice {
     private void sendHello(WebSocket socket) {
         try {
             // Перебивает только команда «стоп» (на сервере LIVE_BARGE_IN=stop_only).
+            boolean present = personPresent;
             JSONObject hello = new JSONObject().put("type", "hello").put("lang", helloLang)
-                .put("place_id", JSONObject.NULL).put("aec", aec);
+                .put("place_id", JSONObject.NULL).put("aec", aec).put("person_present", present);
             java.util.List<String> p = places;
             if (!p.isEmpty()) hello.put("places", new org.json.JSONArray(p));
             socket.send(hello.toString());
+            presenceSent = present;
             Log.i(TAG, "hello sent lang=" + helloLang + " aec=" + aec + " stereo=" + stereo + " places=" + p.size());
         } catch (Exception e) { Log.w(TAG, "hello failed", e); }
     }
@@ -228,6 +234,22 @@ final class LiveVoice {
             lastActivityAt = System.currentTimeMillis();  // поездка — не простой: сон не наступает посреди пути
             Log.i(TAG, "state sent " + state);
         } catch (Exception e) { Log.w(TAG, "state failed", e); }
+    }
+
+    /**
+     * Человек перед роботом (слежение за лицом в MainActivity): {"type":"state","person_present":true|false} при смене,
+     * повторы не шлём; значение попадает и в hello. Частоту (не чаще раза в 1 с) держит MainActivity.
+     */
+    void setPersonPresent(boolean present) {
+        personPresent = present;
+        if (!active || !ready) return;
+        Boolean sent = presenceSent;
+        if (sent != null && sent == present) return;
+        presenceSent = present;
+        try {
+            sendJson(new JSONObject().put("type", "state").put("person_present", present).toString());
+            Log.i(TAG, "state person_present=" + present);
+        } catch (Exception e) { Log.w(TAG, "presence failed", e); }
     }
 
     private static String safeLang(String lang) { return lang != null && lang.startsWith("kk") ? "kk" : "ru"; }
@@ -269,6 +291,8 @@ final class LiveVoice {
         switch (type) {
             case "ready": {
                 ready = true;
+                Boolean sentPresence = presenceSent;
+                if (sentPresence == null || sentPresence != personPresent) { presenceSent = null; setPersonPresent(personPresent); }
                 String format = str(msg, "audio_format");
                 java.util.regex.Matcher m = java.util.regex.Pattern.compile("^pcm_s16le_(\\d{4,6})$").matcher(format);
                 configurePlayback(m.matches() ? Integer.parseInt(m.group(1)) : 24_000);
