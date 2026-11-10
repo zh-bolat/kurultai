@@ -78,6 +78,8 @@ final class QuryltaiDataSync {
                     .put("committees", committees)
                     .put("deputy_request_count", deputyRequests.optInt("count", 0))
                     .put("deputy_requests", compactDeputyRequests(deputyRequests.optJSONArray("result")));
+                JSONObject kk = fetchKazakh();
+                if (kk != null) data.put("kk", kk);
                 prefs.edit().putString(KEY_DATA, data.toString())
                     .putLong(KEY_UPDATED, System.currentTimeMillis()).apply();
                 listener.onData(data, true);
@@ -184,21 +186,68 @@ final class QuryltaiDataSync {
         } catch (Exception ignored) { return ""; }
     }
 
+    /**
+     * Те же данные на казахском для экрана в режиме ҚАЗ (кнопка ҚАЗ|РУС). Сайт отдаёт язык по Accept-Language;
+     * пробуем «kk», затем «kz». Берём ответ, только если в названиях есть казахские буквы, иначе экран
+     * показывает русские данные, как раньше. Ошибка здесь не мешает русскому снимку. Промпт — только русский.
+     */
+    private static JSONObject fetchKazakh() {
+        for (String lang : new String[] {"kk", "kz"}) {
+            try {
+                JSONObject bills = getJson(BILLS, lang);
+                JSONArray billList = bills.optJSONArray("result") == null ? new JSONArray() : bills.optJSONArray("result");
+                if (!looksKazakh(billList, "title")) continue;
+                JSONObject plans = getJson(PLANS, lang);
+                JSONObject deputyRequests = getJson(DEPUTY_REQUESTS, lang);
+                return new JSONObject()
+                    .put("lang", lang)
+                    .put("bills", billList)
+                    .put("main_plans", plans.optJSONArray("main_plans") == null ? new JSONArray() : plans.optJSONArray("main_plans"))
+                    .put("weekly_plans", plans.optJSONArray("weekly_plans") == null ? new JSONArray() : plans.optJSONArray("weekly_plans"))
+                    .put("committees", compactCommittees(getJsonArray(COMMITTEES, lang)))
+                    .put("deputy_requests", compactDeputyRequests(deputyRequests.optJSONArray("result")));
+            } catch (Exception ignored) {
+                // нет казахской версии или сеть — экран остаётся на русских данных
+            }
+        }
+        return null;
+    }
+
+    private static boolean looksKazakh(JSONArray items, String field) {
+        int kazakh = 0, total = 0;
+        for (int i = 0; items != null && i < items.length() && total < 20; i++) {
+            JSONObject item = items.optJSONObject(i);
+            String value = item == null ? "" : item.optString(field, "");
+            if (value.isEmpty()) continue;
+            total++;
+            if (value.matches("(?s).*[әғқңөұүһіӘҒҚҢӨҰҮҺІ].*")) kazakh++;
+        }
+        return total > 0 && kazakh * 2 >= total;
+    }
+
     private static JSONObject getJson(String address) throws Exception {
-        return new JSONObject(getBody(address));
+        return getJson(address, "ru");
+    }
+
+    private static JSONObject getJson(String address, String lang) throws Exception {
+        return new JSONObject(getBody(address, lang));
     }
 
     private static JSONArray getJsonArray(String address) throws Exception {
-        return new JSONArray(getBody(address));
+        return getJsonArray(address, "ru");
     }
 
-    private static String getBody(String address) throws Exception {
+    private static JSONArray getJsonArray(String address, String lang) throws Exception {
+        return new JSONArray(getBody(address, lang));
+    }
+
+    private static String getBody(String address, String lang) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(12_000);
         connection.setReadTimeout(20_000);
         connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("Accept-Language", "ru");
+        connection.setRequestProperty("Accept-Language", lang);
         connection.setRequestProperty("User-Agent", "KurultaiDeputyAssistant/5.46");
         try {
             int code = connection.getResponseCode();

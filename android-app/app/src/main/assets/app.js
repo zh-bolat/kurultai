@@ -316,7 +316,8 @@ function fitToScreen(){const w=document.documentElement.clientWidth||innerWidth,
 window.addEventListener('orientationchange',()=>setTimeout(fitToScreen,200));
 fitToScreen();window.addEventListener('resize',fitToScreen);
 
-function data(){return (typeof quryltaiOfficial!=='undefined'&&quryltaiOfficial)||null}
+// ҚАЗ: если приложение скачало казахскую версию данных (data.kk), экран показывает её; иначе — русские данные
+function data(){const d=(typeof quryltaiOfficial!=='undefined'&&quryltaiOfficial)||null;if(d&&language==='kk'&&d.kk&&typeof d.kk==='object'){const k=d.kk,m=Object.assign({},d);['bills','main_plans','weekly_plans','committees','deputy_requests'].forEach(f=>{if(Array.isArray(k[f])&&k[f].length)m[f]=k[f]});return m}return d}
 function setActive(p){document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.page===p))}
 
 function applyTexts(){const t=T();
