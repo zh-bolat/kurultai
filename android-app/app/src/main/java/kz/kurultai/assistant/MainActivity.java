@@ -1086,6 +1086,25 @@ public class MainActivity extends Activity {
             });
         }
 
+        /**
+         * Круг микрофона на странице (2026-11-10): одно касание. Говорит или думает — замолчать; спит — проснуться
+         * и слушать, оставаясь на странице (без лица и приветствия); иначе — слушать. Удерживать не нужно.
+         */
+        @JavascriptInterface public void tapOrb() {
+            runOnUiThread(() -> {
+                touchReturnHome();
+                noteFaceTap();   // касание круга — человек рядом
+                if (navigating) { stopGuidedNavigation("button"); return; }
+                LiveVoice l = live;
+                if (speakingNow && speaker != null) { speaker.stop(); finishSpeakingCycle(); }
+                if (asleep) { wakeUpRobot(false, false); return; }
+                if (l != null && l.isActive()) { l.interrupt(); return; }  // не говорит — interrupt ничего не делает, live и так слушает
+                if (liveEnabled()) { startLive(false); return; }
+                // без live (запасной режим): первое касание — запись, второе — отправить
+                if (holdRecording) stopRawRecordingAndTranscribe(); else startRawRecording();
+            });
+        }
+
         @JavascriptInterface public void stopSpeaking() {
             runOnUiThread(() -> {
                 touchReturnHome();
@@ -2398,11 +2417,14 @@ public class MainActivity extends Activity {
     }
 
     /** Тап по спящему лицу: проснуться, поздороваться (сервер, visitor_arrived) и слушать всех. */
-    private void wakeUpRobot(boolean greet) {
+    private void wakeUpRobot(boolean greet) { wakeUpRobot(greet, true); }
+
+    /** showFace=false — проснуться с круга микрофона на странице: страница остаётся на экране. */
+    private void wakeUpRobot(boolean greet, boolean showFace) {
         if (!asleep) return;
         asleep = false;
         noteFaceTap();   // пробуждение любым путём — человек рядом (окно 90 с)
-        uiJs("window.showFace && window.showFace(); window.onFaceState && window.onFaceState('listening')");
+        uiJs((showFace ? "window.showFace && window.showFace(); " : "") + "window.onFaceState && window.onFaceState('listening')");
         if (liveEnabled()) { startLive(greet); return; }
         asleep = true;
         if (liveConfigured() && !Boolean.FALSE.equals(liveProfileOk)) {

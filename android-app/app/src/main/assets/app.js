@@ -220,8 +220,8 @@ render();
 // A very short tap sends nothing and shows a hint; a tap while the robot speaks stops the speech.
 let talkTimer=null,toggleTalk=null;
 ;(function(){
-const TXT={ru:{idle:['Говорите — я слушаю','Просто начните говорить. Чтобы остановить меня, скажите «стоп»','СЛУШАЮ'],listening:['Слушаю…','Говорите, я пойму, когда вы закончите','РОБОТ СЛУШАЕТ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Чтобы остановить, скажите «стоп»','РОБОТ ГОВОРИТ']},
-kk:{idle:['Сөйлей беріңіз — тыңдап тұрмын','Жай ғана сөйлей бастаңыз. Тоқтату үшін «тоқта» деңіз','ТЫҢДАП ТҰРМЫН'],listening:['Тыңдап тұрмын…','Сөйлеңіз, сөзіңіз біткенін өзім түсінемін','ТЫҢДАП ТҰР'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін «тоқта» деңіз','РОБОТ СӨЙЛЕП ТҰР']}};
+const TXT={ru:{idle:['Говорите — я слушаю','Просто начните говорить. Остановить меня — нажмите на круг или скажите «стоп»','СЛУШАЮ'],listening:['Слушаю…','Говорите, я пойму, когда вы закончите','РОБОТ СЛУШАЕТ'],thinking:['Готовлю ответ…','Подождите немного','ГОТОВЛЮ ОТВЕТ'],speaking:['Отвечаю…','Чтобы остановить, нажмите на круг или скажите «стоп»','РОБОТ ГОВОРИТ']},
+kk:{idle:['Сөйлей беріңіз — тыңдап тұрмын','Жай ғана сөйлей бастаңыз. Тоқтату үшін шеңберді басыңыз немесе «тоқта» деңіз','ТЫҢДАП ТҰРМЫН'],listening:['Тыңдап тұрмын…','Сөйлеңіз, сөзіңіз біткенін өзім түсінемін','ТЫҢДАП ТҰР'],thinking:['Жауап дайындап жатырмын…','Сәл күтіңіз','ЖАУАП ДАЙЫНДАЛУДА'],speaking:['Жауап беріп жатырмын…','Тоқтату үшін шеңберді басыңыз немесе «тоқта» деңіз','РОБОТ СӨЙЛЕП ТҰР']}};
 const SHORT={ru:'Удерживайте круг, пока говорите',kk:'Сөйлеп тұрғанда шеңберді басып тұрыңыз'};
 let state='idle',live='',subQ='',subA='',guard=null,pressAt=0,shortTap=false,flash=null;
 const norm=s=>(s==='listening'||s==='thinking'||s==='speaking')?s:'idle';
@@ -233,7 +233,7 @@ function render(){const t=L()[state];const set=(id,v)=>{const e=document.getElem
  const q=subQ?'«'+subQ+'»':'';  // субтитры: вопрос посетителя и то, что робот говорит сейчас
  set('orbCaption',(state==='speaking'||state==='thinking')&&q?q:t[0]);
  set('orbHint',(state==='listening'&&(live||subQ))?(live||subQ).slice(-160):(state==='speaking'&&subA)?subA:(state==='thinking'&&q)?t[0]:t[1]);set('vbStatus',t[2]);
- set('vbFabLabel',flash?SHORT[language==='kk'?'kk':'ru']:L().idle[0]);
+ set('vbFabLabel',L().idle[0]);
  const b=document.getElementById('voiceBanner');if(b){b.classList.toggle('listening',state==='listening');b.setAttribute('aria-label',t[0])}
  const o=document.getElementById('orbBtn');if(o){o.classList.toggle('listening',state==='listening');o.classList.toggle('thinking',state==='thinking');o.classList.toggle('speaking',state==='speaking')}
  const d=document.getElementById('voiceDock');if(d)d.className='voice-dock '+(state==='idle'?'active':state);document.documentElement.classList.toggle('voice-busy',state!=='idle');vbFit()}
@@ -262,11 +262,15 @@ const verr=window.onVoiceError;window.onVoiceError=t=>{if(shortTap){shortTap=fal
 window.vbSubtitle=(kind,t)=>{t=String(t||'').replace(/\s+/g,' ').trim();if(!t)return;if(kind==='heard'){subQ=t;subA=''}else subA=t;render()};
 const part=window.onVoicePartial;window.onVoicePartial=t=>{if(part)part(t);if(state==='listening'){live=String(t||'');render()}};
 const err=window.onVoiceServiceError;window.onVoiceServiceError=t=>{holdActive=false;clearTimeout(talkTimer);if(err)err(t);setVoiceDock('idle')};
+// 2026-11-10: круг — одно касание, удерживать не нужно. Говорит или думает — замолчит; иначе — слушает
+// (спящий робот просыпается, страница остаётся на экране). Решает приложение: Robot.tapOrb().
+function tapOrb(e){if(e&&e.preventDefault)e.preventDefault();if(!window.Robot)return toast('Голосовой ввод доступен на роботе');
+ if(typeof Robot.tapOrb!=='function')return;
+ const was=state;Robot.tapOrb();
+ if(was==='speaking'||was==='thinking'){subA='';setVoiceDock('listening')}else if(was==='idle')setVoiceDock('listening')}
+toggleTalk=tapOrb;
 const vb=document.getElementById('voiceBanner');
-if(vb){vb.onclick=e=>e.preventDefault();
- if(window.PointerEvent){vb.addEventListener('pointerdown',press);['pointerup','pointercancel','pointerleave','lostpointercapture'].forEach(n=>vb.addEventListener(n,release))}
- else{vb.addEventListener('touchstart',press,{passive:false});['touchend','touchcancel'].forEach(n=>vb.addEventListener(n,release));vb.addEventListener('mousedown',press);['mouseup','mouseleave'].forEach(n=>vb.addEventListener(n,release))}
- vb.addEventListener('contextmenu',e=>e.preventDefault())}
+if(vb){vb.removeAttribute('aria-disabled');vb.tabIndex=0;vb.onclick=tapOrb;vb.addEventListener('contextmenu',e=>e.preventDefault())}
 const dt=document.getElementById('dockToggle');if(dt)dt.onclick=null;
 const ul=applyUiLanguage;applyUiLanguage=function(){const r=ul.apply(this,arguments);render();return r};
 render();
@@ -421,6 +425,5 @@ function frame(){const now=Date.now();if(now-last>400)target=0;shown+=(target-sh
  const o=document.getElementById('orbBtn');if(o)o.classList.toggle('robot-voice',robot&&shown>5);
  requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
-const vb=document.getElementById('voiceBanner');if(vb){vb.setAttribute('aria-disabled','true');vb.tabIndex=-1}
 const lbl=document.getElementById('vbFabLabel');if(lbl)lbl.textContent='';
 })();
