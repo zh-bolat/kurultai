@@ -68,3 +68,13 @@ html.face-on,html.face-on body{background:#000!important}
   transition:color .25s ease,text-shadow .25s ease}
 #faceScreen .face-lang button.on{color:#3AA8F5;text-shadow:0 0 14px rgba(58,168,245,.55)}
 #faceScreen .face-lang i{display:inline-block;vertical-align:middle;width:1px;height:22px;background:#2a3d52}
+/* 2026-11-10: баннер поездки «проводить» (face.js onNavigation) — поверх лица и страницы, ниже карточки действия (9400) и PIN (9500).
+   Крупный текст для экрана 14": название точки и подсказка «нажмите, чтобы остановить»; тап по баннеру — Robot.stopNavigation(). */
+#faceNav{position:fixed;left:0;right:0;top:0;z-index:9100;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;padding:26px 48px 24px;background:linear-gradient(180deg,rgba(14,30,52,.96),rgba(14,30,52,.86));color:#e6f6ff;text-align:center;
+  border-bottom:2px solid rgba(58,168,245,.55);box-shadow:0 8px 32px rgba(0,0,0,.45);touch-action:none;user-select:none;-webkit-user-select:none;
+  animation:face-nav-in .3s ease}
+#faceNav[hidden]{display:none}
+#faceNav b{font:700 44px/1.15 "Golos Text","Inter",system-ui,sans-serif;color:#fff;text-shadow:0 0 18px rgba(58,168,245,.45)}
+#faceNav small{font:500 24px/1.2 "Golos Text","Inter",system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#7cc6f7}
+@keyframes face-nav-in{0%{transform:translateY(-100%);opacity:0}100%{transform:translateY(0);opacity:1}}

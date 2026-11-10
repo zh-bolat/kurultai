@@ -55,6 +55,12 @@ final class LiveVoice {
         void onLevel(int level, boolean robot);
         /** Эмоция хода от сервера (neutral / happy / thinking / surprised / sad / excited) — для лица. */
         void onEmotion(String name);
+        /**
+         * Действие сервера (docs/kurultai/navigation.md): type — guide_to / stop_navigation; placeId и mapName —
+         * точка (у stop_navigation пустые); turnId — ход, после которого действие (может быть пустым).
+         * Вызывается из потока сокета.
+         */
+        void onAction(String type, String placeId, String mapName, String turnId);
     }
 
     private final Context context;
@@ -76,6 +82,8 @@ final class LiveVoice {
     private volatile String helloLang = "ru";
     private final StringBuilder turnText = new StringBuilder();
     private volatile long lastActivityAt;
+    // Имена точек карты робота (getPlaceList) для hello.places: сервер предлагает и возит только туда, где точка есть.
+    private volatile java.util.List<String> places = java.util.Collections.emptyList();
 
     private AudioRecord record;
     private AcousticEchoCanceler echo;
@@ -178,13 +186,48 @@ final class LiveVoice {
     /** Сервер сам перешёл на язык фразы (user_final.lang): запомнить без hello — для переподключения. */
     void noteLanguage(String lang) { helloLang = safeLang(lang); }
 
+    /**
+     * Точки карты робота для hello.places. Список изменился при открытом разговоре — повторный hello (как при смене
+     * языка). Пустой список не шлём: без поля сервер считает, что есть все точки из своего yaml.
+     */
+    void setPlaces(java.util.List<String> names) {
+        java.util.List<String> clean = new java.util.ArrayList<>();
+        if (names != null) for (String n : names) if (n != null && !n.trim().isEmpty()) clean.add(n.trim());
+        if (clean.equals(places)) return;
+        places = clean;
+        WebSocket s = ws;
+        if (active && s != null && ready) sendHello(s);
+    }
+
     private void sendHello(WebSocket socket) {
         try {
             // Перебивает только команда «стоп» (на сервере LIVE_BARGE_IN=stop_only).
-            socket.send(new JSONObject().put("type", "hello").put("lang", helloLang)
-                .put("place_id", JSONObject.NULL).put("aec", aec).toString());
-            Log.i(TAG, "hello sent lang=" + helloLang + " aec=" + aec + " stereo=" + stereo);
+            JSONObject hello = new JSONObject().put("type", "hello").put("lang", helloLang)
+                .put("place_id", JSONObject.NULL).put("aec", aec);
+            java.util.List<String> p = places;
+            if (!p.isEmpty()) hello.put("places", new org.json.JSONArray(p));
+            socket.send(hello.toString());
+            Log.i(TAG, "hello sent lang=" + helloLang + " aec=" + aec + " stereo=" + stereo + " places=" + p.size());
         } catch (Exception e) { Log.w(TAG, "hello failed", e); }
+    }
+
+    /**
+     * Состояние поездки серверу (docs/kurultai/navigation.md): navigating=true — поехали; false — итог
+     * result = arrived / failed / stopped, reason — код причины; auto — авто-возврат на пост (сервер фразу не говорит).
+     * null-поля не шлём, "auto" — только при true.
+     */
+    void sendState(boolean navigating, String placeId, String result, String reason, boolean auto) {
+        if (!active) return;
+        try {
+            JSONObject state = new JSONObject().put("type", "state").put("navigating", navigating);
+            if (placeId != null && !placeId.isEmpty()) state.put("place_id", placeId);
+            if (result != null && !result.isEmpty()) state.put("result", result);
+            if (reason != null && !reason.isEmpty()) state.put("reason", reason);
+            if (auto) state.put("auto", true);
+            sendJson(state.toString());
+            lastActivityAt = System.currentTimeMillis();  // поездка — не простой: сон не наступает посреди пути
+            Log.i(TAG, "state sent " + state);
+        } catch (Exception e) { Log.w(TAG, "state failed", e); }
     }
 
     private static String safeLang(String lang) { return lang != null && lang.startsWith("kk") ? "kk" : "ru"; }
@@ -272,6 +315,15 @@ final class LiveVoice {
                 dropping = true;
                 listener.onState("listening");
                 break;
+            case "action": {
+                // {"type":"action","type_":"guide_to"|"stop_navigation","place_id":…,"map_name":…,"turn_id":…}
+                String kind = str(msg, "type_");
+                if (kind.isEmpty()) kind = str(msg, "action");
+                if (kind.isEmpty()) break;
+                lastActivityAt = System.currentTimeMillis();
+                listener.onAction(kind, str(msg, "place_id"), str(msg, "map_name"), str(msg, "turn_id"));
+                break;
+            }
             case "error": {
                 JSONObject err = msg.optJSONObject("error");
                 String m = err == null ? str(msg, "message") : str(err, "message");

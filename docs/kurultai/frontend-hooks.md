@@ -24,13 +24,26 @@
 ## Мост `window.Robot.*` (Java → JS-интерфейс)
 `wakeUp`, `sleepNow`, `checkAdminPin`, `adminPinRequired`, `exitApp`, `askBackend`, `speak`, `stopSpeaking`,
 `setLanguage` и смена языка ҚАЗ|РУС → повторный `hello` в live (язык ответа берётся только с экрана),
-`move/stopMove/moveHead` (вкладка «Робот и настройки»).
+`move/stopMove/moveHead` (вкладка «Робот и настройки»),
+`stopNavigation` (10.11: остановить поездку «проводить» / авто-возврат — зовёт `face.js` по тапу на баннер или лицо;
+`stopSpeaking` и круг микрофона в поездке тоже останавливают робота).
 Будет: `confirmAction`, `cancelAction`, `assistantDeputies`, `assistantLogin`, `assistantLogout`.
 
 ## События от Java для наших скриптов
-`onFaceState`, `onFacePhrase`, `onFaceHeard`, `onFaceEmotion`, `onFaceNotice`, событие DOM `kurultai-face-shown`.
+`onFaceState`, `onFacePhrase`, `onFaceHeard`, `onFaceEmotion`, `onFaceNotice`, событие DOM `kurultai-face-shown`,
+`onNavigation(json)` (10.11: `{navigating, place_id, map_name, auto, result, reason}` — `face.js` показывает баннер
+«Еду: <название> · нажмите, чтобы остановить» / «Возвращаюсь на место» и прячет по `navigating:false`; названия точек —
+таблица `PLACES` в `face.js` по `place_id` контракта `navigation.md`).
 Будет: `onActionProposal(json)`, `onActionStatus(json)`, `onAssistantMode(json)`.
 
+## Live-протокол (LiveVoice.java ↔ сервер), что добавлено 10.11
+- `hello.places` — имена точек карты робота (`RobotApi.getPlaceList()` → `Pose.getName()`); список обновляется раз в 20 с
+  вместе с диагностикой, изменился — повторный `hello`.
+- кадр сервера `action` (`type_`: `guide_to` / `stop_navigation`, `place_id`, `map_name`, `turn_id`) →
+  `LiveVoice.Listener.onAction(...)` → `MainActivity.handleLiveAction`.
+- `state` от робота: `{"type":"state","navigating":true|false,"place_id","result","reason","auto"}` — `LiveVoice.sendState(...)`,
+  null-поля не шлются, `auto: true` только при авто-возврате на пост.
+
 ## Слои (z-index)
-лицо 9000 · карточка подтверждения действия 9400 (будет) · окно PIN 9500. Новый фронтенд не должен класть свои
-слои выше 9000 поверх лица.
+лицо 9000 · баннер поездки `#faceNav` 9100 · карточка подтверждения действия 9400 (будет) · окно PIN 9500. Новый
+фронтенд не должен класть свои слои выше 9000 поверх лица.

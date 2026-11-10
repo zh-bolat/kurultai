@@ -200,7 +200,8 @@ public class MainActivity extends Activity {
             checkLocalMeetingReminder();
             refreshQuryltaiData();
             LiveVoice idle = live;
-            if (!asleep && idle != null && idle.isActive() && !idle.isPlaying()
+            // Поездка сон не прерывает: засыпаем только после navigating:false (docs/kurultai/navigation.md)
+            if (!asleep && !navigating && idle != null && idle.isActive() && !idle.isPlaying()
                 && System.currentTimeMillis() - idle.lastActivityAt() > LIVE_IDLE_SLEEP_MS) goToSleep("5 min idle");
             maybeAutoStartLive();  // страховка: если live упал и не поднялся — поднять
             if (activityVisible && webView != null) webView.postDelayed(this, 30000L);
@@ -255,7 +256,7 @@ public class MainActivity extends Activity {
             if (!activityVisible || webView == null) return;
             long now = System.currentTimeMillis();
             boolean nobody = !personPresent && now - lastFaceSeenAt > 5000L;
-            if (nobody && !followingPerson && !speakingNow && robotApiReady() && now - lastFriendlyLookAt > 3000L) {
+            if (nobody && !followingPerson && !navigating && !speakingNow && robotApiReady() && now - lastFriendlyLookAt > 3000L) {
                 int side = headRandom.nextBoolean() ? 1 : -1;
                 int h = side * (asleep ? 15 + headRandom.nextInt(10) : 20 + headRandom.nextInt(25));
                 int v = asleep ? 26 : 30 + headRandom.nextInt(5);
@@ -269,6 +270,320 @@ public class MainActivity extends Activity {
             webView.postDelayed(this, next);
         }
     };
+
+    // ---------- поездки «проводить» и авто-возврат на пост (docs/kurultai/navigation.md, «Поведение робота») ----------
+    // Сервер решает (action guide_to / stop_navigation), робот исполняет: startNavigation как в navigateRobotTo, статусы
+    // RobotAPI → state navigating/arrived/failed/stopped. Фразу прибытия говорит сервер; робот сам говорит только
+    // «пропустите» при препятствии. На время поездки голова и корпус у навигации (lookAtVisitor/alignBodyToFace молчат).
+    private static final long TRIP_TIMEOUT_MS = 120_000L;
+    private static final long OBSTACLE_PHRASE_AFTER_MS = 5_000L;
+    private static final long OBSTACLE_PHRASE_INTERVAL_MS = 10_000L;
+    private static final long GUIDE_WAIT_PLAYBACK_MS = 8_000L;   // guide_to пришёл, пока робот договаривает — ждём не дольше
+    private static final long RETURN_HOME_IDLE_MS = 180_000L;    // 3 мин без разговора после поездки → сам едет на пост
+    private static final long RETURN_HOME_BUSY_RETRY_MS = 30_000L;
+    private static final int RETURN_HOME_MAX_FAILURES = 2;        // два неудачных авто-возврата подряд — ждём следующей поездки
+    private static final String HOME_PLACE_ID = "home";
+    private static final String HOME_MAP_NAME = "Пункт приема";   // стартовая точка робота на карте (owner 10.11)
+    // Коды RobotAPI (Definition): статусы навигации и ошибки — см. docs/astana-hub/vendor/RobotAPI_en.md, startNavigation
+    private static final int STATUS_NAVI_AVOID = 1018, STATUS_NAVI_AVOID_END = 1019, STATUS_NAVI_OUT_MAP = 1020,
+        STATUS_NAVI_OBSTACLES_AVOID = 1023, STATUS_NAVI_GLOBAL_PATH_FAILED = 1025, STATUS_NAVI_OBSTACLES_DISAPPEAR = 1026,
+        STATUS_NAVI_AVOID_IMMEDIATELY = 1051;
+    private static final int RESULT_OK = 1, ACTION_RESPONSE_STOP_SUCCESS = 3, ACTION_RESPONSE_ALREADY_RUN = -1;
+    private static final int ERROR_NAVIGATION = -104, ERROR_DESTINATION_NOT_EXIST = -108, ERROR_DESTINATION_CAN_NOT_ARRIVE = -109,
+        ERROR_IN_DESTINATION = -113, ERROR_NOT_ESTIMATE = -116, ERROR_NAVIGATION_FAILED = -120, ERROR_NAVIGATION_AVOID_TIMEOUT = -136;
+
+    private volatile boolean navigating;
+    private volatile boolean navAuto;                 // авто-возврат на пост: сервер фразы не говорит, сон и live не мешают
+    private volatile String navPlaceId = "", navMapName = "";
+    private volatile long navStartedAt, navObstacleSince, navLastObstaclePhraseAt;
+    private volatile int navGeneration;               // поздние колбэки RobotAPI прежней поездки — мимо
+    private volatile String navLastStatus = "", diagLastNav = "";
+    private volatile String pendingGuidePlace = "";   // guide_to, ждущий конца речи робота
+    private volatile java.util.List<String> mapPlaces = java.util.Collections.emptyList();
+    // Последняя поездка — в диагностику (/v1/robot/diag → last_trip), как NavJournal у Astana Hub
+    private volatile String lastTripPlace = "", lastTripResult = "", lastTripReason = "";
+    private volatile int lastTripCode;
+    private volatile long lastTripSeconds, lastTripAt;
+    private volatile boolean lastTripAuto;
+    // После поездки робот не на посту: по таймеру без разговора возвращается на HOME_MAP_NAME
+    private volatile boolean awayFromHome;
+    private int returnHomeFailures;
+
+    private void navLog(String text) {
+        android.util.Log.i("KurultaiNav", text);
+        diagLastNav = text.length() > 200 ? text.substring(0, 200) : text;
+    }
+
+    /** Имена точек текущей карты (Pose.getName). Пусто — RobotAPI не ответил (не значит, что точек нет). */
+    private java.util.List<String> fetchMapPlaces() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (!robotApiReady()) return out;
+        try {
+            java.util.List<com.ainirobot.coreservice.client.actionbean.Pose> poses = RobotApi.getInstance().getPlaceList();
+            if (poses != null) for (com.ainirobot.coreservice.client.actionbean.Pose p : poses) {
+                String name = p == null ? null : p.getName();
+                if (name != null && !name.trim().isEmpty()) out.add(name.trim());
+            }
+        } catch (Throwable e) { navLog("getPlaceList: " + e.getClass().getSimpleName() + " " + e.getMessage()); }
+        return out;
+    }
+
+    private void refreshMapPlacesAsync() {
+        new Thread(() -> {
+            java.util.List<String> p = fetchMapPlaces();
+            if (p.isEmpty()) return;
+            mapPlaces = p;
+            LiveVoice l = live;
+            if (l != null) l.setPlaces(p);
+        }, "map-places").start();
+    }
+
+    /** Кадр action от сервера (UI-поток). */
+    private void handleLiveAction(String type, String placeId, String mapName, String turnId) {
+        navLog("action " + type + " place=" + placeId + " map=" + mapName + " turn=" + (turnId.isEmpty() ? "—" : turnId));
+        if ("stop_navigation".equals(type)) { stopGuidedNavigation("server"); return; }
+        if (!"guide_to".equals(type) || placeId.isEmpty()) return;
+        if (navigating && !navAuto && placeId.equals(navPlaceId)) { navLog("guide_to " + placeId + " → игнор: уже едем"); return; }
+        if (placeId.equals(pendingGuidePlace)) { navLog("guide_to " + placeId + " → игнор: уже ждёт старта"); return; }
+        final String map = mapName.isEmpty() ? placeId : mapName;
+        pendingGuidePlace = placeId;
+        startGuideWhenQuiet(placeId, map, System.currentTimeMillis() + GUIDE_WAIT_PLAYBACK_MS);
+    }
+
+    /** Сервер шлёт guide_to после playback_done, но если звук ещё играет (старый порядок) — ждём его конца, не дольше 8 с. */
+    private void startGuideWhenQuiet(final String placeId, final String mapName, final long deadline) {
+        if (!placeId.equals(pendingGuidePlace)) return;  // отменено (стоп, сон)
+        LiveVoice l = live;
+        if (l != null && l.isActive() && l.isPlaying() && System.currentTimeMillis() < deadline && webView != null) {
+            webView.postDelayed(() -> startGuideWhenQuiet(placeId, mapName, deadline), 200L);
+            return;
+        }
+        pendingGuidePlace = "";
+        startGuidedNavigation(placeId, mapName, false);
+    }
+
+    private void startGuidedNavigation(final String placeId, final String mapName, final boolean auto) {
+        if (webView == null || isFinishing() || !activityVisible) return;
+        if (!robotApiReady()) { reportTrip(placeId, auto, "failed", "api_error", 0, 0); return; }
+        java.util.List<String> places = fetchMapPlaces();
+        if (!places.isEmpty()) { mapPlaces = places; LiveVoice l0 = live; if (l0 != null) l0.setPlaces(places); }
+        if (!places.isEmpty() && !places.contains(mapName)) {
+            navLog("точки «" + mapName + "» нет на карте: " + places);
+            reportTrip(placeId, auto, "failed", "unknown_place", 0, 0);
+            return;
+        }
+        if (navigating) {
+            if (placeId.equals(navPlaceId) && navAuto == auto) return;
+            // Другая точка: гасим прежнюю поездку и даём шасси время подтвердить остановку (иначе -1 ALREADY_RUN)
+            stopGuidedNavigation("new_command");
+            webView.postDelayed(() -> startGuidedNavigation(placeId, mapName, auto), 800L);
+            return;
+        }
+        if (followingPerson) stopFollowingPerson(false, listeningLanguage);
+        cancelReturnHome();
+        greetingMotionGeneration++;
+        uiJs("window.onGreetingMotion && window.onGreetingMotion(false)");
+        try { RobotApi.getInstance().stopMove(nextRobotRequestId(), motionListener("Стоп перед поездкой")); } catch (Throwable ignored) { }
+        final int gen = ++navGeneration;
+        int rc;
+        try {
+            // Те же параметры, что у ручной навигации (navigateRobotTo): допуск 0,35 м, объезд до 15 с, 0,20 м/с, 0,53 рад/с
+            rc = RobotApi.getInstance().startNavigation(nextRobotRequestId(), mapName, 0.35, 15000L, 0.20, 0.53, navListener(gen));
+        } catch (Throwable e) {
+            navLog("startNavigation exception " + e.getClass().getSimpleName() + " " + e.getMessage());
+            rc = Integer.MIN_VALUE;
+        }
+        if (rc < 0) {
+            navLog("startNavigation «" + mapName + "» rc=" + rc + " — не поехали");
+            if (rc == ACTION_RESPONSE_ALREADY_RUN) try { RobotApi.getInstance().stopNavigation(nextRobotRequestId()); } catch (Throwable ignored) { }
+            reportTrip(placeId, auto, "failed", "api_error", 0, rc);
+            return;
+        }
+        navigating = true;
+        navAuto = auto;
+        navPlaceId = placeId;
+        navMapName = mapName;
+        navStartedAt = System.currentTimeMillis();
+        navObstacleSince = 0;
+        navLastObstaclePhraseAt = 0;
+        navLastStatus = "";
+        navLog("поездка к " + placeId + " («" + mapName + "») rc=" + rc + (auto ? " авто-возврат" : ""));
+        LiveVoice l = live;
+        if (l != null) l.sendState(true, placeId, null, null, auto);
+        pushNavigationUi();
+        webView.removeCallbacks(navTimeoutRunnable);
+        webView.postDelayed(navTimeoutRunnable, TRIP_TIMEOUT_MS);
+        webView.removeCallbacks(navObstacleRunnable);
+        webView.postDelayed(navObstacleRunnable, 1000L);
+    }
+
+    private ActionListener navListener(final int gen) {
+        return new ActionListener() {
+            @Override public void onStatusUpdate(int status, String data) { runOnUiThread(() -> navStatus(gen, status, data)); }
+            @Override public void onStatusUpdate(int status, String data, String extra) { runOnUiThread(() -> navStatus(gen, status, data)); }
+            @Override public void onResult(int status, String response) { runOnUiThread(() -> navResult(gen, status, response)); }
+            @Override public void onResult(int status, String response, String extra) { runOnUiThread(() -> navResult(gen, status, response)); }
+            @Override public void onError(int code, String message) { runOnUiThread(() -> navError(gen, code, message)); }
+            @Override public void onError(int code, String message, String extra) { runOnUiThread(() -> navError(gen, code, message)); }
+        };
+    }
+
+    private void navStatus(int gen, int status, String data) {
+        if (gen != navGeneration || !navigating) return;
+        navLastStatus = status + (data == null || data.isEmpty() ? "" : " " + data);
+        navLog("status " + navLastStatus);
+        switch (status) {
+            case STATUS_NAVI_AVOID: case STATUS_NAVI_OBSTACLES_AVOID: case STATUS_NAVI_AVOID_IMMEDIATELY:
+                if (navObstacleSince == 0) navObstacleSince = System.currentTimeMillis();
+                break;
+            case STATUS_NAVI_AVOID_END: case STATUS_NAVI_OBSTACLES_DISAPPEAR:
+                navObstacleSince = 0;
+                break;
+            case STATUS_NAVI_OUT_MAP: case STATUS_NAVI_GLOBAL_PATH_FAILED:
+                // Дока: при «путь не построен» / «вне карты» рекомендуется stopNavigation; итог — неудача
+                try { RobotApi.getInstance().stopNavigation(nextRobotRequestId()); } catch (Throwable ignored) { }
+                finishTrip("failed", "no_route", status);
+                break;
+            default: break;
+        }
+    }
+
+    private void navResult(int gen, int status, String response) {
+        if (gen != navGeneration || !navigating) return;
+        navLog("result " + status + " " + response);
+        if (status == RESULT_OK) finishTrip("true".equals(response) ? "arrived" : "failed", "true".equals(response) ? null : "api_error", status);
+        else if (status == ACTION_RESPONSE_STOP_SUCCESS) finishTrip("stopped", "robot", status);
+        else finishTrip("failed", "api_error", status);
+    }
+
+    private void navError(int gen, int code, String message) {
+        if (gen != navGeneration || !navigating) return;
+        navLog("error " + code + " " + message);
+        switch (code) {
+            case ERROR_IN_DESTINATION: finishTrip("arrived", null, code); break;                       // уже на месте
+            case ERROR_DESTINATION_NOT_EXIST: finishTrip("failed", "unknown_place", code); break;
+            case ERROR_DESTINATION_CAN_NOT_ARRIVE: case ERROR_NAVIGATION_AVOID_TIMEOUT:
+                finishTrip("failed", "obstacle", code); break;                                           // объезд не удался
+            case ERROR_NOT_ESTIMATE: case ERROR_NAVIGATION: case ERROR_NAVIGATION_FAILED:
+                finishTrip("failed", "no_route", code); break;                                           // не локализован / нет пути
+            default: finishTrip("failed", "api_error", code); break;
+        }
+    }
+
+    private void finishTrip(String result, String reason) { finishTrip(result, reason, 0); }
+
+    /** Итог поездки любым путём (колбэк, стоп, таймаут): state серверу, баннер, журнал, таймер возврата на пост. */
+    private void finishTrip(String result, String reason, int code) {
+        if (!navigating) return;
+        navigating = false;
+        navGeneration++;
+        final String placeId = navPlaceId;
+        final boolean auto = navAuto;
+        long seconds = Math.max(0, (System.currentTimeMillis() - navStartedAt) / 1000);
+        if (webView != null) { webView.removeCallbacks(navTimeoutRunnable); webView.removeCallbacks(navObstacleRunnable); }
+        navObstacleSince = 0;
+        reportTrip(placeId, auto, result, reason, seconds, code);
+        pushNavigationUi();
+        lastFriendlyLookAt = 0;  // слежение головой возобновляется
+        // Где робот: на посту — только если доехал до HOME; иначе (доехал в другую точку, застрял, остановлен) — не на посту
+        awayFromHome = !("arrived".equals(result) && HOME_PLACE_ID.equals(placeId));
+        if (!awayFromHome) { returnHomeFailures = 0; return; }
+        if (auto && !"stopped".equals(result)) {
+            // Авто-возврат не удался (нет пути, не локализован…): ещё одна попытка через 3 мин, потом ждём новой поездки
+            returnHomeFailures++;
+            if (returnHomeFailures >= RETURN_HOME_MAX_FAILURES) {
+                navLog("авто-возврат не удался " + returnHomeFailures + " раз(а) — до следующей поездки не повторяем");
+                return;
+            }
+        } else if (!auto) returnHomeFailures = 0;
+        scheduleReturnHome();
+    }
+
+    private void reportTrip(String placeId, boolean auto, String result, String reason, long seconds, int code) {
+        lastTripPlace = placeId; lastTripResult = result; lastTripReason = reason == null ? "" : reason;
+        lastTripSeconds = seconds; lastTripAt = System.currentTimeMillis(); lastTripAuto = auto; lastTripCode = code;
+        navLog("итог " + placeId + ": " + result + (reason == null ? "" : "/" + reason) + " за " + seconds + " с" + (auto ? " (авто)" : ""));
+        LiveVoice l = live;
+        if (l != null) l.sendState(false, placeId, result, reason, auto);
+    }
+
+    /** Остановить поездку (стоп с сервера, кнопка, тап, сон, обрыв live). Без поездки — ничего. */
+    private void stopGuidedNavigation(String reason) {
+        pendingGuidePlace = "";
+        if (!navigating) return;
+        navLog("стоп (" + reason + ")");
+        try { RobotApi.getInstance().stopNavigation(nextRobotRequestId()); } catch (Throwable e) { navLog("stopNavigation exception " + e); }
+        finishTrip("stopped", reason);
+    }
+
+    private final Runnable navTimeoutRunnable = () -> {
+        if (!navigating) return;
+        navLog("поездка: нет итога за " + TRIP_TIMEOUT_MS / 1000 + " с → stopNavigation");
+        try { RobotApi.getInstance().stopNavigation(nextRobotRequestId()); } catch (Throwable ignored) { }
+        finishTrip("failed", "timeout");
+    };
+
+    /** Препятствие дольше 5 с — короткая просьба пропустить на языке экрана, не чаще раза в 10 с. */
+    private final Runnable navObstacleRunnable = new Runnable() {
+        @Override public void run() {
+            if (!navigating || webView == null) return;
+            long now = System.currentTimeMillis();
+            if (navObstacleSince > 0 && now - navObstacleSince >= OBSTACLE_PHRASE_AFTER_MS
+                && now - navLastObstaclePhraseAt >= OBSTACLE_PHRASE_INTERVAL_MS) {
+                navLastObstaclePhraseAt = now;
+                speakNavPhrase();
+            }
+            webView.postDelayed(this, 1000L);
+        }
+    };
+
+    /** Локальная фраза поездки через серверный TTS (Speaker → ServerTts /v1/tts), без interrupt серверу. */
+    private void speakNavPhrase() {
+        String lang = effectiveAnswerLanguage(listeningLanguage);
+        final String text = lang.startsWith("kk") ? "Өтінемін, жол беріңіз." : "Пожалуйста, пропустите.";
+        LiveVoice l = live;
+        if (l != null && l.isActive() && l.isPlaying()) return;  // сервер говорит — не перебиваем
+        if (speakingNow) return;
+        try {
+            if (speaker == null) speaker = createSpeaker();
+            uiJs("window.onFacePhrase && window.onFacePhrase(" + JSONObject.quote(text) + ")");
+            speaker.speak(text, lang, (usedRobotTts, error) -> { if (error != null) navLog("фраза препятствия: " + error); });
+        } catch (Throwable e) { navLog("фраза препятствия: " + e); }
+    }
+
+    /** Баннер поездки на лице (face.js: window.onNavigation). */
+    private void pushNavigationUi() {
+        JSONObject j = new JSONObject();
+        try {
+            j.put("navigating", navigating).put("auto", navigating ? navAuto : lastTripAuto)
+                .put("place_id", navigating ? navPlaceId : lastTripPlace).put("map_name", navigating ? navMapName : "");
+            if (!navigating) j.put("result", lastTripResult).put("reason", lastTripReason);
+        } catch (Exception ignored) { }
+        uiJs("window.onNavigation && window.onNavigation(" + j + ")");
+    }
+
+    // --- авто-возврат на пост (решение владельца 10.11): 3 мин без разговора после поездки → молча на HOME ---
+    private final Runnable returnHomeRunnable = new Runnable() {
+        @Override public void run() {
+            if (!awayFromHome || navigating || webView == null || !activityVisible) return;
+            LiveVoice l = live;
+            boolean busy = speakingNow || holdRecording || (l != null && l.isActive() && l.isPlaying());
+            if (busy) { webView.postDelayed(this, RETURN_HOME_BUSY_RETRY_MS); return; }
+            navLog("авто-возврат: " + RETURN_HOME_IDLE_MS / 1000 + " с без разговора → «" + HOME_MAP_NAME + "»");
+            startGuidedNavigation(HOME_PLACE_ID, HOME_MAP_NAME, true);
+        }
+    };
+
+    private void scheduleReturnHome() {
+        if (!awayFromHome || webView == null) return;
+        webView.removeCallbacks(returnHomeRunnable);
+        webView.postDelayed(returnHomeRunnable, RETURN_HOME_IDLE_MS);
+    }
+
+    private void cancelReturnHome() { if (webView != null) webView.removeCallbacks(returnHomeRunnable); }
+
+    /** Речь посетителя, ход сервера, тап — отсчёт возврата на пост начинается заново (вызов из любого потока). */
+    private void touchReturnHome() { if (awayFromHome && !navigating) scheduleReturnHome(); }
 
     // ---------- диагностика робота → наш сервер (POST /v1/robot/diag, журнал robot_diag) ----------
     // ADB на роботе закрыт: чтобы видеть, почему не двигается голова (видит ли лица, доходят ли команды и что
@@ -299,8 +614,18 @@ public class MainActivity extends Activity {
                 .put("polls_face_list", diagFaceListPolls).put("polls_bodies_only", diagPersonsPolls)
                 .put("head_rc", diagLastHeadRc == Integer.MIN_VALUE ? JSONObject.NULL : (Object) diagLastHeadRc)
                 .put("control", KurultaiApplication.controlAvailable).put("suspends", KurultaiApplication.suspendCount)
-                .put("hw", KurultaiApplication.lastHwReport);
+                .put("hw", KurultaiApplication.lastHwReport)
+                // навигация (docs/kurultai/navigation.md): текущая поездка, последняя поездка, точки карты
+                .put("navigating", navigating).put("nav_place", navigating ? navPlaceId : "").put("nav_auto", navigating && navAuto)
+                .put("nav_last_status", navLastStatus).put("nav_log", diagLastNav)
+                .put("away_from_home", awayFromHome)
+                .put("places", new JSONArray(mapPlaces))
+                .put("last_trip", lastTripAt == 0 ? JSONObject.NULL : new JSONObject()
+                    .put("place_id", lastTripPlace).put("result", lastTripResult).put("reason", lastTripReason)
+                    .put("code", lastTripCode).put("seconds", lastTripSeconds).put("auto", lastTripAuto)
+                    .put("at", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ROOT).format(new Date(lastTripAt))));
         } catch (Exception ignored) { return; }
+        refreshMapPlacesAsync();  // список точек к следующему отчёту и для hello.places
         diagPolls = diagPollSkipped = diagFacesPolls = diagFacesMax = diagHeadSent = diagMotionResults = 0;
         diagFaceListPolls = diagPersonsPolls = 0;
         diagPersonError = "";
@@ -357,8 +682,8 @@ public class MainActivity extends Activity {
                 if (personPresent) runOnUiThread(() -> {
                     setHandsFreeStatus("Посетитель отошёл");
                     greetingMotionGeneration++;
-                    stopRobotMotion();
-                    lookAtVisitor(0, 34);
+                    // В поездке посетитель идёт за роботом и пропадает из кадра — поездку не трогаем
+                    if (!navigating) { stopRobotMotion(); lookAtVisitor(0, 34); }
                     uiJs("window.onGreetingMotion && window.onGreetingMotion(false)");
                 });
                 personPresent = false;
@@ -468,6 +793,7 @@ public class MainActivity extends Activity {
             if (ready && skillApi != null) {
                 connectRobotSpeech();
                 registerPersonDetection();
+                refreshMapPlacesAsync();  // точки карты → hello.places
                 if (webView != null) {
                     webView.removeCallbacks(personPollRunnable);
                     webView.post(personPollRunnable);
@@ -584,10 +910,11 @@ public class MainActivity extends Activity {
             webView.removeCallbacks(idleGlanceRunnable);
             webView.removeCallbacks(profileRetry);
             webView.removeCallbacks(diagRunnable);
+            webView.removeCallbacks(returnHomeRunnable);
         }
         unregisterPersonDetection();
         pauseListeningInternal();
-        stopRobotMotion();
+        stopRobotMotion();  // гасит и поездку (finishTrip «stopped»)
         super.onPause();
     }
 
@@ -684,7 +1011,10 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public void sleepNow() { runOnUiThread(() -> goToSleep("double tap")); }
 
-        @JavascriptInterface public void wakeUp() { runOnUiThread(() -> wakeUpRobot(true)); }
+        @JavascriptInterface public void wakeUp() { runOnUiThread(() -> { touchReturnHome(); wakeUpRobot(true); }); }
+
+        /** Тап по баннеру поездки или по лицу во время поездки: остановить робота (state stopped). */
+        @JavascriptInterface public void stopNavigation() { runOnUiThread(() -> { touchReturnHome(); stopGuidedNavigation("tap"); }); }
 
         // × in the corner: close the whole app (onPause/onDestroy stop voice, motion and TTS)
         @JavascriptInterface public void exitApp() { runOnUiThread(() -> finishAndRemoveTask()); }
@@ -754,6 +1084,8 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public void stopSpeaking() {
             runOnUiThread(() -> {
+                touchReturnHome();
+                stopGuidedNavigation("button");  // кнопка «Стоп» в поездке — остановка
                 if (speaker != null) speaker.stop();
                 finishSpeakingCycle();
             });
@@ -855,12 +1187,14 @@ public class MainActivity extends Activity {
         if (!robotApiReady()) return;
         try { RobotApi.getInstance().stopMove(nextRobotRequestId(), motionListener("Стоп")); } catch (Throwable ignored) { }
         try { RobotApi.getInstance().stopNavigation(nextRobotRequestId()); } catch (Throwable ignored) { }
+        finishTrip("stopped", "manual");  // кто остановил движение — остановил и поездку (без поездки — no-op)
     }
 
     private void navigateRobotTo(String placeName) {
         String destination = placeName == null ? "" : placeName.trim();
         if (destination.isEmpty()) { uiJs("window.onMotionError && window.onMotionError('Введите название точки карты')"); return; }
         if (!robotApiReady()) { uiJs("window.onMotionError && window.onMotionError('RobotOS недоступен')"); return; }
+        stopGuidedNavigation("manual");  // ручная навигация из настроек перебивает поездку «проводить»
         try {
             RobotApi.getInstance().startNavigation(nextRobotRequestId(), destination, 0.35, 15000L, 0.20, 0.53, new ActionListener() {
                 @Override public void onResult(int status, String response) { uiJs("window.onMotionStatus && window.onMotionStatus(" + JSONObject.quote("Навигация: " + response) + ")"); }
@@ -940,7 +1274,8 @@ public class MainActivity extends Activity {
     }
 
     private void lookAtVisitor(int horizontal, int vertical) {
-        if (!robotApiReady()) return;
+        // В поездке шасси и голова у навигации (как Head.setNavigating у Astana Hub): взгляды не шлём
+        if (!robotApiReady() || navigating) return;
         lastLookH = Math.max(-55, Math.min(55, horizontal));
         lastLookV = Math.max(22, Math.min(48, vertical));
         diagHeadSent++;
@@ -955,7 +1290,7 @@ public class MainActivity extends Activity {
     }
 
     private void alignBodyToFace(int angle) {
-        if (!robotApiReady() || followingPerson || Math.abs(angle) < 24) return;
+        if (!robotApiReady() || followingPerson || navigating || Math.abs(angle) < 24) return;
         long now = System.currentTimeMillis();
         if (now - lastBodyAlignAt < 3200L) return;
         lastBodyAlignAt = now;
@@ -969,7 +1304,7 @@ public class MainActivity extends Activity {
     }
 
     private void playFriendlyGreetingMotion(int visitorAngle) {
-        if (!robotApiReady() || webView == null) return;
+        if (!robotApiReady() || webView == null || navigating) return;
         final int generation = ++greetingMotionGeneration;
         final int angle = Math.max(-45, Math.min(45, visitorAngle));
         lastFriendlyLookAt = System.currentTimeMillis();
@@ -1256,6 +1591,7 @@ public class MainActivity extends Activity {
             speakAnswer(language.startsWith("kk") ? "Мен сіздің артыңыздан келе жатырмын." : "Я уже следую за вами.", language);
             return;
         }
+        stopGuidedNavigation("new_command");  // следование и поездка делят шасси
         followingPerson = true;
         continuousListening = true;
         greetingMotionGeneration++;
@@ -1853,6 +2189,8 @@ public class MainActivity extends Activity {
     /** Нажатие круга в live: открыть разговор, а если робот говорит — перебить. false — live не используется. */
     private boolean liveTap() {
         if (!liveEnabled()) { checkLiveProfileAsync(); return false; }
+        touchReturnHome();
+        if (navigating) { stopGuidedNavigation("button"); return true; }  // круг микрофона в поездке — «Стоп»
         LiveVoice l = live;
         if (l != null && l.isActive()) {
             l.interrupt();  // кнопка в live — только «стоп»: разговор и так всегда слушает
@@ -1877,6 +2215,8 @@ public class MainActivity extends Activity {
         android.util.Log.i("KurultaiLive", "sleep: " + reason);
         asleep = true;
         wakePending = false;
+        // Двойной тап в поездке — стоп; авто-возврат на пост сон не отменяет (идёт и во сне)
+        if (navigating && !navAuto) stopGuidedNavigation("sleep");
         LiveVoice l = live;
         if (l != null && l.isActive()) l.interrupt();
         stopLive();
@@ -1914,11 +2254,15 @@ public class MainActivity extends Activity {
         holdRecording = false;
         try { wavRecorder.cancel(); } catch (Throwable ignored) { }
         if (live == null) live = new LiveVoice(this, BuildConfig.BACKEND_URL, BuildConfig.LIVE_TOKEN, liveListener);
+        live.setPlaces(mapPlaces);  // в первый hello — точки карты (если RobotAPI их уже отдал)
         live.start(effectiveAnswerLanguage(listeningLanguage), greet);
     }
 
     private void stopLive() {
         if (webView != null) webView.removeCallbacks(liveReconnect);
+        // Live закрывается в поездке «проводить» (сон, настройки, уход с экрана) — сначала стоп и state, пока сокет жив.
+        // Авто-возврат на пост от live не зависит.
+        if (navigating && !navAuto) stopGuidedNavigation("live_closed");
         LiveVoice l = live;
         if (l != null && l.isActive()) l.stop();
     }
@@ -1944,7 +2288,7 @@ public class MainActivity extends Activity {
         }
         @Override public void onUserText(String text, boolean isFinal, String lang) {
             if (text == null || text.isEmpty()) return;
-            if (isFinal) lastUserText = text;
+            if (isFinal) { lastUserText = text; touchReturnHome(); }
             if (isFinal && ("ru".equals(lang) || "kk".equals(lang)) && !lang.equals(listeningLanguage)) {
                 // фраза явно на другом языке — сервер перешёл на него; экран следом (без обратного hello)
                 listeningLanguage = lang;
@@ -1956,7 +2300,11 @@ public class MainActivity extends Activity {
             uiJs("window.onFaceHeard && window.onFaceHeard(" + JSONObject.quote(text) + ")");
         }
         @Override public void onPhrase(String text) {
+            touchReturnHome();  // ход сервера — разговор идёт, возврат на пост откладывается
             uiJs("window.onFacePhrase && window.onFacePhrase(" + JSONObject.quote(text) + ")");
+        }
+        @Override public void onAction(String type, String placeId, String mapName, String turnId) {
+            runOnUiThread(() -> handleLiveAction(type, placeId, mapName, turnId));
         }
         @Override public void onEmotion(String name) {
             uiJs("window.onFaceEmotion && window.onFaceEmotion(" + JSONObject.quote(name == null ? "" : name) + ")");
@@ -1981,6 +2329,8 @@ public class MainActivity extends Activity {
             liveFailedAt = System.currentTimeMillis();
             long delay = Math.min(10_000L, 2_000L * (++liveRetries));
             android.util.Log.w("KurultaiLive", "live failed: " + error + "; reconnect in " + delay + " ms");
+            // Обрыв связи в поездке «проводить» — остановиться (сервер больше не ведёт разговор); авто-возврат идёт дальше
+            runOnUiThread(() -> { if (navigating && !navAuto) stopGuidedNavigation("offline"); });
             if (liveRetries == 1 || liveRetries % 5 == 0) {
                 String msg = "Связь с сервером прервалась, переподключаюсь";
                 uiJs("window.toast && window.toast(" + JSONObject.quote(msg) + "); window.onFaceNotice && window.onFaceNotice(" + JSONObject.quote(msg) + ")");
@@ -2236,6 +2586,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         activityVisible = false;
+        if (webView != null) { webView.removeCallbacks(returnHomeRunnable); webView.removeCallbacks(navTimeoutRunnable); webView.removeCallbacks(navObstacleRunnable); }
         stopLive();
         unregisterPersonDetection();
         if (speaker != null) speaker.shutdown();

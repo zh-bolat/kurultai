@@ -305,3 +305,28 @@
   перебивание, один клиент ElevenLabs на сервер, сводка без блокировки цикла, код закрытия сокета для Realtime.
 - Пробник живого режима сквозь сервер: `backend/scripts/run_live_probe.sh [ru|kk|all] [повторов]` — вопросы голосом
   Dmitry в `/v1/live`, печатает распознанное, первый звук, конец ответа и сам ответ; p50/p95.
+
+## 2026-11-10: робот едет «проводить» и сам возвращается на пост (приложение, контракт `navigation.md`)
+- **LiveVoice**: кадр сервера `action` (`guide_to` / `stop_navigation`, `place_id`, `map_name`, `turn_id`) →
+  `Listener.onAction`; в `hello` — `places` (имена точек карты из `getPlaceList`, повторный `hello` при изменении);
+  `sendState(navigating, place_id, result, reason, auto)` → `{"type":"state",…}` без null-полей.
+- **MainActivity**: `guide_to` → проверка точки в `getPlaceList` (нет → `failed/unknown_place`), повтор к той же точке —
+  игнор, звук ещё играет — ждём до 8 с; `startNavigation(map_name, 0.35, 15000, 0.20, 0.53)` как у ручной навигации, но с
+  полным `ActionListener`: `RESULT_OK "true"` / `-113` → `arrived`; `-108` → `unknown_place`; `-109`/`-136` → `obstacle`;
+  `-116`/`-104`/`-120`, статусы 1020/1025 → `no_route` (+ `stopNavigation`); остальное → `api_error`; таймаут поездки
+  120 с → `stopNavigation` + `failed/timeout`. Препятствие (1018/1023/1051) дольше 5 с → «Пожалуйста, пропустите» /
+  «Өтінемін, жол беріңіз» через серверный TTS не чаще раза в 10 с. Стоп: `action stop_navigation`, кнопка «Стоп»
+  (`stopSpeaking`), круг микрофона, тап по лицу или баннеру, двойной тап (сон), обрыв live, закрытие live, ручная
+  навигация из настроек → `stopNavigation` + `state stopped` (reason — источник). Фразу прибытия робот не говорит.
+- В поездке голова и корпус у навигации: `lookAtVisitor`, `alignBodyToFace`, приветственный поворот, «взгляды по
+  сторонам» молчат; уход посетителя из кадра поездку не останавливает (раньше `stopRobotMotion` гасил навигацию).
+  Сон по простою не наступает, пока `navigating`.
+- **Авто-возврат на пост** (решение владельца 10.11): после итога поездки не в `home` — 3 мин без речи посетителя,
+  ходов сервера и тапов → молча `startNavigation("Пункт приема")`, `state … place_id:"home" auto:true`; идёт и во сне,
+  обрыв live не мешает; тап по лицу — стоп и обычное пробуждение; две неудачи подряд — ждём следующей поездки.
+- **Экран**: баннер `#faceNav` (слой 9100) «Еду: Музей Курултая · нажмите, чтобы остановить» / «Возвращаюсь на место»
+  (`face.js` `onNavigation`, таблица названий ru/kk по `place_id`), новый мост `Robot.stopNavigation()`.
+- **Диагностика** `/v1/robot/diag`: `navigating`, `nav_place`, `nav_auto`, `nav_last_status`, `nav_log`, `away_from_home`,
+  `places` (точки карты), `last_trip` {place_id, result, reason, code, seconds, auto, at}.
+- Не проверено на роботе (ADB закрыт): навигация, статусы RobotAPI, баннер на реальном WebView — см. отчёт в
+  `orchestration-log`/задаче; `hello.places` и `state` требуют серверной части контракта.

@@ -68,6 +68,7 @@
   let state = 'sleep', mood = null, moodTimer = null, shownExpr = '', level = 0, lastTouch = Date.now(), subTimer = null;
 
   function render() {
+    try { renderNav(); } catch (e) { /* баннер ещё не создан */ }  // баннер поездки — на языке экрана
     root.querySelectorAll('#faceLang button').forEach(b => b.classList.toggle('on', b.getAttribute('data-l') === lang()));
     const x = mood || STATE_EXPR[state] || 'neutral';
     if (x !== shownExpr) { svg.innerHTML = EXPR[x](); shownExpr = x; }
@@ -134,6 +135,50 @@
   const prevLevel = window.onVoiceLevel;
   window.onVoiceLevel = (lvl, robot) => { if (prevLevel) prevLevel(lvl, robot); level = Math.max(level, Number(lvl) || 0); };
 
+  /* --- поездка «проводить» (docs/kurultai/navigation.md): баннер поверх лица, тап по нему или по лицу — стоп.
+     Java → window.onNavigation({navigating, place_id, map_name, auto, result, reason}); слой 9100 (лицо 9000, PIN 9500). --- */
+  const PLACES = {  // place_id контракта → имя для баннера; home — пост робота (авто-возврат)
+    museum: { ru: 'Музей Курултая', kk: 'Құрылтай мұражайы' },
+    restroom: { ru: 'Туалет', kk: 'Дәретхана' },
+    wardrobe: { ru: 'Гардероб', kk: 'Гардероб' },
+    lobby: { ru: 'Холл', kk: 'Холл' },
+    invitation_room: { ru: 'Комната для приглашённых', kk: 'Шақырылғандар бөлмесі' },
+    reception: { ru: 'Пункт приёма', kk: 'Қабылдау пункті' },
+    home: { ru: 'Пост робота', kk: 'Робот орны' },
+  };
+  const NAV_TXT = {
+    ru: { going: 'Еду: ', home: 'Возвращаюсь на место', stop: 'нажмите, чтобы остановить' },
+    kk: { going: 'Бара жатырмын: ', home: 'Орныма қайтамын', stop: 'тоқтату үшін басыңыз' },
+  };
+  const navBar = document.createElement('div');
+  navBar.id = 'faceNav';
+  navBar.hidden = true;
+  navBar.innerHTML = '<b id="faceNavTitle"></b><small id="faceNavHint"></small>';
+  document.body.appendChild(navBar);
+  let navigating = false, navInfo = null;
+  function renderNav() {
+    if (!navigating || !navInfo) { navBar.hidden = true; return; }
+    const L = lang(), tx = NAV_TXT[L], p = PLACES[navInfo.place_id];
+    const name = p ? p[L] : (navInfo.map_name || navInfo.place_id || '');
+    navBar.querySelector('#faceNavTitle').textContent = navInfo.auto || navInfo.place_id === 'home' ? tx.home : tx.going + name;
+    navBar.querySelector('#faceNavHint').textContent = tx.stop;
+    navBar.hidden = false;
+  }
+  window.onNavigation = info => {
+    try { if (typeof info === 'string') info = JSON.parse(info); } catch (e) { info = null; }
+    navInfo = info || null;
+    navigating = !!(info && info.navigating);
+    if (navigating) showFace();  // поездка идёт с лица: баннер и глаза
+    renderNav();
+  };
+  function stopNavigation() { if (window.Robot && Robot.stopNavigation) Robot.stopNavigation(); }
+  // касания баннера не доходят до лица (иначе тап разбудил бы/усыпил), сам баннер — «стоп»
+  ['touchstart', 'touchmove', 'pointerdown', 'mousedown'].forEach(type => navBar.addEventListener(type, e => e.stopPropagation(), { passive: true }));
+  let navTapAt = 0;
+  const navTap = e => { e.stopPropagation(); const now = Date.now(); if (now - navTapAt < 600) return; navTapAt = now; stopNavigation(); };
+  navBar.addEventListener('touchend', navTap, { passive: true });
+  navBar.addEventListener('click', navTap);
+
   /* --- лицо ↔ страница --- */
   function showFace() {
     root.classList.remove('hidden', 'dragging'); root.style.transform = ''; toFace.hidden = true; document.documentElement.classList.add('face-on');
@@ -186,6 +231,11 @@
     }
     lastTap = now;
     tapTimer = setTimeout(() => {
+      if (navigating) {  // тап по лицу в поездке — стоп; во сне (авто-возврат) — ещё и обычное пробуждение
+        stopNavigation();
+        if (state === 'sleep') { notice(''); if (window.Robot && Robot.wakeUp) Robot.wakeUp(); }
+        return;
+      }
       if (state === 'sleep') { notice(''); if (window.Robot && Robot.wakeUp) Robot.wakeUp(); }
       else window.onFaceEmotion('happy');
     }, 380);
