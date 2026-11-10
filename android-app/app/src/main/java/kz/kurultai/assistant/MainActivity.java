@@ -607,6 +607,7 @@ public class MainActivity extends Activity {
             d.put("version", BuildConfig.VERSION_NAME).put("webview", webViewVersion()).put("api_ready", robotApiReady())
                 .put("person_listener", personListenerRegistered).put("welcome", welcomeMode).put("asleep", asleep)
                 .put("person_present", personPresent).put("following", followingPerson).put("speaking", speakingNow)
+                .put("person_present_effective", presenceEffective).put("presence_source", presenceSource)
                 .put("polls", diagPolls).put("polls_skipped", diagPollSkipped).put("polls_with_faces", diagFacesPolls)
                 .put("faces_max", diagFacesMax).put("last_face", diagLastFace).put("person_error", diagPersonError)
                 .put("head_sent", diagHeadSent).put("motion_results", diagMotionResults)
@@ -892,6 +893,8 @@ public class MainActivity extends Activity {
             webView.postDelayed(idleGlanceRunnable, 5000L);
             webView.removeCallbacks(diagRunnable);
             webView.postDelayed(diagRunnable, 10_000L);
+            webView.removeCallbacks(presenceTickRunnable);
+            webView.postDelayed(presenceTickRunnable, 1000L);
         }
         checkLiveProfileAsync();
         maybeAutoStartLive();
@@ -910,6 +913,7 @@ public class MainActivity extends Activity {
             webView.removeCallbacks(idleGlanceRunnable);
             webView.removeCallbacks(profileRetry);
             webView.removeCallbacks(diagRunnable);
+            webView.removeCallbacks(presenceTickRunnable);
             webView.removeCallbacks(returnHomeRunnable);
         }
         unregisterPersonDetection();
@@ -1011,10 +1015,10 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public void sleepNow() { runOnUiThread(() -> goToSleep("double tap")); }
 
-        @JavascriptInterface public void wakeUp() { runOnUiThread(() -> { touchReturnHome(); wakeUpRobot(true); }); }
+        @JavascriptInterface public void wakeUp() { runOnUiThread(() -> { touchReturnHome(); noteFaceTap(); wakeUpRobot(true); }); }
 
         /** Тап по баннеру поездки или по лицу во время поездки: остановить робота (state stopped). */
-        @JavascriptInterface public void stopNavigation() { runOnUiThread(() -> { touchReturnHome(); stopGuidedNavigation("tap"); }); }
+        @JavascriptInterface public void stopNavigation() { runOnUiThread(() -> { touchReturnHome(); noteFaceTap(); stopGuidedNavigation("tap"); }); }
 
         // × in the corner: close the whole app (onPause/onDestroy stop voice, motion and TTS)
         @JavascriptInterface public void exitApp() { runOnUiThread(() -> finishAndRemoveTask()); }
@@ -1332,14 +1336,53 @@ public class MainActivity extends Activity {
 
     // ---------- человек перед роботом → live (docs/kurultai/robot-settings.md): state person_present, не чаще раза в 1 с ----------
     private static final long PRESENCE_MIN_INTERVAL_MS = 1000L;
+    // Камера на роботе видит лица не всегда (диагностика 07.11), а в «шумном дне» person_present=false глушит ответы.
+    // Поэтому серверу уходит «эффективное» присутствие: лицо в кадре сейчас ИЛИ с последнего тапа по лицу / пробуждения
+    // прошло < 90 с ИЛИ с последней реплики посетителя (user_final) / хода сервера (turn_start) прошло < 60 с (идёт диалог).
+    private static final long PRESENCE_TAP_WINDOW_MS = 90_000L;
+    private static final long PRESENCE_DIALOG_WINDOW_MS = 60_000L;
     private long presenceSentAt;
+    private volatile long lastFaceTapAt, lastDialogAt;
+    private volatile boolean presenceEffective;
+    private volatile String presenceSource = "none";   // face / tap / dialog / none — в diag
     private final Runnable presenceRunnable = this::pushPresence;
+    private final Runnable presenceTickRunnable = new Runnable() {
+        @Override public void run() {
+            if (webView == null) return;
+            updatePresence();   // «false» уходит, когда окно тапа/диалога истекло
+            webView.postDelayed(this, 1000L);
+        }
+    };
 
-    /** Единственная точка смены personPresent: слежение за лицом, сон, снятие слушателя. Вызов из любого потока. */
+    /** Единственная точка смены personPresent (лицо в кадре): слежение за лицом, сон, снятие слушателя. Любой поток. */
     private void setPersonPresent(boolean present) {
         if (personPresent == present) return;
         personPresent = present;
-        runOnUiThread(this::pushPresence);
+        runOnUiThread(this::updatePresence);
+    }
+
+    /** Тап по лицу / пробуждение — 90 с считаем, что человек перед роботом. */
+    private void noteFaceTap() { lastFaceTapAt = System.currentTimeMillis(); runOnUiThread(this::updatePresence); }
+
+    /** Реплика посетителя или ход сервера — 60 с считаем, что человек перед роботом. */
+    private void noteDialog() { lastDialogAt = System.currentTimeMillis(); runOnUiThread(this::updatePresence); }
+
+    private String presenceSourceNow() {
+        long now = System.currentTimeMillis();
+        if (personPresent) return "face";
+        if (now - lastFaceTapAt < PRESENCE_TAP_WINDOW_MS) return "tap";
+        if (now - lastDialogAt < PRESENCE_DIALOG_WINDOW_MS) return "dialog";
+        return "none";
+    }
+
+    /** UI-поток: пересчитать эффективное присутствие; изменилось — отправить (дроссель 1 с в pushPresence). */
+    private void updatePresence() {
+        String src = presenceSourceNow();
+        boolean effective = !"none".equals(src);
+        presenceSource = src;
+        if (effective == presenceEffective) return;
+        presenceEffective = effective;
+        pushPresence();
     }
 
     private void pushPresence() {
@@ -1349,7 +1392,7 @@ public class MainActivity extends Activity {
         if (wait > 0) { webView.postDelayed(presenceRunnable, wait); return; }
         presenceSentAt = System.currentTimeMillis();
         LiveVoice l = live;
-        if (l != null) l.setPersonPresent(personPresent);
+        if (l != null) l.setPersonPresent(presenceEffective);
     }
 
     private void returnRobotToCharge() {
@@ -2358,6 +2401,7 @@ public class MainActivity extends Activity {
     private void wakeUpRobot(boolean greet) {
         if (!asleep) return;
         asleep = false;
+        noteFaceTap();   // пробуждение любым путём — человек рядом (окно 90 с)
         uiJs("window.showFace && window.showFace(); window.onFaceState && window.onFaceState('listening')");
         if (liveEnabled()) { startLive(greet); return; }
         asleep = true;
@@ -2385,7 +2429,8 @@ public class MainActivity extends Activity {
         try { wavRecorder.cancel(); } catch (Throwable ignored) { }
         if (live == null) live = new LiveVoice(this, BuildConfig.BACKEND_URL, BuildConfig.LIVE_TOKEN, liveListener);
         live.setPlaces(mapPlaces);  // в первый hello — точки карты (если RobotAPI их уже отдал)
-        live.setPersonPresent(personPresent);  // и person_present (docs/kurultai/robot-settings.md)
+        updatePresence();
+        live.setPersonPresent(presenceEffective);  // и person_present — эффективное: лицо / тап < 90 с / диалог < 60 с
         live.start(effectiveAnswerLanguage(listeningLanguage), greet);
     }
 
@@ -2419,7 +2464,7 @@ public class MainActivity extends Activity {
         }
         @Override public void onUserText(String text, boolean isFinal, String lang) {
             if (text == null || text.isEmpty()) return;
-            if (isFinal) { lastUserText = text; touchReturnHome(); }
+            if (isFinal) { lastUserText = text; touchReturnHome(); noteDialog(); }
             if (isFinal && ("ru".equals(lang) || "kk".equals(lang)) && !lang.equals(listeningLanguage)) {
                 // фраза явно на другом языке — сервер перешёл на него; экран следом (без обратного hello)
                 listeningLanguage = lang;
@@ -2430,6 +2475,7 @@ public class MainActivity extends Activity {
             uiJs("window.onVoicePartial && window.onVoicePartial(" + JSONObject.quote(text) + ")");
             uiJs("window.onFaceHeard && window.onFaceHeard(" + JSONObject.quote(text) + ")");
         }
+        @Override public void onTurnStart() { noteDialog(); }
         @Override public void onPhrase(String text) {
             touchReturnHome();  // ход сервера — разговор идёт, возврат на пост откладывается
             uiJs("window.onFacePhrase && window.onFacePhrase(" + JSONObject.quote(text) + ")");

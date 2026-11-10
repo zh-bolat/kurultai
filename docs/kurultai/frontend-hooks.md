@@ -48,8 +48,9 @@
   `LiveVoice.Listener.onAction(...)` → `MainActivity.handleLiveAction`.
 - `state` от робота: `{"type":"state","navigating":true|false,"place_id","result","reason","auto"}` — `LiveVoice.sendState(...)`,
   null-поля не шлются, `auto: true` только при авто-возврате на пост.
-- `{"type":"state","person_present":true|false}` — `LiveVoice.setPersonPresent(...)` при смене присутствия (слежение за лицом,
-  не чаще раза в 1 с, повторы не шлются); в `hello` — поле `person_present` (контракт `robot-settings.md`, режим «шумный день»).
+- `{"type":"state","person_present":true|false}` — `LiveVoice.setPersonPresent(...)` при смене **эффективного** присутствия
+  (лицо в кадре ∨ тап/пробуждение < 90 с ∨ реплика/ход сервера < 60 с; не чаще раза в 1 с, повторы не шлются); в `hello` — поле
+  `person_present` (контракт `robot-settings.md`, режим «шумный день»). Тапы, которые считаются: `Robot.wakeUp`, `Robot.stopNavigation`.
 
 ## Вкладка «Робот и настройки» (10.11, контракт `robot-settings.md`)
 Разметка в `index.html` (`#robot`), логика — блок «Робот и настройки» в `app.js`. Убраны: ключ OpenRouter, модели, собственный шлюз,

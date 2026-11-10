@@ -48,6 +48,8 @@ final class LiveVoice {
         void onPhrase(String text);
         /** Ход закончен и доигран: полный текст ответа, язык. */
         void onTurnDone(String answer, String lang);
+        /** Сервер начал ход (turn_start) — идёт диалог (для person_present). */
+        void onTurnStart();
         void onIgnored(String reason);
         /** Сессия упала или закрыта сервером: робот переходит на обычный режим. */
         void onFailed(String error);
@@ -313,6 +315,7 @@ final class LiveVoice {
             case "ignored": listener.onIgnored(str(msg, "reason")); listener.onState("listening"); break;
             case "thinking": listener.onState("thinking"); break;
             case "turn_start":
+                listener.onTurnStart();
                 currentTurn = str(msg, "turn_id");
                 dropping = false;
                 turnEnded = false;

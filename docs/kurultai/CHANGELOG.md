@@ -351,10 +351,13 @@
   (без зарядных: «заряд»/«пополнен»/«charg») · разблокировка, стрелки, голова · строка «Последняя поездка: Музей Курултая —
   приехал, 42 с · 14:05» из `last_trip`. Данные — `Robot.getRobotSystemStatus()` → `window.onRobotInfo(json)` (вместо
   `onRobotSystemStatus`), Java шлёт его и после каждой смены поездки. Переводы ru/kk в `T{}` блока.
-- **Присутствие человека**: `setPersonPresent()` — единственная точка смены `personPresent` в `MainActivity`; live получает
+- **Присутствие человека**: `setPersonPresent()` — единственная точка смены `personPresent` (лицо в кадре) в `MainActivity`.
+  Серверу уходит **эффективное** присутствие (решение 10.11, камера видит лица не всегда): лицо в кадре сейчас ИЛИ с последнего
+  тапа по лицу / пробуждения прошло < 90 с ИЛИ с последней реплики посетителя (`user_final`) / хода сервера (`turn_start`)
+  прошло < 60 с; пересчёт раз в секунду (`presenceTickRunnable`), чтобы `false` ушёл по истечении окна. Live получает
   `{"type":"state","person_present":…}` при смене (не чаще раза в 1 с, без повторов) и поле `person_present` в `hello`
-  (досылается после `ready`, если успело измениться). В `/v1/robot/diag` — `settings_seen` {engine_selected, engine_effective,
-  noise_mode, credits, at}.
+  (досылается после `ready`, если успело измениться). В `/v1/robot/diag` — `person_present_effective`, `presence_source`
+  (face / tap / dialog / none) и `settings_seen` {engine_selected, engine_effective, noise_mode, credits, at}.
 - Не проверено на роботе: реальный ответ сервера `/v1/robot/settings` (серверная часть делается параллельно), PIN-окно на
   тач-экране робота, «На пост» и список точек (RobotAPI), `person_present` в шумном режиме — камера на роботе иногда не видит
-  лица (диагностика 07.11): если `person_present=false` при стоящем человеке, в режиме «шумный день» робот не ответит.
+  лица (диагностика 07.11) — поэтому окна 90 с после тапа и 60 с после реплики; проверить по `presence_source` в diag.
