@@ -54,3 +54,8 @@ APK в git не хранятся (`*.apk` в `.gitignore`): в них вшит �
 Промежуточная точка: образ `kurultai-robot-api:realtime-eff4c03` на VPS — Realtime-гибрид без поиска (работал
 9.11, миграций после 0005 не знает → тоже с `DB_AUTO_MIGRATE=false`).
 Перед любым откатом — свежая копия базы: `~/kurultai-backup/kurultai-backup.sh` (см. `backup/README.md`).
+
+## Навигация: 2026-11-10 11:41
+Сервер `4df2ef9` (поиск `5a26831` + навигация по `navigation.md`), приложение `5.50-e79feb4-20261110` на `/app`.
+Образ до навигации сохранён как `kurultai-robot-api:rag-5a26831` (откат: `docker tag … kurultai-robot-api:local` + `up -d`
+без `--build`; миграций после 0006 нет, `.env` менять не нужно). Предыдущий APK `5.50-52280ee-20261107` остаётся на `/app`.
