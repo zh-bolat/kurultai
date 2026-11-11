@@ -267,7 +267,7 @@ final class LiveVoice {
         if (!active) return;
         boolean wasPlaying = playing || (currentTurn != null && !turnEnded);
         if (!wasPlaying) return;
-        flushPlayback();
+        fadeOutPlayback();
         dropping = currentTurn != null;
         sendJson("{\"type\":\"interrupt\"}");
         listener.onState("listening");
@@ -315,6 +315,7 @@ final class LiveVoice {
             case "ignored": listener.onIgnored(str(msg, "reason")); listener.onState("listening"); break;
             case "thinking": listener.onState("thinking"); break;
             case "turn_start":
+                turnSeq++;   // идущее затухание прежнего ответа не должно сбросить звук нового
                 listener.onTurnStart();
                 currentTurn = str(msg, "turn_id");
                 dropping = false;
@@ -338,7 +339,7 @@ final class LiveVoice {
                 watchPlaybackDone(str(msg, "turn_id").isEmpty() ? currentTurn : str(msg, "turn_id"));
                 break;
             case "interrupted":
-                flushPlayback();
+                fadeOutPlayback();   // «стоп»: голос затухает за четверть секунды, а не обрывается щелчком
                 dropping = true;
                 listener.onState("listening");
                 break;
@@ -557,6 +558,38 @@ final class LiveVoice {
             long frames = track.getPlaybackHeadPosition() & 0xFFFFFFFFL;
             return frames * 2 >= playedBytes - playRate / 10;
         }
+    }
+
+    private static final int FADE_MS = 260;
+    private static final int FADE_STEPS = 13;
+    private volatile int turnSeq;
+
+    /**
+     * Плавно замолчать — как человек, которого перебили: громкость уходит в ноль за FADE_MS, потом буфер
+     * сбрасывается. Новое в очередь уже не попадает (dropping), затухает то, что звучит. Нет звука — обычный сброс.
+     */
+    private void fadeOutPlayback() {
+        final AudioTrack t;
+        final int gen;
+        final int seq = turnSeq;
+        synchronized (playLock) { t = track; gen = flushGen; }
+        if (t == null || !playing) { flushPlayback(); return; }
+        playQueue.clear();
+        Thread fade = new Thread(() -> {
+            try {
+                for (int i = FADE_STEPS - 1; i >= 0; i--) {
+                    float v = (float) i / FADE_STEPS;
+                    t.setVolume(v * v);   // квадратичная кривая на слух ровнее линейной
+                    Thread.sleep(FADE_MS / FADE_STEPS);
+                }
+            } catch (Throwable ignored) { }
+            boolean same;
+            synchronized (playLock) { same = gen == flushGen && seq == turnSeq; }
+            if (same) flushPlayback();   // за это время буфер никто не сбрасывал и новый ответ не начинался
+            try { t.setVolume(1f); } catch (Throwable ignored) { }
+        }, "live-fade");
+        fade.setDaemon(true);
+        fade.start();
     }
 
     private void flushPlayback() {
